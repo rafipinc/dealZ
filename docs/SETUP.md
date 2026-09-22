@@ -59,6 +59,13 @@ npx supabase init    # writes supabase/config.toml
 npx supabase start   # Postgres on 54322, Studio on http://127.0.0.1:54323
 ```
 
+Done on 2026-09-22. Notes from doing it:
+
+- Docker on Rafi's machine is Colima, not Docker Desktop. `colima start` first. The stack's analytics log shipper mounts the Docker socket, which Colima cannot provide, so `[analytics] enabled = false` is set in `supabase/config.toml`. Nothing in DealZ reads analytics.
+- `supabase/config.toml` and `supabase/.gitignore` are committed. `supabase/.temp` is not.
+- Supabase's own `supabase/migrations/` and `seed.sql` stay empty on purpose; Drizzle owns the schema. So `npx supabase db reset` rebuilds an empty database, and `npx drizzle-kit migrate` must be run again afterwards.
+- The database container is `supabase_db_DealZ`. For a quick query without installing psql: `docker exec -i supabase_db_DealZ psql -U postgres`.
+
 Create `.env.local` (ignored by git):
 
 ```bash
@@ -118,18 +125,21 @@ Scripts in `package.json`:
 ## 4. Migrations
 
 ```bash
+set -a && source .env.local && set +a              # drizzle-kit does not read .env.local itself
 npx drizzle-kit generate --name init              # SQL from schema.ts
 npx drizzle-kit generate --custom --name triggers # creates an empty migration file
-# paste the contents of src/db/sql/triggers.sql into that file
+cp src/db/sql/triggers.sql drizzle/migrations/0001_triggers.sql   # then: cmp the two files
 npx drizzle-kit migrate
 npx drizzle-kit studio                            # optional: browse the tables
 ```
+
+Done on 2026-09-22: `0000_init.sql` and `0001_triggers.sql` are in `drizzle/migrations/` and applied locally. `generate` needs `DIRECT_URL` set to any value to read the config; only `migrate` connects. The Drizzle migrator records applied migrations in `drizzle.__drizzle_migrations`.
 
 Rules: migrations are reviewed as SQL before they are applied and never edited afterwards. `src/db/sql/triggers.sql` and the custom migration must stay identical; if a trigger changes, it changes in both, through a new custom migration.
 
 ## 5. Checks after the first migrate
 
-Each of these must fail with the named error. They become the PGlite test suite in phase 1.
+Each of these must fail with the named error. They become the PGlite test suite in phase 1. All nine were run by hand against the local stack on 2026-09-22 and failed as expected.
 
 | Try | Expect |
 |---|---|

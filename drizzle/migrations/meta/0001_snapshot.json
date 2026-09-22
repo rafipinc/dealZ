@@ -1,0 +1,967 @@
+{
+  "id": "897642d9-7a7e-49cd-a05e-bbe564a3fddb",
+  "prevId": "93aa4c61-6940-472d-b4f8-fcce2d525434",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.deal": {
+      "name": "deal",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "price_observation_id": {
+          "name": "price_observation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commentary": {
+          "name": "commentary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "deal_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_status_published_idx": {
+          "name": "deal_status_published_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "published_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "deal_observation_idx": {
+          "name": "deal_observation_idx",
+          "columns": [
+            {
+              "expression": "price_observation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "deal_price_observation_id_price_observation_id_fk": {
+          "name": "deal_price_observation_id_price_observation_id_fk",
+          "tableFrom": "deal",
+          "columnsFrom": [
+            "price_observation_id"
+          ],
+          "tableTo": "price_observation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "deal_published_has_timestamp": {
+          "name": "deal_published_has_timestamp",
+          "value": "\"deal\".\"status\" <> 'published' OR \"deal\".\"published_at\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.identifier": {
+      "name": "identifier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "identifier_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retailer_id": {
+          "name": "retailer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "identifier_variant_idx": {
+          "name": "identifier_variant_idx",
+          "columns": [
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "identifier_variant_id_variant_id_fk": {
+          "name": "identifier_variant_id_variant_id_fk",
+          "tableFrom": "identifier",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "tableTo": "variant",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "identifier_retailer_id_retailer_id_fk": {
+          "name": "identifier_retailer_id_retailer_id_fk",
+          "tableFrom": "identifier",
+          "columnsFrom": [
+            "retailer_id"
+          ],
+          "tableTo": "retailer",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "identifier_type_value_retailer_uq": {
+          "name": "identifier_type_value_retailer_uq",
+          "columns": [
+            "type",
+            "value",
+            "retailer_id"
+          ],
+          "nullsNotDistinct": true
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "identifier_retailer_only_for_sku": {
+          "name": "identifier_retailer_only_for_sku",
+          "value": "(\"identifier\".\"type\" = 'retailer_sku') = (\"identifier\".\"retailer_id\" IS NOT NULL)"
+        },
+        "identifier_gtin_is_14_digits": {
+          "name": "identifier_gtin_is_14_digits",
+          "value": "\"identifier\".\"type\" <> 'gtin' OR \"identifier\".\"value\" ~ '^[0-9]{14}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.listing": {
+      "name": "listing",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retailer_id": {
+          "name": "retailer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canonical_url": {
+          "name": "canonical_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retailer_sku": {
+          "name": "retailer_sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retailer_title": {
+          "name": "retailer_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "condition": {
+          "name": "condition",
+          "type": "listing_condition",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unknown'"
+        },
+        "condition_confidence": {
+          "name": "condition_confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "condition_notes": {
+          "name": "condition_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warranty_months": {
+          "name": "warranty_months",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "match_method": {
+          "name": "match_method",
+          "type": "match_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "match_confidence": {
+          "name": "match_confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "matched_at": {
+          "name": "matched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "listing_variant_idx": {
+          "name": "listing_variant_idx",
+          "columns": [
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "listing_variant_id_variant_id_fk": {
+          "name": "listing_variant_id_variant_id_fk",
+          "tableFrom": "listing",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "tableTo": "variant",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "listing_retailer_id_retailer_id_fk": {
+          "name": "listing_retailer_id_retailer_id_fk",
+          "tableFrom": "listing",
+          "columnsFrom": [
+            "retailer_id"
+          ],
+          "tableTo": "retailer",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "listing_retailer_url_uq": {
+          "name": "listing_retailer_url_uq",
+          "columns": [
+            "retailer_id",
+            "canonical_url"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "listing_condition_confidence_range": {
+          "name": "listing_condition_confidence_range",
+          "value": "\"listing\".\"condition_confidence\" BETWEEN 0 AND 1"
+        },
+        "listing_match_confidence_range": {
+          "name": "listing_match_confidence_range",
+          "value": "\"listing\".\"match_confidence\" BETWEEN 0 AND 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.price_observation": {
+      "name": "price_observation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "listing_id": {
+          "name": "listing_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_cents": {
+          "name": "price_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'AUD'"
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "source": {
+          "name": "source",
+          "type": "observation_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "supersedes_id": {
+          "name": "supersedes_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw": {
+          "name": "raw",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "price_observation_listing_time_idx": {
+          "name": "price_observation_listing_time_idx",
+          "columns": [
+            {
+              "expression": "listing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "observed_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "price_observation_supersedes_idx": {
+          "name": "price_observation_supersedes_idx",
+          "columns": [
+            {
+              "expression": "supersedes_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"price_observation\".\"supersedes_id\" IS NOT NULL",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "price_observation_listing_id_listing_id_fk": {
+          "name": "price_observation_listing_id_listing_id_fk",
+          "tableFrom": "price_observation",
+          "columnsFrom": [
+            "listing_id"
+          ],
+          "tableTo": "listing",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "price_observation_supersedes_id_price_observation_id_fk": {
+          "name": "price_observation_supersedes_id_price_observation_id_fk",
+          "tableFrom": "price_observation",
+          "columnsFrom": [
+            "supersedes_id"
+          ],
+          "tableTo": "price_observation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "price_observation_price_non_negative": {
+          "name": "price_observation_price_non_negative",
+          "value": "\"price_observation\".\"price_cents\" >= 0"
+        },
+        "price_observation_confidence_range": {
+          "name": "price_observation_confidence_range",
+          "value": "\"price_observation\".\"confidence\" BETWEEN 0 AND 1"
+        },
+        "price_observation_currency_iso4217": {
+          "name": "price_observation_currency_iso4217",
+          "value": "\"price_observation\".\"currency\" ~ '^[A-Z]{3}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.product": {
+      "name": "product",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brand": {
+          "name": "brand",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "series": {
+          "name": "series",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "release_year": {
+          "name": "release_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "product_slug_unique": {
+          "name": "product_slug_unique",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        },
+        "product_brand_series_year_uq": {
+          "name": "product_brand_series_year_uq",
+          "columns": [
+            "brand",
+            "series",
+            "release_year"
+          ],
+          "nullsNotDistinct": true
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "product_slug_format": {
+          "name": "product_slug_format",
+          "value": "\"product\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.retailer": {
+      "name": "retailer",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "domain": {
+          "name": "domain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "retailer_slug_unique": {
+          "name": "retailer_slug_unique",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        },
+        "retailer_domain_unique": {
+          "name": "retailer_domain_unique",
+          "columns": [
+            "domain"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "retailer_slug_format": {
+          "name": "retailer_slug_format",
+          "value": "\"retailer\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.variant": {
+      "name": "variant",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "colour": {
+          "name": "colour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "region": {
+          "name": "region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rrp_cents": {
+          "name": "rrp_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attributes": {
+          "name": "attributes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "variant_product_id_product_id_fk": {
+          "name": "variant_product_id_product_id_fk",
+          "tableFrom": "variant",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "tableTo": "product",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "variant_product_slug_uq": {
+          "name": "variant_product_slug_uq",
+          "columns": [
+            "product_id",
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "variant_slug_format": {
+          "name": "variant_slug_format",
+          "value": "\"variant\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "variant_region_iso3166": {
+          "name": "variant_region_iso3166",
+          "value": "\"variant\".\"region\" ~ '^[A-Z]{2}$'"
+        },
+        "variant_rrp_non_negative": {
+          "name": "variant_rrp_non_negative",
+          "value": "\"variant\".\"rrp_cents\" IS NULL OR \"variant\".\"rrp_cents\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.deal_status": {
+      "name": "deal_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "published",
+        "expired",
+        "retracted"
+      ]
+    },
+    "public.identifier_type": {
+      "name": "identifier_type",
+      "schema": "public",
+      "values": [
+        "gtin",
+        "mpn",
+        "retailer_sku"
+      ]
+    },
+    "public.listing_condition": {
+      "name": "listing_condition",
+      "schema": "public",
+      "values": [
+        "new",
+        "refurbished_manufacturer",
+        "refurbished_seller",
+        "factory_second",
+        "display_model",
+        "open_box",
+        "used",
+        "unknown"
+      ]
+    },
+    "public.match_method": {
+      "name": "match_method",
+      "schema": "public",
+      "values": [
+        "manual",
+        "gtin",
+        "mpn",
+        "title",
+        "llm"
+      ]
+    },
+    "public.observation_source": {
+      "name": "observation_source",
+      "schema": "public",
+      "values": [
+        "manual",
+        "scrape",
+        "api"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
