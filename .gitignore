@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# environment
+.env
+.env.*
+!.env.example
+
+# test and build output
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# supabase local stack
+supabase/.temp/
+supabase/.branches/
+
+# os and editors
+.DS_Store
+.idea/
+.vscode/

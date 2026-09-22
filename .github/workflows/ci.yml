@@ -1,0 +1,94 @@
+# CI gate for every pull request and for main. Policy: docs/TESTING.md.
+# Live from the phase 1 scaffold; until package.json exists, only the docs and
+# e2e-registry steps can pass.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint, tests, migrations, e2e registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run db:check
+        env:
+          # drizzle-kit check reads the config, which references DIRECT_URL; it does not connect.
+          DIRECT_URL: postgresql://unused:unused@localhost:5432/unused
+      - run: node scripts/check-e2e-coverage.mjs
+
+  docs:
+    name: Markdown links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --no-progress --include-fragments './**/*.md'
+          fail: true
+
+  e2e:
+    name: Playwright
+    runs-on: ubuntu-latest
+    needs: check
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - id: specs
+        name: Are there spec files yet
+        run: |
+          if ls e2e/*.spec.ts >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No e2e specs yet; skipping Playwright."
+          fi
+      - if: steps.specs.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.specs.outputs.present == 'true'
+        run: npm ci
+      - if: steps.specs.outputs.present == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.specs.outputs.present == 'true'
+        run: npm run db:migrate
+      - if: steps.specs.outputs.present == 'true'
+        run: npm run build
+      - if: steps.specs.outputs.present == 'true'
+        run: npm run test:e2e
+      - if: always() && steps.specs.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
