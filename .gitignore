@@ -4,7 +4,9 @@ node_modules/
 # next.js
 .next/
 out/
+build/
 next-env.d.ts
+.vercel
 
 # environment
 .env
@@ -20,6 +22,10 @@ test-results/
 # supabase local stack
 supabase/.temp/
 supabase/.branches/
+
+# debug and misc
+npm-debug.log*
+*.pem
 
 # os and editors
 .DS_Store

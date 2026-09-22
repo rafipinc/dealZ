@@ -13,6 +13,7 @@ When a document is added, renamed or retired, this table changes in the same com
 |---|---|---|---|
 | [README.md](../README.md) | story | What DealZ is, the stack, how it is built | The stack or a phase changes |
 | [CLAUDE.md](../CLAUDE.md) and the nested files in `src/`, `src/db/`, `docs/`, `e2e/` | ops | Rules Claude follows: layers, delegation, definition of done, session protocol | A convention changes, with an ADR |
+| [AGENTS.md](../AGENTS.md) | ops | Next.js's managed block pointing agents at the docs bundled for the installed version | Never by hand. `next dev` rewrites it; commit what it writes |
 | [STATUS.md](STATUS.md) | ops | Current phase, what exists, what is next, what is open | End of every session |
 | [MISSION.md](MISSION.md) | story | Why the product exists, in Rafi's words | Rarely |
 | [WORKING_RULES.md](WORKING_RULES.md) | both | How Rafi and Claude work together | A working rule changes |

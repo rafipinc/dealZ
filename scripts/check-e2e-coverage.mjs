@@ -30,7 +30,10 @@ const rows = readFileSync(registryPath, "utf8")
   .split("\n")
   .filter((line) => /^\|\s*J-\d{3}\s*\|/.test(line))
   .map((line) => {
-    const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
+    const cells = line
+      .split("|")
+      .slice(1, -1)
+      .map((cell) => cell.trim());
     const [id, journey, actor, phase, status, spec = ""] = cells;
     return { id, journey, actor, phase, status, spec: spec.replace(/^`|`$/g, "") };
   });
@@ -58,7 +61,9 @@ for (const row of rows) {
   seen.add(row.id);
 
   if (!STATUSES.has(row.status)) {
-    errors.push(`${where}: unknown status "${row.status}"; expected one of ${[...STATUSES].join(", ")}`);
+    errors.push(
+      `${where}: unknown status "${row.status}"; expected one of ${[...STATUSES].join(", ")}`,
+    );
     continue;
   }
 
@@ -67,11 +72,19 @@ for (const row of rows) {
   if (specPath) claimed.add(resolve(specPath));
 
   if (NEEDS_SPEC.has(row.status)) {
-    if (!row.spec) errors.push(`${where}: status ${row.status} but no spec named; add e2e/${row.id}-<slug>.spec.ts and fill the Spec column`);
+    if (!row.spec)
+      errors.push(
+        `${where}: status ${row.status} but no spec named; add e2e/${row.id}-<slug>.spec.ts and fill the Spec column`,
+      );
     else if (!specExists) errors.push(`${where}: spec e2e/${row.spec} does not exist`);
-    else if (!readFileSync(specPath, "utf8").includes(row.id)) errors.push(`${where}: e2e/${row.spec} does not mention ${row.id}; put the ID in the top-level test.describe title`);
+    else if (!readFileSync(specPath, "utf8").includes(row.id))
+      errors.push(
+        `${where}: e2e/${row.spec} does not mention ${row.id}; put the ID in the top-level test.describe title`,
+      );
   } else if (specExists) {
-    errors.push(`${where}: status ${row.status} but e2e/${row.spec} exists; set the status to required, or delete the spec`);
+    errors.push(
+      `${where}: status ${row.status} but e2e/${row.spec} exists; set the status to required, or delete the spec`,
+    );
   }
 }
 
@@ -79,13 +92,20 @@ for (const file of specFiles(e2eDir)) {
   const abs = resolve(file);
   if (!claimed.has(abs)) {
     const idInName = relative(e2eDir, file).match(/J-\d{3}/)?.[0];
-    const hint = idInName && seen.has(idInName) ? `set ${idInName}'s Spec column to ${relative(e2eDir, file)}` : "add a row to e2e/JOURNEYS.md";
+    const hint =
+      idInName && seen.has(idInName)
+        ? `set ${idInName}'s Spec column to ${relative(e2eDir, file)}`
+        : "add a row to e2e/JOURNEYS.md";
     errors.push(`e2e/${relative(e2eDir, file)}: no journey names this spec; ${hint}`);
   }
 }
 
-const counts = Object.fromEntries([...STATUSES].map((status) => [status, rows.filter((row) => row.status === status).length]));
-const summary = `${rows.length} journeys (${Object.entries(counts).map(([status, count]) => `${count} ${status}`).join(", ")}), ${claimed.size} specs`;
+const counts = Object.fromEntries(
+  [...STATUSES].map((status) => [status, rows.filter((row) => row.status === status).length]),
+);
+const summary = `${rows.length} journeys (${Object.entries(counts)
+  .map(([status, count]) => `${count} ${status}`)
+  .join(", ")}), ${claimed.size} specs`;
 
 if (errors.length > 0) {
   console.error(`e2e coverage: FAIL, ${summary}`);
