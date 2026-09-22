@@ -140,7 +140,9 @@ export const identifier = pgTable(
   (t) => [
     // NULLS NOT DISTINCT is what makes this hold for GTIN and MPN rows, where
     // retailer_id is null. Without it Postgres treats every null as distinct.
-    unique("identifier_type_value_retailer_uq").on(t.type, t.value, t.retailerId).nullsNotDistinct(),
+    unique("identifier_type_value_retailer_uq")
+      .on(t.type, t.value, t.retailerId)
+      .nullsNotDistinct(),
     index("identifier_variant_idx").on(t.variantId),
     check(
       "identifier_retailer_only_for_sku",

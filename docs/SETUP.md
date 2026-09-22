@@ -35,15 +35,22 @@ docs/
 
 ```bash
 git init
-npx create-next-app@latest /tmp/dealz-scaffold --yes --typescript --app --src-dir --eslint --tailwind --disable-git
-rsync -a --exclude README.md /tmp/dealz-scaffold/ ./
+npx create-next-app@latest /tmp/dealz-scaffold --yes --typescript --app --src-dir --eslint --tailwind --disable-git --use-npm --skip-install
+rsync -a --exclude README.md --exclude CLAUDE.md --exclude AGENTS.md --exclude .gitignore /tmp/dealz-scaffold/ ./
+cp /tmp/dealz-scaffold/AGENTS.md ./AGENTS.md
 npm install
+npm i -D @types/node@^22        # the scaffold pins 20; Vitest wants types matching the Node 22 runtime
 npm i drizzle-orm postgres zod drizzle-zod
-npm i -D drizzle-kit vitest @vitest/coverage-v8 @electric-sql/pglite
+npm i -D drizzle-kit vitest @vitest/coverage-v8 @electric-sql/pglite prettier
 # phase 3, with the first public page: npm i -D @playwright/test && npx playwright install chromium
 ```
 
-Tailwind comes with the scaffold because removing it later costs more than ignoring it until phase 3.
+Done on 2026-09-22. Notes from doing it:
+
+- The scaffold writes its own `CLAUDE.md` (one line, `@AGENTS.md`) and `AGENTS.md`. Ours must not be overwritten, hence the excludes. `AGENTS.md` is kept: `next dev` upserts a managed block into it, and while it exists `CLAUDE.md` is left alone. The block tells an agent to read the docs bundled at `node_modules/next/dist/docs/` for this exact Next.js version.
+- The scaffold's `.gitignore` entries were merged into the project one by hand.
+- Tailwind comes with the scaffold because removing it later costs more than ignoring it until phase 3.
+- `npm audit` reports four moderate findings, all one esbuild issue inside drizzle-kit's bundled loader. Dev-only, no fix without a major downgrade. Accepted until drizzle-kit ships a fix.
 
 ## 2. Local database
 
@@ -88,18 +95,25 @@ const sql = postgres(process.env.DATABASE_URL!, { prepare: false }); // pooler-s
 export const db = drizzle(sql, { schema });
 ```
 
+`vitest.config.mts` sets `environment: node`, `include: src/**/*.test.ts`, `passWithNoTests`, and v8 coverage over `src/lib` and `src/services` only with the 90 percent thresholds from [TESTING.md](TESTING.md). The `.mts` extension is deliberate: Vite loads a `.ts` config as CommonJS and warns.
+
 Scripts in `package.json`:
 
 ```json
-"db:generate": "drizzle-kit generate",
-"db:migrate":  "drizzle-kit migrate",
-"db:check":    "drizzle-kit check",
-"db:studio":   "drizzle-kit studio",
-"typecheck":   "tsc --noEmit",
-"test":        "vitest run --coverage",
-"test:db":     "vitest run src/db",
-"test:e2e":    "playwright test"
+"typecheck":    "next typegen && tsc --noEmit",
+"lint":         "eslint",
+"format":       "prettier --write .",
+"format:check": "prettier --check .",
+"test":         "vitest run --coverage",
+"test:db":      "vitest run src/db",
+"test:e2e":     "playwright test",
+"db:generate":  "drizzle-kit generate",
+"db:migrate":   "drizzle-kit migrate",
+"db:check":     "drizzle-kit check",
+"db:studio":    "drizzle-kit studio"
 ```
+
+`typecheck` runs `next typegen` first because Next generates the global `LayoutProps` and `PageProps` helpers into `.next/types`, which is ignored by git. Without it a fresh checkout fails to compile. Prettier ignores Markdown (`.prettierignore`): the documents keep their own table style. `.env.example` holds the two variable names with the local values.
 
 ## 4. Migrations
 
