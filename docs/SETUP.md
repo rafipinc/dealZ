@@ -7,9 +7,10 @@ Stack: Next.js (App Router, TypeScript), Supabase Postgres, Drizzle ORM, drizzle
 ## Prerequisites
 
 - Node 22 LTS and npm
-- Docker Desktop, for the local Supabase stack
+- Docker (Desktop or Colima; see section 2), for the local Supabase stack
 - The Supabase CLI, run through `npx supabase`
 - A Supabase account. Create the production project when it is first deployed, not before
+- GitHub over SSH. The remote is `git@github.com:rafipinc/dealZ.git`. The GitHub CLI's HTTPS token lacks the `workflow` scope, so a push that touches `.github/workflows/` is refused over HTTPS. The CLI is also registered as git's HTTPS credential helper (`gh auth setup-git`, 2026-09-22), which is harmless while the remote is SSH
 
 ## Repo layout
 

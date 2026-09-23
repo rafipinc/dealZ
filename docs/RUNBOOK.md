@@ -6,7 +6,7 @@ Operating procedures for DealZ: environments, secrets, deploying, migrating, rol
 
 | Environment | App | Database | Status |
 |---|---|---|---|
-| Local | `next dev` on 3000 | Supabase CLI stack: Postgres on 54322, Studio on 54323 | Set up in phase 1 per SETUP.md |
+| Local | `next dev` on 3000 | Supabase CLI stack: Postgres on 54322, Studio on 54323 | Running since 2026-09-22 under Colima, analytics off. SETUP.md section 2 |
 | Preview | Vercel, one per pull request | Not decided: the production project, or a Supabase branch per preview. Open decision in ARCHITECTURE.md section 11 | Not yet created |
 | Production | Vercel, from `main` | One Supabase project | Not yet created. Created at first deploy, not before |
 
