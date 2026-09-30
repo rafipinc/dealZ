@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"is_product_page\": true,\n  \"product_title\": \"Samsung 65-inch S85H OLED 4K Smart TV\",\n  \"current_price\": 2795,\n  \"currency\": \"AUD\",\n  \"price_evidence\": \"Sale price: $2795\",\n  \"condition_words\": [],\n  \"is_bundle\": false,\n  \"availability\": \"unknown\",\n  \"doubts\": \"The page lists a regular price of $3295 and a sale price of $2795. The sale price is chosen as the current price.\",\n  \"gtin\": null,\n  \"model_code\": \"QA65S85HAEXXY\",\n  \"was_price\": 3295\n}",
+            "thoughtSignature": "EmAKXgFpFH0T7U3GHA4BVN4hgwjFxL3f/WEYgC+R6L8jfJQOEjuJxwGENCZnrQvK00aXcUHR4p4EYqYAfP/KXE/DRMTfmYjlZKSv1TUqEpN0JhkDI6wdRL/l6B1X6IKXuE4="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 766,
+    "candidatesTokenCount": 180,
+    "totalTokenCount": 946,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 766
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "jvm5aqqSH--1vr0Ph-TxyAs"
+}

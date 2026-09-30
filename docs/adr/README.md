@@ -15,6 +15,8 @@ One file per non-trivial decision, numbered and dated. Two paragraphs is enough:
 | [0009](0009-corrections-by-supersession.md) | Corrections supersede observations instead of outranking them | Accepted | 2026-09-17 |
 | [0010](0010-listing-match-audit-and-staging.md) | Every listing records its match; unmatched pages are staged, not stored as listings | Accepted | 2026-09-17 |
 | [0011](0011-development-conventions.md) | Development conventions: CLAUDE.md hierarchy, scoped subagents, test gates, documentation map | Accepted | 2026-09-22 |
+| [0012](0012-sources-layer-live-fetch-spike.md) | A sources layer for live retailer fetches, started as a phase 1 spike | Proposed | 2026-09-28 |
+| [0013](0013-llm-extraction-boundaries.md) | A language model reads pages without structured data, returns evidence, never sets a price on its own | Proposed | 2026-09-28 |
 
 ## Template
 

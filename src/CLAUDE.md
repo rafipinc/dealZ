@@ -10,6 +10,7 @@ Loads when a file under `src/` is read. The root CLAUDE.md and ARCHITECTURE.md s
 | Business rules | `src/services/<module>.ts` | `src/services/<module>.test.ts` |
 | Typed errors | `src/services/errors.ts` | With the service that throws them |
 | Pure helpers | `src/lib/<name>.ts` | `src/lib/<name>.test.ts` |
+| Retailer fetch and parse | `src/sources/<strategy>.ts` | `src/sources/<strategy>.test.ts`, replaying fixtures from `src/sources/fixtures/` |
 | Pages, server actions, route handlers | `src/app/` | Covered by e2e, not by unit tests |
 
 ## Rules the reviewer checks
@@ -22,6 +23,7 @@ Loads when a file under `src/` is read. The root CLAUDE.md and ARCHITECTURE.md s
 6. Money is integer cents. Timestamps are `timestamptz`. GTINs are 14 digits by the time they reach the database.
 7. Server components never fetch `/api/v1`. They call the service.
 8. No `any` at an exported boundary. `unknown` plus a Zod parse instead.
+9. `src/sources` imports `src/lib` only, takes `fetch` as a parameter, and throws `SourceError`. `src/app` never imports `src/sources`.
 
 ## Naming
 
