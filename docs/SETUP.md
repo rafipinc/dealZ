@@ -22,11 +22,15 @@ src/
     client.ts          # drizzle(postgres) instance, server-only
     queries/           # thin, typed read/write helpers
   services/            # business rules; the only callers of src/db
+  sources/             # one retailer page, aggregator query or archived page in; PriceQuotes out (ADR-0012)
   lib/                 # pure helpers: gtin, url, model-code parsing
   app/                 # pages, server actions, api/v1 route handlers
 drizzle/
   migrations/          # generated SQL and custom migrations, committed
 supabase/              # local stack config from `supabase init`; its migrations folder stays empty
+scripts/
+  keys.sh              # API keys in and out of the macOS Keychain (section 2, "API keys")
+  check-e2e-coverage.mjs
 docs/
 ```
 
@@ -76,6 +80,27 @@ DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
 In production the two differ. From the Supabase dashboard, Project Settings, Database: `DATABASE_URL` is the transaction pooler (port 6543) and `DIRECT_URL` is the session pooler or direct connection (port 5432). Set both in Vercel. The transaction pooler shares one server connection across many clients per statement, which breaks prepared statements and can break multi-statement migrations. The app runs through it with `prepare: false`; migrations go direct.
 
+### API keys
+
+Third-party API keys are not written to `.env.local` or to shell profiles. They live in the macOS login Keychain and are injected into one process at a time by `scripts/keys.sh`. The script knows the names the project uses; `.env.example` lists the same names with empty values so the set is documented.
+
+| Command | What it does |
+|---|---|
+| `scripts/keys.sh set GEMINI_API_KEY` | Stores a key. Prompts with hidden input, or reads stdin when piped |
+| `scripts/keys.sh list` | Shows which known keys are stored, never their values |
+| `scripts/keys.sh run -- npm run dev` | Runs a command with every stored key exported into it |
+| `npm run dev:keys` | The dev server with keys injected. `.claude/launch.json` uses this for the app's preview |
+| `scripts/keys.sh unset NAME` | Removes a key |
+
+Keys in use:
+
+| Name | Service | Needed for | Where to get it |
+|---|---|---|---|
+| `GEMINI_API_KEY` | Google Gemini | Extraction now, in the lab's model panel and as the page fallback; matching in phase 4 ([ADR-0013](adr/0013-llm-extraction-boundaries.md), proposed) | aistudio.google.com |
+| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, and the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8) | serpapi.com, free tier of about 100 calls a month; a search is two calls as a rule |
+
+Each key is one Keychain item named `dealz/NAME` under the login account, visible in Keychain Access. `npm run dev` without keys still works; the panels that need one show a setup notice. In CI and on Vercel there is no Keychain: CI needs no keys, and production values are entered in Vercel's dashboard, never copied from a laptop.
+
 ## 3. Config
 
 `drizzle.config.ts` at the repo root:
@@ -103,7 +128,7 @@ const sql = postgres(process.env.DATABASE_URL!, { prepare: false }); // pooler-s
 export const db = drizzle(sql, { schema });
 ```
 
-`vitest.config.mts` sets `environment: node`, `include: src/**/*.test.ts`, `passWithNoTests`, and v8 coverage over `src/lib` and `src/services` only with the 90 percent thresholds from [TESTING.md](TESTING.md). The `.mts` extension is deliberate: Vite loads a `.ts` config as CommonJS and warns.
+`vitest.config.mts` sets `environment: node`, `include: src/**/*.test.ts`, `passWithNoTests`, and v8 coverage over `src/lib`, `src/services` and `src/sources` (fixtures excluded) with the 90 percent thresholds from [TESTING.md](TESTING.md). It also maps the `@/` alias from `tsconfig.json` so runtime imports resolve under Vitest. `.claude/launch.json` names the `dev` server so the Claude desktop app can start `npm run dev` and open a preview. The `.mts` extension is deliberate: Vite loads a `.ts` config as CommonJS and warns.
 
 Scripts in `package.json`:
 
@@ -121,7 +146,7 @@ Scripts in `package.json`:
 "db:studio":    "drizzle-kit studio"
 ```
 
-`typecheck` runs `next typegen` first because Next generates the global `LayoutProps` and `PageProps` helpers into `.next/types`, which is ignored by git. Without it a fresh checkout fails to compile. Prettier ignores Markdown (`.prettierignore`): the documents keep their own table style. `.env.example` holds the two variable names with the local values.
+`typecheck` runs `next typegen` first because Next generates the global `LayoutProps` and `PageProps` helpers into `.next/types`, which is ignored by git. Without it a fresh checkout fails to compile. Prettier ignores Markdown (`.prettierignore`): the documents keep their own table style. `.env.example` holds the two database variables with the local values, and the API key names empty; the keys themselves come from the Keychain (section 2, "API keys").
 
 ## 4. Migrations
 

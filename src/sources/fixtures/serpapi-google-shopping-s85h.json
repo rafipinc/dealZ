@@ -1,0 +1,103 @@
+{
+  "_note": "Recorded from SerpApi on 2026-09-28 for q=Samsung QA65S85HAEXXY, gl=au. api_key redacted; thumbnails, icons and search metadata removed. immersive_product_page_token values shortened.",
+  "search_metadata": {
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google_shopping",
+    "q": "Samsung QA65S85HAEXXY",
+    "google_domain": "google.com.au",
+    "hl": "en",
+    "gl": "au",
+    "device": "desktop"
+  },
+  "search_information": {
+    "query_displayed": "Samsung QA65S85HAEXXY",
+    "shopping_results_state": "Showing results for exact spelling despite spelling suggestion",
+    "spelling_fix": "Samsung QA65S85FAEXXY"
+  },
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Samsung 77\" S85F OLED 4K Smart AI TV",
+      "product_id": "13520682220785396033",
+      "product_link": "https://www.google.com.au/search?ibp=oshop&q=Samsung QA65S85HAEXXY&prds=catalogid:13520682220785396033,productid:14382430912233184145,headlineOfferDocid:1855021828905573223,imageDocid:5412795794014343061,rds:PC_5587966289359113916|PROD_PC_5587966289359113916,gpcid:16611836496302731627,mid:576462834982033851,pvt:hg&hl=en&gl=au&udm=28",
+      "immersive_product_page_token": "TOKEN-1",
+      "source": "Desertcart.ae",
+      "price": "$4,151.49",
+      "extracted_price": 4151.49,
+      "alternative_price": {
+        "price": "AED 10,713",
+        "extracted_price": 10713,
+        "currency": "AED"
+      },
+      "rating": 5,
+      "reviews": 2100,
+      "delivery": "Free delivery"
+    },
+    {
+      "position": 2,
+      "title": "Samsung OLED S85F 4K Vision AI Smart TV",
+      "product_id": "10642254035323137035",
+      "product_link": "https://www.google.com.au/search?ibp=oshop&q=Samsung QA65S85HAEXXY&prds=catalogid:10642254035323137035,productid:8783489457962753785,headlineOfferDocid:885057495806209766,imageDocid:4137858857005551740,rds:PC_15039070498602466805|PROD_PC_15039070498602466805,gpcid:5587966289359113916,mid:576462834982033851,pvt:hg&hl=en&gl=au&udm=28",
+      "immersive_product_page_token": "TOKEN-2",
+      "source": "Electronics Centre",
+      "multiple_sources": true,
+      "price": "$3,149.00",
+      "extracted_price": 3149,
+      "old_price": "$4,888",
+      "extracted_old_price": 4888,
+      "rating": 5,
+      "reviews": 1100,
+      "tag": "35% OFF",
+      "extensions": ["35% OFF"]
+    },
+    {
+      "position": 3,
+      "title": "Samsung QE48S85HAEXZT TV 121.9 cm 4K Ultra HD Smart TV Wi-Fi",
+      "product_id": "14349997280372755588",
+      "product_link": "https://www.google.com.au/search?ibp=oshop&q=Samsung QA65S85HAEXXY&prds=catalogid:14349997280372755588,productid:15408838434438711876,headlineOfferDocid:15825080541956938802,imageDocid:8798735922168359253,rds:PC_7911169883879310063|PROD_PC_7911169883879310063,gpcid:11290956404277165258,pvt:hg&hl=en&gl=au&udm=28",
+      "immersive_product_page_token": "TOKEN-3",
+      "source": "West Coast Hifi",
+      "price": "$2,788.00",
+      "extracted_price": 2788,
+      "old_price": "$3,299",
+      "extracted_old_price": 3299,
+      "rating": 3.6,
+      "reviews": 247,
+      "tag": "15% OFF",
+      "extensions": ["15% OFF"],
+      "delivery": "Free delivery"
+    },
+    {
+      "position": 4,
+      "title": "OLED S85H 4K Samsung AI Smart TV",
+      "product_id": "1202807262352129590",
+      "product_link": "https://www.google.com.au/search?ibp=oshop&q=Samsung QA65S85HAEXXY&prds=catalogid:1202807262352129590,productid:3643208979989647282,headlineOfferDocid:17719315573769338460,imageDocid:15038611877264349999,rds:PC_13933169015017988604|PROD_PC_13933169015017988604,gpcid:13933169015017988604,mid:576462886765892984,pvt:hg&hl=en&gl=au&udm=28",
+      "immersive_product_page_token": "TOKEN-4",
+      "source": "The Good Guys",
+      "multiple_sources": true,
+      "price": "$2,795.00",
+      "extracted_price": 2795,
+      "old_price": "$3,295",
+      "extracted_old_price": 3295,
+      "rating": 4.4,
+      "reviews": 541,
+      "tag": "15% OFF",
+      "extensions": ["15% OFF"]
+    },
+    {
+      "position": 5,
+      "title": "Samsung OLED S85F 4K Vision AI Smart TV",
+      "product_id": "10642254035323137035",
+      "product_link": "https://www.google.com.au/search?ibp=oshop&q=Samsung QA65S85HAEXXY&prds=catalogid:10642254035323137035,productid:8783489457962753785,headlineOfferDocid:9887304933709002849,imageDocid:4137858857005551740,rds:PC_15039070498602466805|PROD_PC_15039070498602466805,gpcid:5587966289359113916,mid:576462834982033851,pvt:hg&hl=en&gl=au&udm=28",
+      "immersive_product_page_token": "TOKEN-5",
+      "source": "JW Computers",
+      "multiple_sources": true,
+      "price": "$3,794.00",
+      "extracted_price": 3794,
+      "rating": 5,
+      "reviews": 1100
+    }
+  ]
+}

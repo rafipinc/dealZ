@@ -1,0 +1,221 @@
+{
+  "_note": "Recorded from SerpApi google_immersive_product on 2026-09-28 for the 65-inch S85H entity (The Good Guys result, position 4, of the model-code query). api_key redacted; thumbnails, logos, reviews, videos and other non-price sections removed; stores_next_page_token shortened.",
+  "search_metadata": {
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google_immersive_product",
+    "more_stores": "true"
+  },
+  "product_results": {
+    "title": "OLED S85H 4K Samsung AI Smart TV",
+    "brand": "Samsung",
+    "price_range": "$2,788-$3,295",
+    "stores": [
+      {
+        "name": "The Good Guys",
+        "link": "https://www.thegoodguys.com.au/samsung-65-inches-oled-s85h-4k-smart-ai-tv-2026-qa65s85haexxy?srsltid=AU7gw4W7ZbHf4gTzuNUAmcb0LN-QcPrhJb_bnRAFhqVt2i-Qzr3w-0dXClw",
+        "title": "Samsung 65-inch OLED S85H 4K UHD Smart AI TV 2026 - QA65S85HAEXXY",
+        "rating": 4.5,
+        "reviews": 23928,
+        "tag": "Most popular",
+        "details_and_offers": [
+          "In stock online",
+          "Delivery between Tue – Wed $59",
+          "30-day returns"
+        ],
+        "discount": "15% off",
+        "price": "$2,795.00",
+        "extracted_price": 2795,
+        "original_price": "$3,295.00",
+        "extracted_original_price": 3295,
+        "shipping": "+ $59.00",
+        "shipping_extracted": 59,
+        "total": "$2,854.00",
+        "extracted_total": 2854
+      },
+      {
+        "name": "Appliance Central",
+        "link": "https://www.appliancecentral.com.au/qa65s85haexxy-samsung-65-inch-oled-s85h-4k-samsung-vision-ai-smart-tv-2026?language=en&currency=AUD&srsltid=AU7gw4VE8-PuUDYO43HPXw5pi6L93ZnXwqnyEhkoqjxDztFyHEbRgGrhJGU",
+        "title": "QA65S85HAEXXY Samsung 65 INCH OLED S85H 4K Samsung Vision AI Smart TV (2026) at Appliance Central",
+        "rating": 4.6,
+        "reviews": 9170,
+        "tag": "Best price",
+        "details_and_offers": ["In stock online", "Free delivery between 2–9 Oct"],
+        "price": "$2,388.00",
+        "extracted_price": 2388,
+        "shipping": "Free",
+        "total": "$2,388.00",
+        "extracted_total": 2388
+      },
+      {
+        "name": "Powerland",
+        "link": "https://www.powerland.com.au/products/samsung-65-s85h-4k-vision-ai-oled-smart-tv-qa65s85haexxy?srsltid=AU7gw4UAuu3ucMKzjL8aCCr2_gvHSH5YWTVXibarj8FzZs_SnphOE_kY8hE",
+        "title": "Samsung 65\" S85H 4K Vision AI OLED Smart TV QA65S85HAEXXY",
+        "rating": 4.4,
+        "reviews": 327,
+        "details_and_offers": ["In stock online", "Free delivery", "7-day returns"],
+        "discount": "27% off",
+        "price": "$2,388.00",
+        "extracted_price": 2388,
+        "original_price": "$3,299.00",
+        "extracted_original_price": 3299,
+        "shipping": "Free",
+        "total": "$2,388.00",
+        "extracted_total": 2388
+      },
+      {
+        "name": "Harvey Norman Australia",
+        "link": "https://www.harveynorman.com.au/samsung-65-inch-s85h-ai-4k-oled-smart-tv.html?srsltid=AU7gw4Uw_EjOgjVMx3KzhVT3kEVzSs1uzVKZct8V5y7SDeiysSAkjQTsrYo",
+        "title": "Samsung 65-inch S85H AI 4K OLED Smart TV",
+        "details_and_offers": ["In stock online", "Delivery $59"],
+        "discount": "15% off",
+        "price": "$2,788.00",
+        "extracted_price": 2788,
+        "original_price": "$3,295.00",
+        "extracted_original_price": 3295,
+        "shipping": "+ $59.00",
+        "shipping_extracted": 59,
+        "total": "$2,847.00",
+        "extracted_total": 2847
+      },
+      {
+        "name": "Bing Lee Electrics",
+        "link": "https://www.binglee.com.au/products/65-oled-s85h-4k-smart-ai-tv-2026-qa65s85haexxy",
+        "title": "Samsung 65\" OLED S85H 4K Smart AI TV 2026 QA65S85HAEXXY",
+        "rating": 4.7,
+        "reviews": 4125,
+        "details_and_offers": [
+          "In stock online",
+          "Delivery between Wed – Thu $40",
+          "14-day returns"
+        ],
+        "discount": "15% off",
+        "price": "$2,795.00",
+        "extracted_price": 2795,
+        "original_price": "$3,295.00",
+        "extracted_original_price": 3295,
+        "shipping": "+ $40.00",
+        "shipping_extracted": 40,
+        "total": "$2,835.00",
+        "extracted_total": 2835
+      },
+      {
+        "name": "Betta",
+        "link": "https://www.betta.com.au/products/samsung-65-s85h-smart-4k-oled-ai-tv-2026-875810?srsltid=AU7gw4UZmKDep4VJWlvMO1Iz4mmtEm4Z7BMe8VDCcdrMWeASQxQlbTgL91A",
+        "title": "Samsung 65\" S85H Smart 4K OLED AI TV (2026) - QA65S85HAEXXY",
+        "rating": 4.7,
+        "reviews": 768,
+        "details_and_offers": ["In stock online", "Delivery $10", "7-day returns"],
+        "price": "$2,795.00",
+        "extracted_price": 2795,
+        "shipping": "+ $10.00",
+        "shipping_extracted": 10,
+        "total": "$2,805.00",
+        "extracted_total": 2805
+      },
+      {
+        "name": "Qantas Marketplace",
+        "link": "https://marketplace.qantas.com/au/p/samsung-65-oled-s85h-4k-samsung-vision-ai-smart-tv-au100573013/AU100573013/AU1852043",
+        "title": "65\" OLED S85H 4K Samsung Vision AI Smart TV",
+        "details_and_offers": [
+          "In stock online",
+          "Free delivery between Tue – Fri",
+          "30-day returns"
+        ],
+        "discount": "15% off",
+        "price": "$2,799.00",
+        "extracted_price": 2799,
+        "original_price": "$3,299.00",
+        "extracted_original_price": 3299,
+        "shipping": "Free",
+        "total": "$2,799.00",
+        "extracted_total": 2799
+      },
+      {
+        "name": "Billy Guyatts",
+        "link": "https://www.billyguyatts.com.au/products/samsung-65-s85h-smart-4k-oled-ai-tv-2026-875810?srsltid=AU7gw4WvTCbtRIKjmK0mn1Q68UBYYWMC9-Fd3JXoXP2MvJ-gQ7gdKX4o39E",
+        "title": "Samsung 65\" S85H Smart 4K OLED AI TV (2026)",
+        "rating": 1.1,
+        "reviews": 20,
+        "details_and_offers": ["In stock online", "10-day returns"],
+        "price": "$2,795.00",
+        "extracted_price": 2795,
+        "total": "$2,795.00",
+        "extracted_total": 2795
+      },
+      {
+        "name": "Domayne",
+        "link": "https://www.domayne.com.au/samsung-65-inch-s85h-ai-4k-oled-smart-tv.html?srsltid=AU7gw4VAFUofPHJ-7nUTfx83ZJPploQ78I_TS-qkX5EY73MZRs9QSwRZFeI",
+        "title": "Samsung 65-inch S85H AI 4K OLED Smart TV",
+        "details_and_offers": ["In stock online", "Delivery between 1–7 Oct $59"],
+        "discount": "15% off",
+        "price": "$2,788.00",
+        "extracted_price": 2788,
+        "original_price": "$3,295.00",
+        "extracted_original_price": 3295,
+        "shipping": "+ $59.00",
+        "shipping_extracted": 59,
+        "total": "$2,847.00",
+        "extracted_total": 2847
+      },
+      {
+        "name": "eBay",
+        "link": "https://www.ebay.com.au/itm/227533812805?chn=ps&_ul=AU&mkevt=1&mkcid=28&google_free_listing_action=view_item&srsltid=AU7gw4WD3ytzj4eW8NdLYsAR2-xIb4Sqwtm2Xrracb-eSMLWcfo0xVcxB6o",
+        "title": "65\" Oled S85h 4k Samsung Vision Ai Smart Tv (2026)",
+        "details_and_offers": ["In stock online", "Delivery $190"],
+        "price": "$2,899.29",
+        "extracted_price": 2899.29,
+        "shipping": "+ $190.00",
+        "shipping_extracted": 190,
+        "total": "$3,089.29",
+        "extracted_total": 3089.29
+      },
+      {
+        "name": "eBay",
+        "link": "https://www.ebay.com.au/itm/227523332151?itmmeta=01M2KPK1RYD6XFK6PDCKSBV6ET&hash=item34f9728837:g:S4IAAeSwMaJqqcat&itmprp=enc%3AAQALAAAAwDKQclQvzFwZQpmMrsO4LuoOJgrLHYk8j9b37HUfD2HfsW3Xd7BOGT48T5DC7HPTYHepPTZJih1OPG88yvTXi6ZXny0S%2FJWVGznXI2KDBXD%2B8Z%2BfDGVFfNvKK9u9bGiBzREkmpgVgzcqUbnHFA01Y%2BHVKtqTy%2Fig1N%2BS%2BWp3oHk%2FEYWQ6Z%2Fxaa2gEpBeIhtVmV7Lr982EVZLoiSY83SVY7EW0bt5NQXJYR%2BVuQzsq4jnRwW7h8Dufyz1TZauxCftVQ%3D%3D%7Ctkp%3ABk9SR9CczPaUaA",
+        "title": "65\" OLED S85H 4K Samsung Vision AI Smart TV (2026)",
+        "rating": 4.3,
+        "reviews": 239,
+        "details_and_offers": ["Contact for online availability", "Delivery $190"],
+        "price": "$3,083.06",
+        "extracted_price": 3083.06,
+        "shipping": "+ $190.00",
+        "shipping_extracted": 190,
+        "total": "$3,273.06",
+        "extracted_total": 3273.06
+      },
+      {
+        "name": "countdowndeals.com.au",
+        "link": "https://countdowndeals.com.au/products/samsung-qa65s85haexxy-65-s85h-series-4k-oled-smart-tv-2026?variant=47695047819517&country=AU&currency=AUD&utm_medium=product_sync&utm_source=google&utm_content=sag_organic&utm_campaign=sag_organic&srsltid=AU7gw4UQOe8eDnYaSLwvX83OR1jgVoRVPkMmzNGk8RiEtCof_v82FOR9bM4",
+        "title": "Samsung QA65S85HAEXXY 65\" S85H Series 4K OLED Smart TV (2026)",
+        "details_and_offers": ["In stock online", "Delivery $43.75"],
+        "price": "$2,765.00",
+        "extracted_price": 2765,
+        "shipping": "+ $43.75",
+        "shipping_extracted": 43.75,
+        "total": "$2,808.75",
+        "extracted_total": 2808.75
+      },
+      {
+        "name": "Videopro",
+        "link": "https://www.videopro.com.au/product/samsung-65-oled-s85h-4k-vision-ai-smart-tv-2026/?srsltid=AU7gw4WhZYu0SPA25BpDHmNovtjYBXPmioQ1H1V0tRuTUHXxXy18wMBPL50",
+        "title": "Samsung 65\" OLED S85H 4K Vision AI Smart TV [2026]",
+        "rating": 4.8,
+        "reviews": 1616,
+        "details_and_offers": [
+          "In stock online",
+          "Delivery between 2–8 Oct $254.07",
+          "7-day returns"
+        ],
+        "price": "$2,727.00",
+        "extracted_price": 2727,
+        "shipping": "+ $254.07",
+        "shipping_extracted": 254.07,
+        "total": "$2,981.07",
+        "extracted_total": 2981.07
+      }
+    ],
+    "stores_next_page_token": "NEXT-TOKEN"
+  }
+}

@@ -23,7 +23,8 @@ ARCHITECTURE.md section 3 is authoritative. Short form:
 | Layer | Path | May import |
 |---|---|---|
 | Database | `src/db/` | Drizzle only. The only place Drizzle is imported |
-| Services | `src/services/` | `src/db`, `src/lib`. Business rules as plain functions. Zod at the boundary. Typed errors |
+| Services | `src/services/` | `src/db`, `src/lib`, `src/sources`. Business rules as plain functions. Zod at the boundary. Typed errors |
+| Sources | `src/sources/` | `src/lib`. One retailer page in, one `PriceQuote` out. `fetch` injected. Never the database |
 | Adapters | `src/app/` | `src/services`, `src/lib`. Parse input, call one service, shape output. No business rules |
 | Shared | `src/lib/` | Nothing internal. Pure functions |
 

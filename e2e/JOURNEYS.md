@@ -26,3 +26,4 @@ A journey is added when its feature is designed, before it is built. It is never
 | J-011 | Read price history through `/api/v1/variants/{id}/price-history` | api client | 3 | planned | |
 | J-012 | An unmatched scraped page is staged and confirmed by hand | admin | 4 | planned | |
 | J-013 | Open a product page and see whether the current price is good against its history and RRP | visitor | 3 | planned | |
+| J-014 | Open the lab page and fetch live prices for a tracked variant | developer | 1 | planned | |

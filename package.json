@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:keys": "scripts/keys.sh run -- next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
