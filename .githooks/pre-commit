@@ -1,0 +1,24 @@
+#!/bin/sh
+# Registry checks, before every commit. A commit that adds an ADR, a session, a journey
+# or a component without its row in docs/PUBLIC.md, docs/BUILD_MAP.md or e2e/JOURNEYS.md
+# stops here instead of in CI (ADR-0011, ADR-0015). The hook checks; it never writes a
+# row, because a public summary is Rafi's to approve.
+#
+# Installed by `npm install` (the `prepare` script sets core.hooksPath to .githooks).
+# Skip once with `git commit --no-verify`; CI runs the same checks.
+
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+node scripts/check-e2e-coverage.mjs || exit 1
+
+if [ ! -d site/node_modules ]; then
+  echo "pre-commit: site/ dependencies are not installed, the build log check is skipped."
+  echo "pre-commit: run 'npm --prefix site ci' to enable it. CI still runs it."
+  exit 0
+fi
+
+npm --prefix site run --silent check || {
+  echo "pre-commit: the build log registries are out of step. Fix the rows listed above."
+  exit 1
+}

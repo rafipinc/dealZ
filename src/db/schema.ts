@@ -255,7 +255,7 @@ export const deal = pgTable(
 // The usage ledger: one row per outbound call to an external service (SerpApi,
 // Gemini, the Wayback Machine, a retailer page). It exists so the local status
 // page can show what was called, how often, with what outcome and at what
-// estimated cost (ADR-0014, proposed). Append-only: a trigger rejects UPDATE
+// estimated cost (ADR-0014). Append-only: a trigger rejects UPDATE
 // and DELETE, as on price_observation. Never holds an API key or a request URL.
 export const apiUsage = pgTable(
   "api_usage",
