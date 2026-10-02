@@ -18,6 +18,7 @@ One file per non-trivial decision, numbered and dated. Two paragraphs is enough:
 | [0012](0012-sources-layer-live-fetch-spike.md) | A sources layer for live retailer fetches, started as a phase 1 spike | Proposed | 2026-09-28 |
 | [0013](0013-llm-extraction-boundaries.md) | A language model reads pages without structured data, returns evidence, never sets a price on its own | Proposed | 2026-09-28 |
 | [0014](0014-usage-ledger-and-status-dashboard.md) | A usage ledger in local Postgres and a local-only status dashboard, with no budget cap | Accepted | 2026-10-01 |
+| [0015](0015-public-build-log.md) | A public build log generated from the repository, as a separate project with a default-deny allowlist | Accepted | 2026-10-01 |
 
 ## Template
 

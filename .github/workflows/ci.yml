@@ -8,9 +8,15 @@ on:
   push:
     branches: [main]
 
+# Read-only by default. The metrics job alone asks for write, to push the data branch.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request replaces the run in progress. A run on main is never
+  # cancelled, so the metrics job records every push that passes the gate.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -31,6 +37,87 @@ jobs:
           # drizzle-kit check reads the config, which references DIRECT_URL; it does not connect.
           DIRECT_URL: postgresql://unused:unused@localhost:5432/unused
       - run: node scripts/check-e2e-coverage.mjs
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: |
+            coverage/test-results.json
+            coverage/coverage-summary.json
+          retention-days: 7
+
+  # One snapshot of the stack and the implementation per green push to main, appended to
+  # metrics.jsonl on the build-log-data branch. A push of several commits records its head. The build log reads that file as its
+  # history (ADR-0015). Runs only after the gate is green, so every snapshot is of a
+  # commit that passed.
+  metrics:
+    name: Record build metrics
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: build-log-data
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-output
+          path: coverage
+      - name: Collect the snapshot
+        run: node site/scripts/collect-metrics.ts > "$RUNNER_TEMP/snapshot.json"
+      - name: Append it to the data branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Exit code 2 means the branch is absent; anything else is a real failure.
+          status=0
+          git ls-remote --exit-code --heads origin build-log-data > /dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
+            git fetch origin build-log-data:build-log-data
+            git worktree add "$RUNNER_TEMP/data" build-log-data
+          elif [ "$status" -eq 2 ]; then
+            git worktree add --orphan -b build-log-data "$RUNNER_TEMP/data"
+          else
+            exit "$status"
+          fi
+          # A re-run of this job must not record the same commit twice.
+          if grep -qsF "\"commit\":\"$(git rev-parse --short HEAD)\"" "$RUNNER_TEMP/data/metrics.jsonl"; then
+            echo "Already recorded."
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/snapshot.json" >> "$RUNNER_TEMP/data/metrics.jsonl"
+          git -C "$RUNNER_TEMP/data" add metrics.jsonl
+          git -C "$RUNNER_TEMP/data" commit -m "metrics: ${GITHUB_SHA::7}"
+          git -C "$RUNNER_TEMP/data" push origin build-log-data
+
+  build-log:
+    name: Build log (site/)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The generator reads the whole git history.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      # Generates first: fails on a missing allowlist row, a build map that
+      # disagrees with the code, or a blocklisted term in the output.
+      - run: npm run build
 
   docs:
     name: Markdown links

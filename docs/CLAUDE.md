@@ -32,3 +32,12 @@ One row per session, added at the end: Rafi's input, Claude's output, outcome. W
 ## STATUS.md
 
 Rewritten, not appended, at the end of every session. Four questions: what phase, what exists, what is next, what is blocked or open. Under a screen long.
+
+## Public build log
+
+[PUBLIC.md](PUBLIC.md) decides what the public build log shows; [BUILD_MAP.md](BUILD_MAP.md) holds each component's stage. Both per ADR-0015, proposed.
+
+- Default deny. A new ADR or session gets a row in PUBLIC.md in the same change.
+- A public summary describes architecture and process. It never names a retailer, a provider or a fetching technique, and never describes the lab page.
+- A summary is Claude's draft until Rafi approves it in the recap.
+- A new retailer, provider or technique is added to the blocklist in the session that introduces it.

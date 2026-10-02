@@ -1,6 +1,8 @@
 node_modules
 .next
 coverage
+out
+site/generated
 drizzle/migrations
 package-lock.json
 *.md

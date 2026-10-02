@@ -6,6 +6,13 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:keys"],
       "port": 3000
+    },
+    {
+      "name": "build-log",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "site", "run", "dev"],
+      "port": 3100,
+      "autoPort": true
     }
   ]
 }
