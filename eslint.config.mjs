@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
     // Agent worktrees are whole checkouts of other branches, with their own
     // build output. Each is linted from its own root, never from here.
     ".claude/**",
+    // The build log is a separate project with its own toolchain (ADR-0015).
+    "site/**",
   ]),
 ]);
 

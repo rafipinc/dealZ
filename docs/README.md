@@ -24,7 +24,10 @@ When a document is added, renamed or retired, this table changes in the same com
 | [RUNBOOK.md](RUNBOOK.md) | ops | Environments, secrets, deploy, migrate, roll back, correct data | A production procedure changes or is first used |
 | [adr/](adr/README.md) | story | One record per non-trivial decision, with the options rejected | Every non-trivial decision |
 | [research/](research/) | story | Field findings behind the model | New research. Existing notes are never edited |
+| `site/` | story | The public build log: a static site generated from the ADRs, BUILD_MAP.md, PUBLIC.md, the journey registry, the phase table in ARCHITECTURE.md, the phase number in STATUS.md, the dates in the usage log and the commit history. `npm --prefix site run dev` serves it on port 3100 | Its pages or generator change. Its content is never edited by hand |
 | [AI_USAGE_LOG.md](AI_USAGE_LOG.md) | story | Per session: Rafi's input, Claude's output, outcome | End of every session |
+| [BUILD_MAP.md](BUILD_MAP.md) | both | Registry of components: layer, path, phase, stage, the ADRs behind each, whether it is public | A component is designed, built, tested, shipped or retired |
+| [PUBLIC.md](PUBLIC.md) | both | The allowlist for the public build log: treatment and public summary per ADR and per session, hidden journeys, the blocklist | Every new ADR and every session; a new retailer, provider or technique |
 | [e2e/JOURNEYS.md](../e2e/JOURNEYS.md) | ops | Registry of user journeys and their end-to-end status | A journey is designed, shipped, covered or retired |
 | `src/db/schema.ts`, `src/db/sql/triggers.sql`, `src/db/sql/api-usage-triggers.sql` | both | The database as code, with comments saying why | Every schema change |
 

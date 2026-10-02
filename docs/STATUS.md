@@ -2,13 +2,13 @@
 
 Where DealZ is right now. Rewritten at the end of every session and read at the start of the next.
 
-**Updated:** 2026-10-02. **Phase:** 1, working database and backend layer. **Step:** usage ledger and local status dashboard on branch `p1/usage-dashboard`, built ahead of the queue by Rafi's decision, reviewed and in a pull request. [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md) accepted by Rafi on 2026-10-02. The public build log on `p1/build-log` lands next as ADR-0015.
+**Updated:** 2026-10-02. **Phase:** 1, working database and backend layer. **Step:** two changes reviewed and landed on 2026-10-02: the usage ledger with its local status dashboard (pull request #4, [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md)) and the public build log (pull request #5, [ADR-0015](adr/0015-public-build-log.md)). Rafi accepted both ADRs on 2026-10-02.
 
 ## What exists
 
-- On `main`: the docs, the schema with migrations `0000_init` and `0001_triggers`, the Next.js scaffold, the conventions of ADR-0011, and the price-fetch spike (pull request #3, merged 2026-10-01). Twelve accepted ADRs with this branch. [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) and [ADR-0013](adr/0013-llm-extraction-boundaries.md) are still proposed.
+- On `main`: the docs, the schema with migrations `0000_init` and `0001_triggers`, the Next.js scaffold, the conventions of ADR-0011, and the price-fetch spike (pull request #3, merged 2026-10-01). Thirteen accepted ADRs. [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) and [ADR-0013](adr/0013-llm-extraction-boundaries.md) are still proposed.
 - The spike: `src/sources`, the `quotes` service with the live-price ladder (ARCHITECTURE.md section 3.1), one tracked variant in `src/services/tracked-products.ts`, the lab at `/lab`. API keys live in the macOS Keychain (SETUP.md section 2).
-- On this branch, per ADR-0014:
+- The usage ledger and status dashboard, per ADR-0014:
 
 | Layer | What |
 |---|---|
@@ -23,7 +23,11 @@ Where DealZ is right now. Rewritten at the end of every session and read at the 
 - Verified in the browser on 2026-10-01 against the local database: the page renders, all times in Sydney, database reachable with 4 of 4 migrations, both keys set, SerpApi Free Plan with 6 of 250 searches used. The ledger holds 146 Wayback rows and 4 account rows. The Wayback rows show the CDX index failing (14 of 14 calls) and the availability fallback carrying the run.
 - The reviewer ran twice on 2026-10-01 and once more, independently, on 2026-10-02: no blockers. Fixed on 2026-10-02, each with a failing test first: "last successful call" no longer counts the status check's own account call, and a ledger flushed twice writes each call once. Deferred nits: the day-bucket expression is duplicated between `api-usage.ts` and `api-usage-models.ts`; `safeFailureMessage` redacts the whole connection string, not a password quoted on its own; a connection dropped after the ping reads as `unmigrated`; `isFreeProvider` ignores an injected price table.
 
+- The public build log, per ADR-0015: the `site/` project, a static Next.js export generated from the ADRs, [BUILD_MAP.md](BUILD_MAP.md) (26 components with their stage), [PUBLIC.md](PUBLIC.md) (the default-deny allowlist: 15 ADRs, 15 sessions, 16 journeys, the blocklist), the journey registry and the commit history. The generator fails the build on a missing allowlist row, a build map that disagrees with the code, or a blocklisted term. CI: a `build-log` job (tests, typecheck, build) and a `metrics` job that appends one snapshot per green push to `main` to `metrics.jsonl` on the `build-log-data` branch. Runs locally with `npm --prefix site run dev` on port 3100. Not deployed. 79 site tests.
+
 ## What does not exist yet
+
+For the build log: the Vercel deploy, pages that show the metrics (the presentation is to be redesigned around the stack and the implementation, Rafi, 2026-10-01), lint for `site/`, a Playwright spec for J-016.
 
 Services `retailers`, `catalog`, `listings`, `observations` and `deals`. PGlite tests for the catalogue constraints and triggers (the matrix in TESTING.md beyond `api_usage`). No price is persisted; the tracked variant is a TypeScript table. The dashboard's data insights section. No budget cap, by Rafi's decision. The extractor's labelled set is empty. Affiliate feeds are not verified and not built.
 
@@ -31,15 +35,21 @@ Services `retailers`, `catalog`, `listings`, `observations` and `deals`. PGlite 
 
 One per session unless small:
 
-1. Merge this pull request, then land the public build log (`p1/build-log`) as ADR-0015 and J-016, with its registry rows for this work.
+1. Rafi reads and approves the public summaries in PUBLIC.md, which are Claude's drafts. Check that the first `metrics` run created the `build-log-data` branch.
 2. Rafi reviews the lab, ADR-0012 and ADR-0013, and the earlier decisions under Open.
 3. The rest of the invariant matrix in `src/db/invariants.test.ts`.
 4. Persistence services `retailers`, `catalog`, `listings`, `observations`, so quotes and model-read candidates become rows, staged below the threshold per ADR-0010.
 5. The dashboard's data insights section.
+6. The build log: redesign of the pages, then lint, the J-016 spec and the Vercel deploy with full commit history.
 
 ## Open
 
 From this session:
+
+- The public summaries in PUBLIC.md await Rafi's approval, the two written on 2026-10-02 (ADR-0014, sessions S-14 and S-15) among them.
+- The GitHub repository is public, so the full documents are readable there whatever the build log shows. Whether it stays public is Rafi's decision.
+- The build log generator only warns on a shallow clone or a missing data branch. It should fail when deploying; to settle with the Vercel deploy.
+- The `metrics` job keeps one pending run, so three pushes to `main` in quick succession can skip the middle one.
 
 - A row written for a model missing from the price table stores cost 0 and reads as priced once the model is added (ADR-0014 item 14 and its consequences). Fixing it needs a stored `priced` flag or a nullable cost: a schema change, Rafi's decision.
 - Nothing automated asserts that `/lab`, `/lab/status` and the server actions return 404 in a production build. A Playwright spec could; none exists yet.

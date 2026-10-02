@@ -102,5 +102,5 @@ House style for every document: short sentences, tables for parallel facts, Brit
 
 1. Run `reviewer` if `src/`, `e2e/` or `drizzle/` changed.
 2. Recap in chat: what was decided, what Rafi learned, what is next.
-3. Update STATUS.md and add the AI_USAGE_LOG.md row. Write or update an ADR if a decision was made.
+3. Update STATUS.md and add the AI_USAGE_LOG.md row. Write or update an ADR if a decision was made. Add the session's row to docs/PUBLIC.md, and a row for any new ADR, and move any component whose stage changed in docs/BUILD_MAP.md (ADR-0015, proposed).
 4. Write to Claude memory only after Rafi confirms the recap, and only decisions and status, in Rafi's words.

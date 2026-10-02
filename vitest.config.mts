@@ -11,11 +11,14 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     passWithNoTests: true,
+    // The JSON report and the coverage summary feed the build log's per-commit metrics
+    // (site/scripts/collect-metrics.ts, ADR-0015). Both land in coverage/, which is ignored.
+    reporters: ["default", ["json", { outputFile: "coverage/test-results.json" }]],
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts", "src/services/**/*.ts", "src/sources/**/*.ts"],
       exclude: ["**/*.test.ts", "src/sources/fixtures/**"],
-      reporter: ["text", "lcov"],
+      reporter: ["text", "lcov", "json-summary"],
       thresholds: { lines: 90, branches: 90 },
     },
   },

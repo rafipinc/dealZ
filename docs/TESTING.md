@@ -82,6 +82,16 @@ Phase 1 writes these. The `api_usage` rows and the migrations row are written (2
 | `node scripts/check-e2e-coverage.mjs` | Registry against spec files |
 | `npm run typecheck && npm run lint && npm test && npm run db:check` | The CI gate |
 
+## The build log, `site/`
+
+A separate project with its own tests (ADR-0015). The root Vitest run does not include them.
+
+- `npm --prefix site test`: unit tests for the parsers, the renderer and the assembler in `site/lib`. Every parser has its happy path and each `ParseError`. Every allowlist rule has a test that tries to publish something it should not.
+- `npm --prefix site run check`: runs the generator against the real documents and writes nothing. It fails on a missing allowlist row, a build map that disagrees with the code, or a blocklisted term.
+- CI runs both, then the typecheck and the static build, in the `build-log` job.
+- `npm test` at the root also writes `coverage/test-results.json` and `coverage/coverage-summary.json`. On a push to `main` the `metrics` job reads them and appends one snapshot to `metrics.jsonl` on the `build-log-data` branch.
+- Planned: lint for `site/`, and a Playwright spec for journey J-016.
+
 ## What CI runs
 
 `.github/workflows/ci.yml`, on every pull request and on `main`:
