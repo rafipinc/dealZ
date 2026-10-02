@@ -51,6 +51,9 @@ export const observationSource = pgEnum("observation_source", ["manual", "scrape
 
 export const dealStatus = pgEnum("deal_status", ["draft", "published", "expired", "retracted"]);
 
+// Whether one outbound call to an external service answered usefully.
+export const apiCallOutcome = pgEnum("api_call_outcome", ["ok", "failed"]);
+
 // ---------- Shared column helpers ----------
 
 const id = () => uuid("id").primaryKey().defaultRandom();
@@ -246,5 +249,59 @@ export const deal = pgTable(
       "deal_published_has_timestamp",
       sql`${t.status} <> 'published' OR ${t.publishedAt} IS NOT NULL`,
     ),
+  ],
+);
+
+// The usage ledger: one row per outbound call to an external service (SerpApi,
+// Gemini, the Wayback Machine, a retailer page). It exists so the local status
+// page can show what was called, how often, with what outcome and at what
+// estimated cost (ADR-0014, proposed). Append-only: a trigger rejects UPDATE
+// and DELETE, as on price_observation. Never holds an API key or a request URL.
+export const apiUsage = pgTable(
+  "api_usage",
+  {
+    id: id(),
+    provider: text("provider").notNull(), // open set, so text: serpapi, gemini, wayback, retailer
+    operation: text("operation").notNull(), // google_shopping, generate_content, cdx, page, ...
+    calledAt: timestamp("called_at", { withTimezone: true }).notNull().defaultNow(),
+    outcome: apiCallOutcome("outcome").notNull(),
+    errorKind: text("error_kind"), // SourceErrorKind when the call failed: blocked, http, unparseable, network
+    httpStatus: integer("http_status"), // null when no response arrived
+    durationMs: integer("duration_ms").notNull(),
+    model: text("model"), // Gemini model name; null for every other provider
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    // Estimated cost in millionths of a US dollar, computed by the service at
+    // write time. Money is integer cents everywhere else; this is the one
+    // exception, because a single Gemini call costs a fraction of a cent and
+    // would round to zero. Still an integer, never a float.
+    costMicros: integer("cost_micros").notNull().default(0),
+    // Which retailer and variant the call was for, when there is one. Text, not
+    // foreign keys: the tracked products are a TypeScript table until they
+    // become rows, and a ledger row must not block deleting a catalogue row.
+    retailerSlug: text("retailer_slug"),
+    variantSlug: text("variant_slug"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // Calls for one provider over a period, and the newest calls overall.
+    index("api_usage_provider_time_idx").on(t.provider, t.calledAt.desc()),
+    index("api_usage_time_idx").on(t.calledAt.desc()),
+    check("api_usage_provider_format", sql`${t.provider} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    // A failed call says why; a successful call carries no error.
+    check(
+      "api_usage_error_kind_only_when_failed",
+      sql`(${t.outcome} = 'failed') = (${t.errorKind} IS NOT NULL)`,
+    ),
+    check("api_usage_duration_non_negative", sql`${t.durationMs} >= 0`),
+    check(
+      "api_usage_input_tokens_non_negative",
+      sql`${t.inputTokens} IS NULL OR ${t.inputTokens} >= 0`,
+    ),
+    check(
+      "api_usage_output_tokens_non_negative",
+      sql`${t.outputTokens} IS NULL OR ${t.outputTokens} >= 0`,
+    ),
+    check("api_usage_cost_non_negative", sql`${t.costMicros} >= 0`),
   ],
 );

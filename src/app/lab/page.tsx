@@ -5,7 +5,9 @@
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isLocalDevelopment } from "@/lib/local-only";
 import { formatAud } from "@/lib/money";
 import { trackedVariants, type TrackedVariant } from "@/services/tracked-products";
 import { ExtractPanel } from "./extract-panel";
@@ -110,16 +112,22 @@ function VariantCard({ variant }: { variant: TrackedVariant }) {
 }
 
 export default function LabPage() {
-  // A development tool only. Its action fires live requests at retailers, so a
-  // public deployment never serves it (ADR-0012 item 7).
-  if (process.env.NODE_ENV === "production") notFound();
+  // A development tool only. Its actions fire live requests at retailers and
+  // write the local usage ledger, so only a development server serves it
+  // (ADR-0012 item 7): never a public deployment, a preview build or a test run.
+  if (!isLocalDevelopment(process.env.NODE_ENV)) notFound();
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-tight">Lab: live price fetch</h1>
         <p className="text-zinc-600 dark:text-zinc-400">
-          A development tool per ADR-0012. Prices are fetched live when you press the button and
-          nothing is saved.
+          A development tool per ADR-0012. Prices are fetched live when you press the button and no
+          price is saved. Each outbound call is logged to the local usage ledger.
+        </p>
+        <p className="text-sm">
+          <Link href="/lab/status" className="text-zinc-700 underline dark:text-zinc-300">
+            Services and usage
+          </Link>
         </p>
       </header>
       {trackedVariants.map((variant) => (

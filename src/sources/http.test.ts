@@ -1,8 +1,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { REQUEST_TIMEOUT_MS, USER_AGENT, fetchText, looksLikeChallenge, pageUrlOf } from "./http";
-import { SourceError, type FetchLike, type SourceInput } from "./types";
+import {
+  REQUEST_TIMEOUT_MS,
+  USER_AGENT,
+  fetchBody,
+  fetchText,
+  looksLikeChallenge,
+  pageUrlOf,
+} from "./http";
+import { SourceError, type FetchLike, type SourceCall, type SourceInput } from "./types";
 
 function fixture(name: string): string {
   return readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
@@ -167,6 +174,134 @@ describe("fetchText", () => {
     const error = await sourceErrorFrom(fetchText(inputWith(fetch), URL_UNDER_TEST));
     expect(error.kind).toBe("blocked");
     expect(error.status).toBe(200);
+  });
+});
+
+describe("fetchText metering", () => {
+  const T0 = new Date("2026-10-01T00:00:00.000Z");
+
+  /** An input whose meter collects, with a clock that advances 40 ms a read. */
+  function metered(fetch: FetchLike): { input: SourceInput; calls: SourceCall[] } {
+    const calls: SourceCall[] = [];
+    let reads = 0;
+    return {
+      calls,
+      input: {
+        ...inputWith(fetch),
+        now: () => new Date(T0.getTime() + 40 * reads++),
+        meter: (call) => void calls.push(call),
+      },
+    };
+  }
+
+  it("reports one ok retailer page call for a 2xx body, by default", async () => {
+    const { input, calls } = metered(async () => new Response(plainPage, { status: 200 }));
+    await fetchText(input, URL_UNDER_TEST);
+    expect(calls).toEqual([
+      {
+        provider: "retailer",
+        operation: "page",
+        startedAt: T0,
+        durationMs: 40,
+        outcome: "ok",
+        errorKind: null,
+        httpStatus: 200,
+        model: null,
+        inputTokens: null,
+        outputTokens: null,
+        retailerSlug: "example",
+      },
+    ]);
+  });
+
+  it("labels the call as the caller says and does not forward the label to fetch", async () => {
+    const inits: (RequestInit | undefined)[] = [];
+    const { input, calls } = metered(async (_url, init) => {
+      inits.push(init);
+      return new Response("[]", { status: 200 });
+    });
+    await fetchText(input, URL_UNDER_TEST, { call: { provider: "wayback", operation: "cdx" } });
+    expect(calls[0]).toMatchObject({ provider: "wayback", operation: "cdx" });
+    expect(inits[0]).not.toHaveProperty("call");
+  });
+
+  it.each([
+    [403, "blocked"],
+    [429, "blocked"],
+    [500, "http"],
+  ] as const)("reports a %d as one failed call of kind %s", async (status, kind) => {
+    const { input, calls } = metered(async () => new Response("no", { status }));
+    await sourceErrorFrom(fetchText(input, URL_UNDER_TEST));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ outcome: "failed", errorKind: kind, httpStatus: status });
+  });
+
+  it("reports a rejected fetch as a failed network call with no status", async () => {
+    const { input, calls } = metered(async () => {
+      throw new Error("ECONNRESET");
+    });
+    await sourceErrorFrom(fetchText(input, URL_UNDER_TEST));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ outcome: "failed", errorKind: "network", httpStatus: null });
+  });
+
+  it("reports a challenge page as blocked with the 200 it arrived with", async () => {
+    const { input, calls } = metered(async () => new Response(harveyNorman, { status: 200 }));
+    await sourceErrorFrom(fetchText(input, URL_UNDER_TEST));
+    expect(calls[0]).toMatchObject({ outcome: "failed", errorKind: "blocked", httpStatus: 200 });
+  });
+
+  it("never puts the URL in a call", async () => {
+    const { input, calls } = metered(async () => new Response(plainPage, { status: 200 }));
+    await fetchText(input, URL_UNDER_TEST);
+    expect(JSON.stringify(calls)).not.toContain("example.com");
+  });
+
+  it("returns the body even when the meter throws", async () => {
+    const input: SourceInput = {
+      ...inputWith(async () => new Response(plainPage, { status: 200 })),
+      meter: () => {
+        throw new Error("ledger down");
+      },
+    };
+    await expect(fetchText(input, URL_UNDER_TEST)).resolves.toBe(plainPage);
+  });
+
+  it("returns the body even when the injected clock throws", async () => {
+    const calls: SourceCall[] = [];
+    const input: SourceInput = {
+      ...inputWith(async () => new Response(plainPage, { status: 200 })),
+      now: () => {
+        throw new Error("clock broke");
+      },
+      meter: (call) => void calls.push(call),
+    };
+    await expect(fetchText(input, URL_UNDER_TEST)).resolves.toBe(plainPage);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ outcome: "ok", httpStatus: 200 });
+  });
+
+  it("still throws the SourceError when the meter throws on a failure", async () => {
+    const input: SourceInput = {
+      ...inputWith(async () => new Response("no", { status: 500 })),
+      meter: () => {
+        throw new Error("ledger down");
+      },
+    };
+    const error = await sourceErrorFrom(fetchText(input, URL_UNDER_TEST));
+    expect(error.kind).toBe("http");
+  });
+});
+
+describe("fetchBody", () => {
+  it("returns the body with its status and reports nothing to a meter", async () => {
+    const calls: SourceCall[] = [];
+    const input: SourceInput = {
+      ...inputWith(async () => new Response(plainPage, { status: 203 })),
+      meter: (call) => void calls.push(call),
+    };
+    expect(await fetchBody(input, URL_UNDER_TEST)).toEqual({ body: plainPage, status: 203 });
+    expect(calls).toHaveLength(0);
   });
 });
 

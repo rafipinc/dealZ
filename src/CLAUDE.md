@@ -20,7 +20,7 @@ Loads when a file under `src/` is read. The root CLAUDE.md and ARCHITECTURE.md s
 3. `src/app` imports from `src/services` and `src/lib` only. No SQL, no Drizzle, no business rule. A route handler and a server action that do the same thing call the same service function.
 4. Every exported service function validates its input with a Zod schema. Insert shapes come from `drizzle-zod` over the table, never hand-written a second time.
 5. Services throw `NotFoundError`, `ConflictError` or `ValidationError`. Adapters map them to status codes or UI state. Nothing else catches them.
-6. Money is integer cents. Timestamps are `timestamptz`. GTINs are 14 digits by the time they reach the database.
+6. Money is integer cents. The one exception is `api_usage.cost_micros`, an estimated cost in millionths of a US dollar, because a model call costs a fraction of a cent (ADR-0014). Timestamps are `timestamptz`. GTINs are 14 digits by the time they reach the database.
 7. Server components never fetch `/api/v1`. They call the service.
 8. No `any` at an exported boundary. `unknown` plus a Zod parse instead.
 9. `src/sources` imports `src/lib` only, takes `fetch` as a parameter, and throws `SourceError`. `src/app` never imports `src/sources`.

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { SourceError, type ArchiveSourceInput, type FetchLike } from "./types";
+import { SourceError, type ArchiveSourceInput, type FetchLike, type SourceCall } from "./types";
 import {
   ARCHIVE_CONFIDENCE,
   AVAILABILITY_ENDPOINT,
@@ -489,5 +489,95 @@ describe("fetchWaybackHistory", () => {
     expect(b.quotes).toHaveLength(7);
     expect(inner.calls).toHaveLength(16);
     expect(peak).toBe(3);
+  });
+});
+
+describe("fetchWaybackHistory metering", () => {
+  function metered(fetch: FetchLike, patch: Partial<ArchiveSourceInput> = {}) {
+    const calls: SourceCall[] = [];
+    const input = inputWith(fetch, { meter: (call) => void calls.push(call), ...patch });
+    return { input, calls };
+  }
+
+  const operations = (calls: SourceCall[]): string[] => calls.map((call) => call.operation).sort();
+
+  it("reports the index request and each snapshot, all for the page's retailer", async () => {
+    const { fetch, calls: requests } = fakeFetch({});
+    const { input, calls } = metered(fetch);
+    await fetchWaybackHistory(input);
+
+    expect(calls).toHaveLength(requests.length);
+    expect(operations(calls)).toEqual(["cdx", "snapshot", "snapshot", "snapshot", "snapshot"]);
+    expect(calls.every((call) => call.provider === "wayback")).toBe(true);
+    expect(calls.every((call) => call.retailerSlug === "jb-hi-fi")).toBe(true);
+    expect(calls.every((call) => call.outcome === "ok" && call.httpStatus === 200)).toBe(true);
+    expect(calls.every((call) => call.startedAt === FIXED_NOW && call.durationMs === 0)).toBe(true);
+  });
+
+  it("reports a failed snapshot as a failed call and a capture without a Product as an ok one", async () => {
+    const { fetch } = fakeFetch({
+      snapshot: (ts) => {
+        if (ts === "20260514025141") return new Response("gone", { status: 404 });
+        if (ts === "20260608031844") return new Response("<html></html>", { status: 200 });
+        return new Response(snapshotPage(ts), { status: 200 });
+      },
+    });
+    const { input, calls } = metered(fetch);
+    const result = await fetchWaybackHistory(input);
+
+    expect(result.skipped).toHaveLength(2);
+    const snapshots = calls.filter((call) => call.operation === "snapshot");
+    expect(snapshots).toHaveLength(4);
+    // The archive served the page; that it holds no price is not the request's failure.
+    expect(snapshots.filter((call) => call.outcome === "failed")).toEqual([
+      expect.objectContaining({ errorKind: "http", httpStatus: 404 }),
+    ]);
+  });
+
+  it("reports the failed index request and every availability request of the fallback", async () => {
+    const { fetch, calls: requests } = fakeFetch({
+      cdx: () => {
+        throw new Error("connect ETIMEDOUT");
+      },
+    });
+    const { input, calls } = metered(fetch);
+    await fetchWaybackHistory(input);
+
+    expect(calls).toHaveLength(requests.length);
+    const cdx = calls.filter((call) => call.operation === "cdx");
+    expect(cdx).toEqual([
+      expect.objectContaining({ outcome: "failed", errorKind: "network", httpStatus: null }),
+    ]);
+    // One availability request per month from May to September.
+    expect(calls.filter((call) => call.operation === "availability")).toHaveLength(5);
+  });
+
+  it("reports nothing for a snapshot skipped after a rate limit, since no request was made", async () => {
+    const { fetch, calls: requests } = fakeFetch({
+      snapshot: () => new Response("slow down", { status: 429 }),
+    });
+    const { input, calls } = metered(fetch);
+    const result = await fetchWaybackHistory(input);
+
+    expect(result.skipped).toHaveLength(4);
+    expect(calls).toHaveLength(requests.length);
+    expect(calls.filter((call) => call.operation === "snapshot").length).toBeLessThan(4);
+  });
+
+  it("never puts a URL in a call", async () => {
+    const { input, calls } = metered(fakeFetch({}).fetch);
+    await fetchWaybackHistory(input);
+    const text = JSON.stringify(calls);
+    expect(text).not.toContain("archive.org");
+    expect(text).not.toContain("jbhifi.com.au");
+  });
+
+  it("returns the history even when the meter throws", async () => {
+    const { input } = metered(fakeFetch({}).fetch, {
+      meter: () => {
+        throw new Error("ledger down");
+      },
+    });
+    expect((await fetchWaybackHistory(input)).quotes).toHaveLength(4);
   });
 });

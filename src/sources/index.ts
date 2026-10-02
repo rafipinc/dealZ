@@ -3,7 +3,7 @@
 
 import { fetchJsonLdQuote } from "./json-ld";
 import { fetchLlmExtractQuote } from "./llm-extract";
-import { searchGoogleShopping } from "./serpapi";
+import { fetchSerpApiAccount, searchGoogleShopping } from "./serpapi";
 import { fetchShopifyQuote } from "./shopify";
 import type { ArchiveSource, SearchSource, Source } from "./types";
 import { fetchWaybackHistory } from "./wayback";
@@ -28,8 +28,12 @@ export const archiveSources: Record<"wayback", ArchiveSource> = {
   wayback: fetchWaybackHistory,
 };
 
+/** SerpApi's plan and quota, for the status service. Not a price source. */
+export const accountSources = { serpapi: fetchSerpApiAccount } as const;
+
 export { SourceError, REVIEW_THRESHOLD } from "./types";
 export type { LlmExtractInput } from "./llm-extract";
+export type { SerpApiAccount, SerpApiAccountInput } from "./serpapi";
 export type {
   ArchiveResult,
   ArchiveSkippedSnapshot,
@@ -37,6 +41,7 @@ export type {
   ArchiveSourceInput,
   Availability,
   FetchLike,
+  Meter,
   PriceQuote,
   QuoteCondition,
   QuoteIdentifiers,
@@ -44,7 +49,10 @@ export type {
   SearchSource,
   SearchSourceInput,
   Source,
+  SourceCall,
   SourceErrorKind,
   SourceInput,
   SourceMethod,
+  SourceOperation,
+  SourceProvider,
 } from "./types";

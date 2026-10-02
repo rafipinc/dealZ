@@ -20,18 +20,23 @@ import { z } from "zod";
 import { parseCents } from "../lib/money";
 import { slugify } from "../lib/slug";
 import { canonicaliseUrl } from "../lib/url";
-import { fetchText } from "./http";
+import { fetchBody } from "./http";
+import { beginCall } from "./meter";
 import {
   SourceError,
   type Availability,
+  type FetchLike,
+  type Meter,
   type PriceQuote,
   type QuoteCondition,
   type SearchSource,
   type SearchSourceInput,
-  type SourceInput,
+  type SourceOperation,
 } from "./types";
 
 export const SERPAPI_ENDPOINT = "https://serpapi.com/search.json";
+/** The Account API: plan and quota. Free, and not counted against the quota. */
+export const SERPAPI_ACCOUNT_ENDPOINT = "https://serpapi.com/account.json";
 /** SourceError.retailerSlug for failures of the aggregator itself. */
 export const SERPAPI_SLUG = "serpapi";
 /** Hop-1 results tried against hop 2, in position order. Each is one paid request. */
@@ -307,7 +312,7 @@ function quoteFromItem(item: ShoppingItem, region: string, fetchedAt: Date): Pri
   };
 }
 
-/** Re-throws a SourceError from fetchText with the key stripped from its message. */
+/** Re-throws a SourceError from fetchBody with the key stripped from its message. */
 function withoutKey(error: SourceError, safeUrl: string): SourceError {
   return new SourceError(error.kind, SERPAPI_SLUG, `Request to ${safeUrl} failed: ${error.kind}`, {
     status: error.status ?? undefined,
@@ -320,17 +325,55 @@ function withoutKey(error: SourceError, safeUrl: string): SourceError {
  * with the key redacted. An `error` field in the payload is SerpApi saying
  * no, at any status, and is reported as "http".
  */
+/** What a SerpApi request needs from its caller besides the URL. */
+interface SerpApiRequestInput {
+  fetch?: FetchLike;
+  now?: () => Date;
+  meter?: Meter;
+}
+
+/**
+ * requestSerpApi, reported to the meter as one call. SerpApi can say no in a
+ * 200 body, so the call is judged after the body is parsed, not when the
+ * response arrives: that is why this does not go through fetchText.
+ */
 async function fetchSerpApi<T extends { error?: string }>(
-  input: SearchSourceInput,
+  input: SerpApiRequestInput,
+  operation: SourceOperation,
   requestUrl: string,
   schema: z.ZodType<T>,
 ): Promise<T> {
+  const finish = beginCall(input.meter, input.now, {
+    provider: "serpapi",
+    operation,
+    retailerSlug: null,
+  });
+  const seen: { httpStatus: number | null } = { httpStatus: null };
+  try {
+    const data = await requestSerpApi(input, requestUrl, schema, seen);
+    finish(seen);
+    return data;
+  } catch (error) {
+    finish({ ...seen, error });
+    throw error;
+  }
+}
+
+async function requestSerpApi<T extends { error?: string }>(
+  input: SerpApiRequestInput,
+  requestUrl: string,
+  schema: z.ZodType<T>,
+  seen: { httpStatus: number | null },
+): Promise<T> {
   const safeUrl = redactApiKey(requestUrl);
-  const fetchInput: SourceInput = { retailerSlug: SERPAPI_SLUG, url: safeUrl, fetch: input.fetch };
 
   let body: string;
   try {
-    body = await fetchText(fetchInput, requestUrl, { headers: { accept: "application/json" } });
+    const answer = await fetchBody({ retailerSlug: SERPAPI_SLUG, fetch: input.fetch }, requestUrl, {
+      headers: { accept: "application/json" },
+    });
+    seen.httpStatus = answer.status;
+    body = answer.body;
   } catch (error) {
     if (error instanceof SourceError) throw withoutKey(error, safeUrl);
     throw error;
@@ -358,6 +401,7 @@ async function fetchSerpApi<T extends { error?: string }>(
 async function fetchStores(input: SearchSourceInput, pageToken: string): Promise<Store[]> {
   const response = await fetchSerpApi(
     input,
+    "google_immersive_product",
     serpApiImmersiveUrl(pageToken, input.apiKey),
     immersiveResponseSchema,
   );
@@ -374,6 +418,7 @@ export const searchGoogleShopping: SearchSource = async (input) => {
 
   const response = await fetchSerpApi(
     input,
+    "google_shopping",
     serpApiRequestUrl(input.query, input.region, input.apiKey),
     shoppingResponseSchema,
   );
@@ -418,3 +463,69 @@ export const searchGoogleShopping: SearchSource = async (input) => {
   }
   return quotes.sort((a, b) => a.priceCents - b.priceCents);
 };
+
+// ---------- Account: plan and quota, for the status page ----------
+
+export interface SerpApiAccountInput {
+  apiKey: string;
+  fetch?: FetchLike;
+  now?: () => Date;
+  meter?: Meter;
+}
+
+/** The plan and what is left of it. Never the key or the account's email. */
+export interface SerpApiAccount {
+  planName: string;
+  searchesPerMonth: number | null;
+  thisMonthUsage: number | null;
+  /** Left on the plan this month, before extra credits. */
+  planSearchesLeft: number | null;
+  /** Left this month counting extra credits. */
+  totalSearchesLeft: number | null;
+  fetchedAt: Date;
+}
+
+const optionalCount = z.number().nullable().optional().catch(null);
+
+/**
+ * The fields DealZ reads. The response also carries `api_key` and
+ * `account_email`; they are read past and never kept.
+ */
+const accountResponseSchema = z.looseObject({
+  error: z.string().optional(),
+  plan_name: z.string().optional(),
+  searches_per_month: optionalCount,
+  this_month_usage: optionalCount,
+  plan_searches_left: optionalCount,
+  total_searches_left: optionalCount,
+});
+
+export function serpApiAccountUrl(apiKey: string): string {
+  return `${SERPAPI_ACCOUNT_ENDPOINT}?${new URLSearchParams({ api_key: apiKey }).toString()}`;
+}
+
+/**
+ * Asks SerpApi for the account's plan and remaining searches. Throws
+ * SourceError under the "serpapi" slug, with the key redacted, as the search
+ * does; "unparseable" when the answer names no plan.
+ */
+export async function fetchSerpApiAccount(input: SerpApiAccountInput): Promise<SerpApiAccount> {
+  const now = input.now ?? (() => new Date());
+  const response = await fetchSerpApi(
+    input,
+    "account",
+    serpApiAccountUrl(input.apiKey),
+    accountResponseSchema,
+  );
+  if (response.plan_name === undefined) {
+    throw new SourceError("unparseable", SERPAPI_SLUG, "SerpApi account answer names no plan");
+  }
+  return {
+    planName: response.plan_name,
+    searchesPerMonth: response.searches_per_month ?? null,
+    thisMonthUsage: response.this_month_usage ?? null,
+    planSearchesLeft: response.plan_searches_left ?? null,
+    totalSearchesLeft: response.total_searches_left ?? null,
+    fetchedAt: now(),
+  };
+}

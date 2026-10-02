@@ -208,6 +208,9 @@ export const fetchLlmExtractQuote: Source = async (input) => {
     responseSchema: EXTRACT_RESPONSE_SCHEMA,
     apiKey,
     fetch: input.fetch,
+    now: input.now,
+    meter: input.meter,
+    retailerSlug: input.retailerSlug,
   });
 
   const parsed = extractedSchema.safeParse(answer.json);

@@ -18,7 +18,7 @@ When a document is added, renamed or retired, this table changes in the same com
 | [MISSION.md](MISSION.md) | story | Why the product exists, in Rafi's words | Rarely |
 | [WORKING_RULES.md](WORKING_RULES.md) | both | How Rafi and Claude work together | A working rule changes |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | both | Layers, rules between them, API conventions, environment, phases, open decisions | A layer rule, phase or open decision changes |
-| [DATA_MODEL.md](DATA_MODEL.md) | both | Tables, invariants and where each is enforced, matching, corrections | Any change to `src/db/schema.ts` or `triggers.sql` |
+| [DATA_MODEL.md](DATA_MODEL.md) | both | Tables, invariants and where each is enforced, matching, corrections | Any change to `src/db/schema.ts` or a file in `src/db/sql/` |
 | [SETUP.md](SETUP.md) | ops | Local environment, config, migrations, first checks | A tool, script or environment variable changes |
 | [TESTING.md](TESTING.md) | ops | Test levels, rules, invariant matrix, end-to-end policy, CI | A test rule, level or CI job changes |
 | [RUNBOOK.md](RUNBOOK.md) | ops | Environments, secrets, deploy, migrate, roll back, correct data | A production procedure changes or is first used |
@@ -26,7 +26,7 @@ When a document is added, renamed or retired, this table changes in the same com
 | [research/](research/) | story | Field findings behind the model | New research. Existing notes are never edited |
 | [AI_USAGE_LOG.md](AI_USAGE_LOG.md) | story | Per session: Rafi's input, Claude's output, outcome | End of every session |
 | [e2e/JOURNEYS.md](../e2e/JOURNEYS.md) | ops | Registry of user journeys and their end-to-end status | A journey is designed, shipped, covered or retired |
-| `src/db/schema.ts`, `src/db/sql/triggers.sql` | both | The database as code, with comments saying why | Every schema change |
+| `src/db/schema.ts`, `src/db/sql/triggers.sql`, `src/db/sql/api-usage-triggers.sql` | both | The database as code, with comments saying why | Every schema change |
 
 ## Reading order
 
