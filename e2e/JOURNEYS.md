@@ -30,4 +30,4 @@ A journey is added when its feature is designed, before it is built. It is never
 | J-015 | Open the lab status page and see service health and outbound call usage | developer | 1 | planned | |
 | J-016 | Open the build log and see each decision with who decided it and each component with its stage | visitor | 1 | planned | |
 
-J-014 and J-015 are development-only lab pages. They are served only when `NODE_ENV` is `development`, and Playwright runs the production build, where both return 404, so a spec cannot reach them. They are verified by unit tests and by hand. Their status stays `planned` unless one becomes a product feature (ADR-0014, proposed).
+J-014 and J-015 are development-only lab pages. They are served only when `NODE_ENV` is `development`, and Playwright runs the production build, where both return 404, so a spec cannot reach them. They are verified by unit tests and by hand. Their status stays `planned` unless one becomes a product feature (ADR-0014).

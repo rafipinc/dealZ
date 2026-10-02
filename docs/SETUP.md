@@ -197,6 +197,7 @@ Each of these must fail with the named error. They become the PGlite test suite 
 
 - Vitest. Database tests open a PGlite instance, apply `drizzle/migrations` with the Drizzle migrator in `beforeAll`, and run the table above as assertions.
 - `.github/workflows/ci.yml` on every pull request: `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run db:check`, the end-to-end registry check, a Markdown link check, and Playwright once `e2e/` has specs. The workflow is committed already and goes live with the first push.
+- `npm install` sets `core.hooksPath` to `.githooks/` through the `prepare` script. The pre-commit hook there runs the journey registry check and the build log check. Run `npm --prefix site ci` once so the second can run.
 - The policy, the invariant-to-test matrix and the end-to-end rules are in [TESTING.md](TESTING.md).
 
 ## Not yet decided

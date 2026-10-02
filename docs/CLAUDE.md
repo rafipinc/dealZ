@@ -35,7 +35,7 @@ Rewritten, not appended, at the end of every session. Four questions: what phase
 
 ## Public build log
 
-[PUBLIC.md](PUBLIC.md) decides what the public build log shows; [BUILD_MAP.md](BUILD_MAP.md) holds each component's stage. Both per ADR-0015, proposed.
+[PUBLIC.md](PUBLIC.md) decides what the public build log shows; [BUILD_MAP.md](BUILD_MAP.md) holds each component's stage. Both per ADR-0015.
 
 - Default deny. A new ADR or session gets a row in PUBLIC.md in the same change.
 - A public summary describes architecture and process. It never names a retailer, a provider or a fetching technique, and never describes the lab page.

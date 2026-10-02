@@ -25,6 +25,8 @@ Where DealZ is right now. Rewritten at the end of every session and read at the 
 
 - The public build log, per ADR-0015: the `site/` project, a static Next.js export generated from the ADRs, [BUILD_MAP.md](BUILD_MAP.md) (26 components with their stage), [PUBLIC.md](PUBLIC.md) (the default-deny allowlist: 15 ADRs, 15 sessions, 16 journeys, the blocklist), the journey registry and the commit history. The generator fails the build on a missing allowlist row, a build map that disagrees with the code, or a blocklisted term. CI: a `build-log` job (tests, typecheck, build) and a `metrics` job that appends one snapshot per green push to `main` to `metrics.jsonl` on the `build-log-data` branch. Runs locally with `npm --prefix site run dev` on port 3100. Not deployed. 79 site tests.
 
+- On branch `p1/registry-hook`, uncommitted (2026-10-02): `.githooks/pre-commit`, installed by the `prepare` script, runs the journey registry check and the build log check before every commit. It checks rows and never writes them. Proposed by Claude on Rafi's request for a recommendation.
+
 ## What does not exist yet
 
 For the build log: the Vercel deploy, pages that show the metrics (the presentation is to be redesigned around the stack and the implementation, Rafi, 2026-10-01), lint for `site/`, a Playwright spec for J-016.
