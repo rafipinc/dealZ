@@ -16,6 +16,9 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
+    // Agent worktrees are whole checkouts of other branches, with their own
+    // build output. Each is linted from its own root, never from here.
+    ".claude/**",
   ]),
 ]);
 

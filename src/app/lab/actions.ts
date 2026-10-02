@@ -4,6 +4,7 @@
 // service function, shape the report for the client. No business rule lives
 // here.
 
+import { isLocalDevelopment } from "@/lib/local-only";
 import { NotFoundError, ValidationError } from "@/services/errors";
 import { extractQuote, fetchHistory, fetchQuotes, searchQuotes } from "@/services/quotes";
 import {
@@ -18,9 +19,11 @@ import {
   type ViewError,
 } from "./view";
 
-const PRODUCTION_ERROR: ViewError = {
+// The same gate as the page: each action fires live requests, so each
+// refuses on anything but a development server.
+const NOT_LOCAL_ERROR: ViewError = {
   ok: false,
-  error: "The lab is not available in production",
+  error: "The lab is only available on a development server",
 };
 
 function slugOf(formData: FormData): string {
@@ -41,7 +44,7 @@ export async function fetchQuotesAction(
   _prev: QuoteView | null,
   formData: FormData,
 ): Promise<QuoteView> {
-  if (process.env.NODE_ENV === "production") return PRODUCTION_ERROR;
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
   try {
     const report = await fetchQuotes({ slug: slugOf(formData) });
     return toQuoteView(report);
@@ -54,7 +57,7 @@ export async function searchQuotesAction(
   _prev: SearchViewResult | null,
   formData: FormData,
 ): Promise<SearchViewResult> {
-  if (process.env.NODE_ENV === "production") return PRODUCTION_ERROR;
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
   try {
     // The service reads SERPAPI_API_KEY itself and throws ValidationError
     // when it is missing; that one case is a set-up notice, not a failure.
@@ -77,7 +80,7 @@ export async function fetchHistoryAction(
   _prev: HistoryViewResult | null,
   formData: FormData,
 ): Promise<HistoryViewResult> {
-  if (process.env.NODE_ENV === "production") return PRODUCTION_ERROR;
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
   try {
     const report = await fetchHistory({ slug: slugOf(formData), maxSnapshotsPerPage: 12 });
     return toHistoryView(report);
@@ -96,7 +99,7 @@ export async function extractQuoteAction(
   _prev: ExtractViewResult | null,
   formData: FormData,
 ): Promise<ExtractViewResult> {
-  if (process.env.NODE_ENV === "production") return PRODUCTION_ERROR;
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
   try {
     // The service reads GEMINI_API_KEY itself and throws ValidationError
     // when it is missing; that one case is a set-up notice, not a failure.

@@ -5,7 +5,8 @@
 // quotes service can tell a model outage from a retailer problem.
 
 import { z } from "zod";
-import { SourceError, type FetchLike } from "./types";
+import { beginCall } from "./meter";
+import { SourceError, type FetchLike, type Meter } from "./types";
 
 export const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 /** SourceError.retailerSlug for failures of the model service itself. */
@@ -30,6 +31,12 @@ export interface GeminiJsonRequest {
   apiKey: string;
   fetch?: FetchLike;
   timeoutMs?: number;
+  /** Clock for the meter's timing. Defaults to () => new Date(). */
+  now?: () => Date;
+  /** Told about the one request this makes, with its token counts. */
+  meter?: Meter;
+  /** The retailer whose page is being read, for the meter. */
+  retailerSlug?: string | null;
 }
 
 export interface GeminiUsage {
@@ -93,6 +100,34 @@ function messageOf(cause: unknown): string {
  * "unparseable" when the body carries no JSON answer.
  */
 export async function generateJson(request: GeminiJsonRequest): Promise<GeminiJsonResult> {
+  // The meter is told the model that was asked for, not the version the
+  // service reports, so the price table has one stable name to look up.
+  const finish = beginCall(request.meter, request.now, {
+    provider: "gemini",
+    operation: "generate_content",
+    retailerSlug: request.retailerSlug ?? null,
+    model: request.model,
+  });
+  // Filled in as the response is read, so a call that fails late still
+  // reports the status and the tokens it was billed for.
+  const seen: Seen = { httpStatus: null, inputTokens: null, outputTokens: null };
+  try {
+    const result = await requestJson(request, seen);
+    finish(seen);
+    return result;
+  } catch (error) {
+    finish({ ...seen, error });
+    throw error;
+  }
+}
+
+interface Seen {
+  httpStatus: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+async function requestJson(request: GeminiJsonRequest, seen: Seen): Promise<GeminiJsonResult> {
   const fetchImpl = request.fetch ?? globalThis.fetch;
   const { model, apiKey, timeoutMs = GEMINI_TIMEOUT_MS } = request;
   const url = generateContentUrl(model);
@@ -124,6 +159,7 @@ export async function generateJson(request: GeminiJsonRequest): Promise<GeminiJs
   }
 
   const { status } = response;
+  seen.httpStatus = status;
   if (status === 401 || status === 403 || status === 429) {
     throw new SourceError("blocked", GEMINI_SLUG, `Gemini ${model} answered ${status}`, {
       status,
@@ -143,6 +179,12 @@ export async function generateJson(request: GeminiJsonRequest): Promise<GeminiJs
   }
 
   const parsed = responseSchema.safeParse(raw);
+  const usage = parsed.success ? parsed.data.usageMetadata : undefined;
+  if (usage !== undefined) {
+    seen.inputTokens = usage.promptTokenCount ?? 0;
+    // Thinking tokens are billed at the output rate.
+    seen.outputTokens = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0);
+  }
   const text = parsed.success ? parsed.data.candidates?.[0]?.content?.parts?.[0]?.text : undefined;
   if (text === undefined) {
     throw new SourceError("unparseable", GEMINI_SLUG, `Gemini ${model} returned no candidate text`);
@@ -156,7 +198,6 @@ export async function generateJson(request: GeminiJsonRequest): Promise<GeminiJs
     });
   }
 
-  const usage = parsed.success ? parsed.data.usageMetadata : undefined;
   return {
     json,
     usage: {

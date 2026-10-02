@@ -3,6 +3,7 @@
 // strings and style sign. No Dates cross the boundary: timestamps are ISO
 // strings and chart coordinates are ISO dates and integer cents.
 
+import { SYDNEY } from "@/lib/day-ranges";
 import { formatAud, formatVsCheapest, formatVsRrp } from "@/lib/money";
 import type {
   ExtractReport,
@@ -126,8 +127,6 @@ export interface QuoteViewOk {
 export type QuoteViewError = ViewError;
 
 export type QuoteView = QuoteViewOk | QuoteViewError;
-
-const SYDNEY = "Australia/Sydney";
 
 const stockLabels: Record<Availability, string> = {
   in_stock: "In stock",

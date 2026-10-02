@@ -10,10 +10,15 @@
 // retailer still without a price, one Google Shopping search (paid, up to four requests).
 // When every page answers, the search is never made.
 //
-// A spike per ADR-0012. Nothing here is persisted; a quote is a fact seen at
+// A spike per ADR-0012. No price here is persisted; a quote is a fact seen at
 // a moment. When the catalog, retailers and listings services exist, a quote
 // becomes an observations.record call and the tracked-products table becomes
 // rows.
+//
+// What is written is the usage ledger: every request a source makes is
+// metered and recorded through usage.record with the variant's slug. That is
+// best effort. A ledger that cannot be written never fails a fetch; each
+// report's `usage` says how many calls were made and how many were recorded.
 
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
@@ -28,6 +33,7 @@ import {
 import type {
   FetchLike,
   LlmExtractInput,
+  Meter,
   PriceQuote,
   QuoteCondition,
   SourceErrorKind,
@@ -35,6 +41,10 @@ import type {
 } from "@/sources";
 import { NotFoundError, ValidationError } from "./errors";
 import { trackedVariants, type TrackedRetailerPage, type TrackedVariant } from "./tracked-products";
+import { usageLedger, type UsageRecorder, type UsageRecording } from "./usage-ledger";
+
+export { USAGE_WRITE_TIMEOUT_MS } from "./usage-ledger";
+export type { UsageRecorder, UsageRecording } from "./usage-ledger";
 
 export interface FetchQuotesInput {
   /** Slug of a tracked variant, see tracked-products.ts. */
@@ -55,6 +65,8 @@ export interface FetchQuotesInput {
   fetch?: FetchLike;
   /** Injected clock. Defaults to () => new Date(). */
   now?: () => Date;
+  /** Injected so tests need no database. Defaults to usage.record. */
+  recordUsage?: UsageRecorder;
 }
 
 /** Which tracked identifier the page agreed with, in trust order (ADR-0004). */
@@ -124,6 +136,7 @@ export interface QuoteReport {
   outcomes: QuoteOutcome[];
   cheapest: { retailerSlug: string; priceCents: number } | null;
   gapFill: GapFill;
+  usage: UsageRecording;
 }
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -131,6 +144,9 @@ const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const slugSchema = z.string().min(1).regex(SLUG_RE, "Expected a kebab-case slug");
 const fetchSchema = z.custom<FetchLike>((value) => typeof value === "function").optional();
 const nowSchema = z.custom<() => Date>((value) => typeof value === "function").optional();
+const recordUsageSchema = z
+  .custom<UsageRecorder>((value) => typeof value === "function")
+  .optional();
 
 const fetchQuotesInputSchema = z.object({
   slug: slugSchema,
@@ -138,6 +154,7 @@ const fetchQuotesInputSchema = z.object({
   serpApiKey: z.string().optional(),
   fetch: fetchSchema,
   now: nowSchema,
+  recordUsage: recordUsageSchema,
 });
 
 /** A key from the argument or the environment; null when neither is set. Never put in a report. */
@@ -220,6 +237,7 @@ function runSearch(
   apiKey: string,
   fetch: FetchLike | undefined,
   now: () => Date,
+  meter: Meter,
 ): Promise<PriceQuote[]> {
   const search = variant.searches[0];
   return searchSources[search.method]({
@@ -231,6 +249,7 @@ function runSearch(
     apiKey,
     fetch,
     now,
+    meter,
   });
 }
 
@@ -276,6 +295,7 @@ async function readPage(
   geminiApiKey: string | null,
   fetch: FetchLike | undefined,
   now: () => Date,
+  meter: Meter,
 ): Promise<PageRead> {
   const pageInput: SourceInput = {
     retailerSlug: page.retailerSlug,
@@ -283,6 +303,7 @@ async function readPage(
     url: page.url,
     fetch,
     now,
+    meter,
   };
   try {
     return { quote: await pageSources[source](pageInput), readByModel: source === "llm_extract" };
@@ -305,12 +326,13 @@ export async function fetchQuotes(input: FetchQuotesInput): Promise<QuoteReport>
   const geminiApiKey = geminiKeyOf(parsed.data.geminiApiKey);
 
   const variant = findVariant(slug);
+  const ledger = usageLedger(parsed.data.recordUsage);
 
   const fetchedAt = now();
   const settled = await Promise.allSettled(
     variant.pages.map(async (page): Promise<PageRead | null> => {
       if (page.source === null) return null;
-      return readPage(page, page.source, geminiApiKey, fetch, now);
+      return readPage(page, page.source, geminiApiKey, fetch, now, ledger.meter);
     }),
   );
 
@@ -360,7 +382,7 @@ export async function fetchQuotes(input: FetchQuotesInput): Promise<QuoteReport>
     } else {
       let found: PriceQuote[] | null = null;
       try {
-        found = await runSearch(variant, serpApiKey, fetch, now);
+        found = await runSearch(variant, serpApiKey, fetch, now, ledger.meter);
       } catch (reason) {
         gapFill = { status: "failed", gaps: gapCount, ...failureOf(reason) };
       }
@@ -425,6 +447,7 @@ export async function fetchQuotes(input: FetchQuotesInput): Promise<QuoteReport>
     outcomes: [...ok, ...failed, ...skipped],
     cheapest,
     gapFill,
+    usage: await ledger.flush(variant.slug),
   };
 }
 
@@ -436,6 +459,8 @@ export interface SearchQuotesInput {
   apiKey?: string;
   fetch?: FetchLike;
   now?: () => Date;
+  /** Defaults to usage.record. */
+  recordUsage?: UsageRecorder;
 }
 
 export interface SearchQuote {
@@ -464,6 +489,7 @@ export interface SearchReport {
   method: "serpapi_google_shopping";
   query: string;
   outcome: SearchOutcome;
+  usage: UsageRecording;
 }
 
 const searchQuotesInputSchema = z.object({
@@ -471,6 +497,7 @@ const searchQuotesInputSchema = z.object({
   apiKey: z.string().optional(),
   fetch: fetchSchema,
   now: nowSchema,
+  recordUsage: recordUsageSchema,
 });
 
 /**
@@ -533,11 +560,12 @@ export async function searchQuotes(input: SearchQuotesInput): Promise<SearchRepo
 
   const variant = findVariant(slug);
   const search = variant.searches[0];
+  const ledger = usageLedger(parsed.data.recordUsage);
 
   const fetchedAt = now();
   let outcome: SearchOutcome;
   try {
-    const quotes = await runSearch(variant, apiKey, fetch, now);
+    const quotes = await runSearch(variant, apiKey, fetch, now, ledger.meter);
     outcome = searchOutcomeOf(quotes, variant);
   } catch (reason) {
     outcome = { status: "failed", ...failureOf(reason) };
@@ -549,6 +577,7 @@ export async function searchQuotes(input: SearchQuotesInput): Promise<SearchRepo
     method: search.method,
     query: search.query,
     outcome,
+    usage: await ledger.flush(variant.slug),
   };
 }
 
@@ -564,6 +593,8 @@ export interface FetchHistoryInput {
   maxSnapshotsPerPage?: number;
   fetch?: FetchLike;
   now?: () => Date;
+  /** Defaults to usage.record. */
+  recordUsage?: UsageRecorder;
 }
 
 export interface HistoryPoint {
@@ -614,6 +645,7 @@ export interface HistoryReport {
   pages: HistoryPage[];
   /** The lowest archived price across every page, or null when none parsed. */
   lowest: { retailerSlug: string; priceCents: number; observedAt: Date } | null;
+  usage: UsageRecording;
 }
 
 const DEFAULT_MAX_SNAPSHOTS_PER_PAGE = 12;
@@ -625,6 +657,7 @@ const fetchHistoryInputSchema = z.object({
   maxSnapshotsPerPage: z.number().int().positive().default(DEFAULT_MAX_SNAPSHOTS_PER_PAGE),
   fetch: fetchSchema,
   now: nowSchema,
+  recordUsage: recordUsageSchema,
 });
 
 function historyPointOf(quote: PriceQuote): HistoryPoint {
@@ -679,6 +712,7 @@ export async function fetchHistory(input: FetchHistoryInput): Promise<HistoryRep
   const variant = findVariant(slug);
   const from = parsed.data.from ?? new Date(`${variant.onSaleFrom}T00:00:00Z`);
   const to = parsed.data.to ?? now();
+  const ledger = usageLedger(parsed.data.recordUsage);
 
   // Every page is tried, whatever its live `source`: an archived copy is HTML
   // with JSON-LD even for a Shopify store, and a bot-protected site may still
@@ -695,6 +729,7 @@ export async function fetchHistory(input: FetchHistoryInput): Promise<HistoryRep
         maxSnapshots: maxSnapshotsPerPage,
         fetch,
         now,
+        meter: ledger.meter,
       }),
     ),
   );
@@ -745,6 +780,7 @@ export async function fetchHistory(input: FetchHistoryInput): Promise<HistoryRep
     to,
     pages,
     lowest: lowestOf(pages),
+    usage: await ledger.flush(variant.slug),
   };
 }
 
@@ -757,6 +793,8 @@ export interface ExtractQuoteInput {
   apiKey?: string;
   fetch?: FetchLike;
   now?: () => Date;
+  /** Defaults to usage.record. */
+  recordUsage?: UsageRecorder;
 }
 
 export type ExtractOutcome =
@@ -777,6 +815,7 @@ export interface ExtractReport {
   fetchedAt: Date;
   method: "llm_extract";
   outcome: ExtractOutcome;
+  usage: UsageRecording;
 }
 
 const httpUrlSchema = z.string().refine((value) => {
@@ -793,6 +832,7 @@ const extractQuoteInputSchema = z.object({
   apiKey: z.string().optional(),
   fetch: fetchSchema,
   now: nowSchema,
+  recordUsage: recordUsageSchema,
 });
 
 /** The part of the llm_extract source's `raw` the report repeats. Read defensively: `raw` is unknown by contract. */
@@ -837,6 +877,7 @@ export async function extractQuote(input: ExtractQuoteInput): Promise<ExtractRep
   // The schema accepted it, so canonicalisation cannot throw here.
   const url = canonicaliseUrl(parsed.data.url);
   const { hostname } = new URL(url);
+  const ledger = usageLedger(parsed.data.recordUsage);
   const modelInput: LlmExtractInput = {
     retailerSlug: slugify(hostname.replace(/^www\./, "")) || UNKNOWN_RETAILER_SLUG,
     retailerName: hostname,
@@ -844,6 +885,7 @@ export async function extractQuote(input: ExtractQuoteInput): Promise<ExtractRep
     apiKey,
     fetch,
     now,
+    meter: ledger.meter,
   };
 
   const fetchedAt = now();
@@ -868,5 +910,7 @@ export async function extractQuote(input: ExtractQuoteInput): Promise<ExtractRep
     fetchedAt,
     method: "llm_extract",
     outcome,
+    // The page is any store's, so the variant is known only when its identifiers matched one.
+    usage: await ledger.flush(outcome.status === "ok" ? outcome.matchedVariantSlug : null),
   };
 }

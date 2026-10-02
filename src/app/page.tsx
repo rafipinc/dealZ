@@ -1,5 +1,6 @@
 // Placeholder until phase 3 delivers the public pages (ARCHITECTURE.md section 10).
 import Link from "next/link";
+import { isLocalDevelopment } from "@/lib/local-only";
 
 export default function Home() {
   return (
@@ -8,7 +9,7 @@ export default function Home() {
       <p className="text-zinc-600">
         Price history and curated deals for consumer tech in Australia.
       </p>
-      {process.env.NODE_ENV !== "production" && (
+      {isLocalDevelopment(process.env.NODE_ENV) && (
         <Link href="/lab" className="text-sm text-zinc-700 underline dark:text-zinc-300">
           Lab: live price fetch
         </Link>

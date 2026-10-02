@@ -97,7 +97,7 @@ Keys in use:
 | Name | Service | Needed for | Where to get it |
 |---|---|---|---|
 | `GEMINI_API_KEY` | Google Gemini | Extraction now, in the lab's model panel and as the page fallback; matching in phase 4 ([ADR-0013](adr/0013-llm-extraction-boundaries.md), proposed) | aistudio.google.com |
-| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, and the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8) | serpapi.com, free tier of about 100 calls a month; a search is two calls as a rule |
+| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, and the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8) | serpapi.com. The Free Plan is 250 searches a month, as the account endpoint reported on 2026-10-01; a search is two calls as a rule |
 
 Each key is one Keychain item named `dealz/NAME` under the login account, visible in Keychain Access. `npm run dev` without keys still works; the panels that need one show a setup notice. In CI and on Vercel there is no Keychain: CI needs no keys, and production values are entered in Vercel's dashboard, never copied from a laptop.
 
@@ -161,7 +161,21 @@ npx drizzle-kit studio                            # optional: browse the tables
 
 Done on 2026-09-22: `0000_init.sql` and `0001_triggers.sql` are in `drizzle/migrations/` and applied locally. `generate` needs `DIRECT_URL` set to any value to read the config; only `migrate` connects. The Drizzle migrator records applied migrations in `drizzle.__drizzle_migrations`.
 
-Rules: migrations are reviewed as SQL before they are applied and never edited afterwards. `src/db/sql/triggers.sql` and the custom migration must stay identical; if a trigger changes, it changes in both, through a new custom migration.
+Rules: migrations are reviewed as SQL before they are applied and never edited afterwards.
+
+Hand-written SQL follows one convention ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md)). Each file in `src/db/sql/` is paired with exactly one custom migration and stays byte-identical to it; `cmp` checks a pair. A trigger change is a new file plus a new custom migration. An applied pair is never edited.
+
+| File in `src/db/sql/` | Custom migration |
+|---|---|
+| `triggers.sql` | `0001_triggers.sql` |
+| `api-usage-triggers.sql` | `0003_api-usage-triggers.sql` |
+
+To add a pair:
+
+```bash
+npx drizzle-kit generate --custom --name <table>-triggers
+cp src/db/sql/<table>-triggers.sql drizzle/migrations/000N_<table>-triggers.sql   # then: cmp the two files
+```
 
 ## 5. Checks after the first migrate
 

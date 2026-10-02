@@ -1,8 +1,13 @@
 // Shared HTTP plumbing for sources. One request, one body, and every way it
 // can go wrong mapped to a SourceError kind. Not exported from the index.
+//
+// fetchText reports each request to the input's meter. fetchBody is the same
+// request unmetered, for a caller (serpapi.ts) that judges the call by what
+// the body says and reports it itself.
 
 import { canonicaliseUrl } from "../lib/url";
-import { SourceError, type SourceInput } from "./types";
+import { beginCall } from "./meter";
+import { SourceError, type SourceInput, type SourceOperation, type SourceProvider } from "./types";
 
 export const USER_AGENT = "DealZ/0.1 (+https://github.com/rafipinc/dealZ)";
 /** Default request timeout. Archived pages are slow; the wayback source passes a longer one. */
@@ -11,7 +16,20 @@ export const REQUEST_TIMEOUT_MS = 15_000;
 export interface FetchTextInit extends RequestInit {
   /** Abort the request after this many milliseconds. Defaults to REQUEST_TIMEOUT_MS. */
   timeoutMs?: number;
+  /**
+   * What the request is, for the meter. Defaults to a retailer page, which is
+   * what every live page source fetches.
+   */
+  call?: { provider: SourceProvider; operation: SourceOperation };
 }
+
+/** A response that arrived with a 2xx status and a readable body. */
+export interface HttpAnswer {
+  body: string;
+  status: number;
+}
+
+const PAGE_CALL = { provider: "retailer", operation: "page" } as const;
 
 /** Markers of bot-protection pages, matched case-insensitively. */
 const CHALLENGE_MARKERS: readonly string[] = [
@@ -37,15 +55,16 @@ function messageOf(cause: unknown): string {
 }
 
 /**
- * Performs the request and returns the body as text. Throws SourceError:
+ * Performs the request and returns the body and status. Throws SourceError:
  * "network" when fetch itself rejects or the body cannot be read, "blocked"
  * on 403, 429 or a challenge page, "http" on any other non-2xx status.
+ * Reports nothing to the meter; the caller does.
  */
-export async function fetchText(
-  input: SourceInput,
+export async function fetchBody(
+  input: Pick<SourceInput, "retailerSlug" | "fetch">,
   url: string,
-  init: FetchTextInit = {},
-): Promise<string> {
+  init: Omit<FetchTextInit, "call"> = {},
+): Promise<HttpAnswer> {
   const fetchImpl = input.fetch ?? globalThis.fetch;
   const { retailerSlug } = input;
   const { timeoutMs = REQUEST_TIMEOUT_MS, ...requestInit } = init;
@@ -89,7 +108,29 @@ export async function fetchText(
       status,
     });
   }
-  return body;
+  return { body, status };
+}
+
+/**
+ * fetchBody, returning the text and reporting the request to `input.meter`:
+ * ok when a body came back, failed with the SourceError's kind otherwise.
+ * What a parser later makes of the body is not the request's outcome.
+ */
+export async function fetchText(
+  input: SourceInput,
+  url: string,
+  init: FetchTextInit = {},
+): Promise<string> {
+  const { call = PAGE_CALL, ...requestInit } = init;
+  const finish = beginCall(input.meter, input.now, { ...call, retailerSlug: input.retailerSlug });
+  try {
+    const answer = await fetchBody(input, url, requestInit);
+    finish({ httpStatus: answer.status });
+    return answer.body;
+  } catch (error) {
+    finish({ error });
+    throw error;
+  }
 }
 
 /** Canonicalises the page URL, or throws SourceError so rule 9 holds for a bad URL. */

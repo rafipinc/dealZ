@@ -23,6 +23,9 @@ test-results/
 supabase/.temp/
 supabase/.branches/
 
+# agent worktrees: whole checkouts of other branches
+.claude/worktrees/
+
 # debug and misc
 npm-debug.log*
 *.pem

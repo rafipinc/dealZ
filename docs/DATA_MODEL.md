@@ -1,7 +1,7 @@
 # DealZ Data Model
 
 **Status:** accepted 2026-09-17.
-**Source of truth:** [`src/db/schema.ts`](../src/db/schema.ts) and [`src/db/sql/triggers.sql`](../src/db/sql/triggers.sql). This document explains the shape; the code defines it.
+**Source of truth:** [`src/db/schema.ts`](../src/db/schema.ts), [`src/db/sql/triggers.sql`](../src/db/sql/triggers.sql) and, for `api_usage`, [`src/db/sql/api-usage-triggers.sql`](../src/db/sql/api-usage-triggers.sql). This document explains the shape; the code defines it.
 
 ## Principles
 
@@ -49,6 +49,9 @@ One price seen on one listing at one time. `price_cents` integer, `currency` ISO
 ### deal
 An editorial call: this observation is worth telling people about. References the `price_observation` only; listing, variant and product are reached through it, so a deal can never disagree with its observation about which listing it is on. Has its own lifecycle (`draft`, `published`, `expired`, `retracted`) and its own text. Retracting a deal never touches price history.
 
+### api_usage
+The usage ledger: one row per outbound call to an external service ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), proposed). It sits outside the catalogue shape above and has no foreign keys. `provider` is an open set (`serpapi`, `gemini`, `wayback`, `retailer`), so it is text with a slug check. `outcome` is `ok` or `failed`; a failed row carries the source's `error_kind`. `cost_micros` is the estimated cost in millionths of a US dollar, computed by the service at write time from the price in force when the call started. A stored zero does not say whether a call was free or unpriced; that is decided at read time from the price table, so no column holds it. It is the one exception to integer cents, because a single Gemini call costs a fraction of a cent. `retailer_slug` and `variant_slug` are text, not foreign keys: the tracked products are not rows yet. Append-only. It never holds an API key or a request URL.
+
 ## Invariants and where they live
 
 | Invariant | Enforced by |
@@ -66,6 +69,11 @@ An editorial call: this observation is worth telling people about. References th
 | A published deal has a `published_at` | check `deal_published_has_timestamp` |
 | `updated_at` is always current | trigger `set_updated_at` on every mutable table |
 | History cannot be orphaned | `ON DELETE RESTRICT` from listing down to deal |
+| Usage ledger rows are never updated or deleted | trigger `api_usage_append_only` |
+| A usage provider is a slug | check `api_usage_provider_format` |
+| A call outcome is `ok` or `failed` | enum `api_call_outcome` |
+| A failed call names its error kind, an ok call has none | check `api_usage_error_kind_only_when_failed` |
+| Call durations, token counts and costs are non-negative | checks `api_usage_duration_non_negative`, `api_usage_input_tokens_non_negative`, `api_usage_output_tokens_non_negative`, `api_usage_cost_non_negative` |
 
 ## Matching
 
@@ -104,6 +112,10 @@ The original stays in the table for audit. Chains are allowed: a correction can 
 | Best current price for a variant | Latest current observation per active listing, excluding `unknown` condition, minimum per condition | same |
 | Published deals, newest first | deal → observation → listing → variant → product | `deal_status_published_idx` |
 | Resolve a scraped identifier | identifier by type and value, plus retailer for SKUs | `identifier_type_value_retailer_uq` |
+| Calls and estimated cost per provider over a period | api_usage by provider and time | `api_usage_provider_time_idx` |
+| Calls and estimated cost per day and provider, by the calendar days of a time zone (`dailyApiUsage`) | api_usage over a period, bucketed by `called_at` in that zone | `api_usage_time_idx` |
+| Calls per day, provider and model, to tell an unpriced call from a free one (`modelCallsByDay`) | same buckets, grouped by model as well | `api_usage_time_idx` |
+| Most recent external calls | api_usage newest first | `api_usage_time_idx` |
 
 When these get slow, the answer is a materialised summary per variant, not a change to the fact table.
 

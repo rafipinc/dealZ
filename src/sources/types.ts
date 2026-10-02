@@ -113,6 +113,53 @@ export class SourceError extends Error {
   }
 }
 
+/** The external service an outbound request went to. */
+export type SourceProvider = "serpapi" | "gemini" | "wayback" | "retailer";
+
+/** What the request asked that service for. */
+export type SourceOperation =
+  | "google_shopping" // serpapi, hop 1
+  | "google_immersive_product" // serpapi, hop 2
+  | "account" // serpapi, the free Account API
+  | "generate_content" // gemini
+  | "cdx" // wayback, the capture index
+  | "availability" // wayback, the closest-capture fallback
+  | "snapshot" // wayback, one archived page
+  | "page"; // retailer, one live page or product JSON
+
+/**
+ * One HTTP request a source actually made, for the usage ledger. Reported
+ * whether the request succeeded or failed. Never carries a URL or a key: a
+ * SerpApi URL holds the key, and the ledger must not.
+ */
+export interface SourceCall {
+  provider: SourceProvider;
+  operation: SourceOperation;
+  /** When the request was sent, from the injected clock. */
+  startedAt: Date;
+  durationMs: number;
+  outcome: "ok" | "failed";
+  /** Why it failed; null when it did not. */
+  errorKind: SourceErrorKind | null;
+  /** Null when no response arrived. */
+  httpStatus: number | null;
+  /** The model asked for. Null for every provider but gemini. */
+  model: string | null;
+  /** Null where the provider has no tokens, or answered without a count. */
+  inputTokens: number | null;
+  /** Everything billed as output: for gemini, answer plus thinking tokens. */
+  outputTokens: number | null;
+  /** The retailer the request was for, when there is one. Null for a search. */
+  retailerSlug: string | null;
+}
+
+/**
+ * Receives every request a source makes. Injected like `fetch`, so a source
+ * still never touches the database: the caller decides what a call becomes.
+ * A meter that throws is ignored; it can never break a source.
+ */
+export type Meter = (call: SourceCall) => void;
+
 /** How to fetch one retailer's page. */
 export interface SourceInput {
   retailerSlug: string;
@@ -120,6 +167,7 @@ export interface SourceInput {
   url: string;
   fetch?: FetchLike;
   now?: () => Date;
+  meter?: Meter;
 }
 
 /** One page now, one quote. */
@@ -144,6 +192,7 @@ export interface SearchSourceInput {
   apiKey: string;
   fetch?: FetchLike;
   now?: () => Date;
+  meter?: Meter;
 }
 
 /** One query, every seller the aggregator lists. */

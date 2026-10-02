@@ -13,7 +13,7 @@ import {
   type LlmExtractInput,
   type PricedExtraction,
 } from "./llm-extract";
-import { REVIEW_THRESHOLD, SourceError, type FetchLike } from "./types";
+import { REVIEW_THRESHOLD, SourceError, type FetchLike, type SourceCall } from "./types";
 
 function fixture(name: string): string {
   return readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
@@ -417,5 +417,71 @@ describe("fetchLlmExtractQuote", () => {
     expect(error.kind).toBe("http");
     expect(error.status).toBe(500);
     expect(error.retailerSlug).toBe("the-good-guys");
+  });
+});
+
+describe("fetchLlmExtractQuote metering", () => {
+  function metered(fetch: FetchLike) {
+    const calls: SourceCall[] = [];
+    return { input: inputWith(fetch, { meter: (call) => void calls.push(call) }), calls };
+  }
+
+  it("reports the page fetch and the model call, both for the page's retailer", async () => {
+    const { fetch } = fakeFetch(html(handBuiltPage), json(geminiBody(answered)));
+    const { input, calls } = metered(fetch);
+    await fetchLlmExtractQuote(input);
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        provider: "retailer",
+        operation: "page",
+        outcome: "ok",
+        retailerSlug: "the-good-guys",
+        model: null,
+        startedAt: FIXED_NOW,
+      }),
+      expect.objectContaining({
+        provider: "gemini",
+        operation: "generate_content",
+        outcome: "ok",
+        retailerSlug: "the-good-guys",
+        model: DEFAULT_EXTRACT_MODEL,
+        inputTokens: 500,
+        outputTokens: 120,
+        startedAt: FIXED_NOW,
+      }),
+    ]);
+  });
+
+  it("reports only the page fetch when the page is blocked and the model is never asked", async () => {
+    const { fetch } = fakeFetch(html(harveyNorman), json(geminiBody(answered)));
+    const { input, calls } = metered(fetch);
+    await sourceErrorFrom(fetchLlmExtractQuote(input));
+    expect(calls).toEqual([
+      expect.objectContaining({ provider: "retailer", outcome: "failed", errorKind: "blocked" }),
+    ]);
+  });
+
+  it("reports the model call as failed when the model answers 429", async () => {
+    const { fetch } = fakeFetch(html(handBuiltPage), json('{"error":{"message":"quota"}}', 429));
+    const { input, calls } = metered(fetch);
+    await sourceErrorFrom(fetchLlmExtractQuote(input));
+    expect(calls.map((call) => [call.provider, call.outcome, call.httpStatus])).toEqual([
+      ["retailer", "ok", 200],
+      ["gemini", "failed", 429],
+    ]);
+  });
+
+  it("reports the model call as ok when it answered, even if the answer holds no price", async () => {
+    const { fetch } = fakeFetch(
+      html(handBuiltPage),
+      json(geminiBody({ ...answered, current_price: null })),
+    );
+    const { input, calls } = metered(fetch);
+    await sourceErrorFrom(fetchLlmExtractQuote(input));
+    expect(calls.map((call) => [call.provider, call.outcome])).toEqual([
+      ["retailer", "ok"],
+      ["gemini", "ok"],
+    ]);
   });
 });

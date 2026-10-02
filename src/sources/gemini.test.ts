@@ -10,7 +10,7 @@ import {
   generateJson,
   type GeminiJsonRequest,
 } from "./gemini";
-import { SourceError, type FetchLike } from "./types";
+import { SourceError, type FetchLike, type SourceCall } from "./types";
 
 function fixture(name: string): string {
   return readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
@@ -202,5 +202,147 @@ describe("generateJson", () => {
       });
     const error = await sourceErrorFrom(generateJson(requestWith(fetch, { timeoutMs: 5 })));
     expect(error.kind).toBe("network");
+  });
+});
+
+describe("generateJson metering", () => {
+  const T0 = new Date("2026-10-01T00:00:00.000Z");
+
+  /** A request whose meter collects, with a clock that advances 900 ms a read. */
+  function metered(fetch: FetchLike, patch: Partial<GeminiJsonRequest> = {}) {
+    const calls: SourceCall[] = [];
+    let reads = 0;
+    const request = requestWith(fetch, {
+      now: () => new Date(T0.getTime() + 900 * reads++),
+      meter: (call) => void calls.push(call),
+      retailerSlug: "jb-hi-fi",
+      ...patch,
+    });
+    return { request, calls };
+  }
+
+  it("reports one ok call with the requested model, the tokens and the retailer", async () => {
+    const { fetch } = fakeFetch(() => jsonResponse(jbHiFi));
+    const { request, calls } = metered(fetch);
+    await generateJson(request);
+    expect(calls).toEqual([
+      {
+        provider: "gemini",
+        operation: "generate_content",
+        startedAt: T0,
+        durationMs: 900,
+        outcome: "ok",
+        errorKind: null,
+        httpStatus: 200,
+        model: DEFAULT_EXTRACT_MODEL,
+        inputTokens: 766,
+        outputTokens: 180,
+        retailerSlug: "jb-hi-fi",
+      },
+    ]);
+  });
+
+  it("counts thinking tokens as output, since they are billed as output", async () => {
+    const { fetch } = fakeFetch(() => jsonResponse(samsungDoubt));
+    const { request, calls } = metered(fetch, { model: ESCALATION_MODEL });
+    await generateJson(request);
+    expect(calls[0]).toMatchObject({
+      model: ESCALATION_MODEL,
+      inputTokens: 1436,
+      outputTokens: 173 + 1017,
+    });
+  });
+
+  it("reports null tokens when the answer carries no usage, and a null retailer when none is given", async () => {
+    const { fetch } = fakeFetch(() =>
+      jsonResponse({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }),
+    );
+    const { request, calls } = metered(fetch, { retailerSlug: undefined });
+    await generateJson(request);
+    expect(calls[0]).toMatchObject({
+      outcome: "ok",
+      inputTokens: null,
+      outputTokens: null,
+      retailerSlug: null,
+    });
+  });
+
+  it("counts a usage block with missing counts as zero", async () => {
+    const { fetch } = fakeFetch(() =>
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
+        usageMetadata: {},
+      }),
+    );
+    const { request, calls } = metered(fetch);
+    await generateJson(request);
+    expect(calls[0]).toMatchObject({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it.each([
+    [401, "blocked"],
+    [429, "blocked"],
+    [500, "http"],
+  ] as const)("reports a %d as one failed call of kind %s", async (status, kind) => {
+    const { fetch } = fakeFetch(() => jsonResponse({ error: { message: "no" } }, status));
+    const { request, calls } = metered(fetch);
+    await sourceErrorFrom(generateJson(request));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      outcome: "failed",
+      errorKind: kind,
+      httpStatus: status,
+      inputTokens: null,
+      outputTokens: null,
+    });
+  });
+
+  it("reports a rejected fetch as a failed network call with no status", async () => {
+    const { request, calls } = metered(async () => {
+      throw new Error(`socket hang up for ${API_KEY}`);
+    });
+    await sourceErrorFrom(generateJson(request));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ outcome: "failed", errorKind: "network", httpStatus: null });
+    expect(JSON.stringify(calls)).not.toContain(API_KEY);
+  });
+
+  it("reports an answer that is not JSON text as failed, with the tokens it was billed", async () => {
+    const { fetch } = fakeFetch(() =>
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: "I cannot say." }] } }],
+        usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 5 },
+      }),
+    );
+    const { request, calls } = metered(fetch);
+    await sourceErrorFrom(generateJson(request));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      outcome: "failed",
+      errorKind: "unparseable",
+      httpStatus: 200,
+      inputTokens: 300,
+      outputTokens: 5,
+    });
+  });
+
+  it("never puts the key or the endpoint in a call", async () => {
+    const { fetch } = fakeFetch(() => jsonResponse(jbHiFi));
+    const { request, calls } = metered(fetch);
+    await generateJson(request);
+    expect(JSON.stringify(calls)).not.toContain(API_KEY);
+    expect(JSON.stringify(calls)).not.toContain("googleapis");
+  });
+
+  it("returns the answer even when the meter throws", async () => {
+    const { fetch } = fakeFetch(() => jsonResponse(jbHiFi));
+    const result = await generateJson(
+      requestWith(fetch, {
+        meter: () => {
+          throw new Error("ledger down");
+        },
+      }),
+    );
+    expect(result.model).toBe("gemini-3.5-flash-lite");
   });
 });

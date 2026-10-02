@@ -6,8 +6,8 @@ Loads when a file under `src/db/` is read. DATA_MODEL.md explains the shape; SET
 
 1. `schema.ts` is the source of truth. drizzle-kit generates migrations from it into `drizzle/migrations/`. Migrations are reviewed as SQL before they are applied.
 2. An applied migration is never edited. A mistake gets a new migration.
-3. `sql/triggers.sql` and the custom migration that applied it stay identical. A trigger change is a new custom migration, and both files change together.
-4. `price_observation` is append-only. Never write an UPDATE or DELETE against it, in code or in tests. Corrections insert a row with `supersedes_id`.
+3. Each hand-written SQL file in `sql/` is paired with exactly one custom migration and stays byte-identical to it (ADR-0014). A trigger change is a new file plus a new custom migration. An applied pair is never edited.
+4. `price_observation` and `api_usage` are append-only. Never write an UPDATE or DELETE against either, in code or in tests. The one exception is the breaking test in `invariants.test.ts` that rule 6 requires, which asserts the trigger rejects it. A price correction inserts a row with `supersedes_id`.
 5. `schemaFilter` stays `["public"]`. Supabase's `auth` and `storage` schemas are never managed here.
 6. Every new invariant gets a check, unique or trigger here, plus a PGlite test in `invariants.test.ts` that tries to violate it and asserts the named error. Application validation is the second line, never the only one.
 
@@ -22,4 +22,4 @@ Loads when a file under `src/db/` is read. DATA_MODEL.md explains the shape; SET
 
 ## Test reset
 
-Tests reset state with `TRUNCATE ... CASCADE`, never `DELETE`. Row-level triggers do not fire on TRUNCATE, so the append-only trigger on `price_observation` does not block it. Do not weaken the trigger to make a test pass.
+Tests reset state with `TRUNCATE ... CASCADE`, never `DELETE`. Row-level triggers do not fire on TRUNCATE, so the append-only triggers on `price_observation` and `api_usage` do not block it. Do not weaken a trigger to make a test pass.

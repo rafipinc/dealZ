@@ -11,13 +11,20 @@ import {
   fetchHistory,
   fetchQuotes,
   searchQuotes,
+  USAGE_WRITE_TIMEOUT_MS,
   type ExtractReport,
   type HistoryPageOk,
   type QuoteOutcomeFailed,
   type QuoteOutcomeOk,
   type SearchReport,
+  type UsageRecorder,
 } from "./quotes";
 import { trackedVariants } from "./tracked-products";
+import { record } from "./usage";
+
+// The real recorder writes to the application database. No test here may
+// reach one, so the default is replaced; tests of the ledger inject their own.
+vi.mock("./usage", () => ({ record: vi.fn(async () => undefined) }));
 
 function fixture(name: string): string {
   return readFileSync(
@@ -1513,5 +1520,369 @@ describe("fetchQuotes gap fill", () => {
       expect(harveyNorman.quote.priceCents).toBe(278800);
       expect(harveyNorman.needsReview).toBe(false);
     });
+  });
+});
+
+// ---------- Usage ledger ----------
+
+describe("usage ledger", () => {
+  beforeEach(() => {
+    vi.stubEnv("SERPAPI_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
+    vi.mocked(record).mockClear();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  type Recorded = Parameters<UsageRecorder>[0];
+
+  /** A recorder that keeps what it is given. */
+  function collecting(): { recordUsage: UsageRecorder; recorded: Recorded[] } {
+    const recorded: Recorded[] = [];
+    return {
+      recorded,
+      recordUsage: async (call) => {
+        recorded.push(call);
+      },
+    };
+  }
+
+  const summaryOf = (recorded: Recorded[]) =>
+    recorded.map((call) => [call.provider, call.operation, call.retailerSlug, call.outcome]);
+
+  it("fetchQuotes records one call per request, with the variant slug", async () => {
+    const calls: Call[] = [];
+    const { recordUsage, recorded } = collecting();
+    const report = await fetchQuotes({
+      slug: SLUG,
+      fetch: fakeFetchBySubstring(happyRoutes, calls),
+      now: () => FIXED_NOW,
+      recordUsage,
+    });
+
+    expect(report.usage).toEqual({ calls: 5, recorded: 5 });
+    expect(recorded).toHaveLength(calls.length);
+    expect(recorded.every((call) => call.variantSlug === SLUG)).toBe(true);
+    expect(recorded.every((call) => call.startedAt === FIXED_NOW)).toBe(true);
+    expect(summaryOf(recorded).sort()).toEqual(
+      ["jb-hi-fi", "powerland", "samsung-au", "the-good-guys", "toptek"].map((slug) => [
+        "retailer",
+        "page",
+        slug,
+        "ok",
+      ]),
+    );
+  });
+
+  it("fetchQuotes records the model read: two page fetches and one model call for that retailer", async () => {
+    const { recordUsage, recorded } = collecting();
+    const report = await fetchQuotes({
+      slug: SLUG,
+      geminiApiKey: GEMINI_KEY,
+      fetch: fakeFetchBySubstring(modelRoutes),
+      recordUsage,
+    });
+
+    const tgg = recorded.filter((call) => call.retailerSlug === "the-good-guys");
+    expect(tgg.map((call) => [call.provider, call.operation])).toEqual([
+      ["retailer", "page"],
+      ["retailer", "page"],
+      ["gemini", "generate_content"],
+    ]);
+    expect(tgg[2]).toMatchObject({
+      model: "gemini-3.5-flash-lite",
+      inputTokens: 766,
+      outputTokens: 180,
+      variantSlug: SLUG,
+    });
+    expect(report.usage).toEqual({ calls: 7, recorded: 7 });
+  });
+
+  it("fetchQuotes records a failed page and the gap-fill search, the search with no retailer", async () => {
+    const { recordUsage, recorded } = collecting();
+    const report = await fetchQuotes({
+      slug: SLUG,
+      serpApiKey: API_KEY,
+      fetch: fakeFetchBySubstring([[TGG_URL, html(bingLee, 403)], ...searchRoutes, ...happyRoutes]),
+      recordUsage,
+    });
+
+    expect(summaryOf(recorded)).toContainEqual(["retailer", "page", "the-good-guys", "failed"]);
+    const serp = recorded.filter((call) => call.provider === "serpapi");
+    expect(serp.map((call) => [call.operation, call.retailerSlug, call.variantSlug])).toEqual([
+      ["google_shopping", null, SLUG],
+      ["google_immersive_product", null, SLUG],
+    ]);
+    expect(report.usage).toEqual({ calls: 7, recorded: 7 });
+    expect(JSON.stringify(recorded)).not.toContain(API_KEY);
+  });
+
+  it("fetchQuotes returns the same report when the ledger cannot be written, and says so", async () => {
+    const run = (recordUsage: UsageRecorder) =>
+      fetchQuotes({
+        slug: SLUG,
+        fetch: fakeFetchBySubstring(happyRoutes),
+        now: () => FIXED_NOW,
+        recordUsage,
+      });
+    const { usage: written, ...withLedger } = await run(collecting().recordUsage);
+    const { usage: lost, ...withoutLedger } = await run(async () => {
+      throw new Error("connect ECONNREFUSED 127.0.0.1:54322");
+    });
+
+    expect(written).toEqual({ calls: 5, recorded: 5 });
+    expect(lost).toEqual({ calls: 5, recorded: 0 });
+    expect(withoutLedger).toEqual(withLedger);
+  });
+
+  it("counts what was recorded when the ledger fails for some calls, or throws before returning a promise", async () => {
+    let seen = 0;
+    const report = await fetchQuotes({
+      slug: SLUG,
+      fetch: fakeFetchBySubstring(happyRoutes),
+      recordUsage: (() => {
+        seen += 1;
+        if (seen === 1) throw new Error("synchronous failure");
+        return seen === 2 ? Promise.reject(new Error("write failed")) : Promise.resolve();
+      }) as UsageRecorder,
+    });
+    expect(report.usage).toEqual({ calls: 5, recorded: 3 });
+  });
+
+  describe("a ledger that never answers", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const never = () => new Promise<never>(() => {});
+
+    /** Resolves to "pending" if the promise has not settled after everything queued has run. */
+    async function stateOf<T>(promise: Promise<T>): Promise<T | "pending"> {
+      const pending = Symbol("pending");
+      await vi.advanceTimersByTimeAsync(0);
+      const first = await Promise.race([promise, Promise.resolve(pending)]);
+      return first === pending ? "pending" : (first as T);
+    }
+
+    it("waits two seconds and no longer", () => {
+      expect(USAGE_WRITE_TIMEOUT_MS).toBe(2_000);
+    });
+
+    it("fetchQuotes returns once the bound passes, counting only the writes that were confirmed", async () => {
+      let seen = 0;
+      const report = fetchQuotes({
+        slug: SLUG,
+        fetch: fakeFetchBySubstring(happyRoutes),
+        // Two writes land, the other three hang.
+        recordUsage: () => (++seen <= 2 ? Promise.resolve() : never()),
+      });
+
+      await vi.advanceTimersByTimeAsync(USAGE_WRITE_TIMEOUT_MS - 1);
+      expect(await stateOf(report)).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1);
+
+      const { usage, outcomes } = await report;
+      expect(usage).toEqual({ calls: 5, recorded: 2 });
+      expect(okOutcomes(outcomes)).toHaveLength(5);
+    });
+
+    it("does not wait at all when every write settles", async () => {
+      const report = await fetchQuotes({
+        slug: SLUG,
+        fetch: fakeFetchBySubstring(happyRoutes),
+        recordUsage: async () => undefined,
+      });
+      expect(report.usage).toEqual({ calls: 5, recorded: 5 });
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it.each([
+      [
+        "searchQuotes",
+        () =>
+          searchQuotes({
+            slug: SLUG,
+            apiKey: API_KEY,
+            fetch: fakeFetchBySubstring(searchRoutes),
+            recordUsage: never,
+          }),
+        2,
+      ],
+      [
+        "extractQuote",
+        () =>
+          extractQuote({
+            url: EXTRACT_URL,
+            apiKey: GEMINI_KEY,
+            fetch: fakeFetchBySubstring(extractRoutes),
+            recordUsage: never,
+          }),
+        2,
+      ],
+    ] as const)(
+      "%s returns once the bound passes, with nothing recorded",
+      async (_name, run, calls) => {
+        const report = run();
+        await vi.advanceTimersByTimeAsync(USAGE_WRITE_TIMEOUT_MS);
+        expect((await report).usage).toEqual({ calls, recorded: 0 });
+        expect((await report).outcome.status).toBe("ok");
+      },
+    );
+
+    it("fetchHistory returns once the bound passes, with nothing recorded", async () => {
+      const report = fetchHistory({
+        slug: SLUG,
+        fetch: fakeFetchBySubstring(historyRoutes),
+        recordUsage: never,
+      });
+      await vi.advanceTimersByTimeAsync(USAGE_WRITE_TIMEOUT_MS);
+      const { usage, lowest } = await report;
+      expect(usage.recorded).toBe(0);
+      expect(usage.calls).toBeGreaterThan(0);
+      expect(lowest).not.toBeNull();
+    });
+  });
+
+  it("uses usage.record when no recorder is injected", async () => {
+    const report = await fetchQuotes({ slug: SLUG, fetch: fakeFetchBySubstring(happyRoutes) });
+    expect(record).toHaveBeenCalledTimes(5);
+    expect(vi.mocked(record).mock.calls[0][0]).toMatchObject({
+      provider: "retailer",
+      variantSlug: SLUG,
+    });
+    expect(report.usage).toEqual({ calls: 5, recorded: 5 });
+  });
+
+  it("rejects a recorder that is not a function", async () => {
+    await expect(
+      fetchQuotes({ slug: SLUG, recordUsage: "nope" as unknown as UsageRecorder }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("searchQuotes records both hops with the variant slug, and a failed search as a failed call", async () => {
+    const ok = collecting();
+    const report = await searchQuotes({
+      slug: SLUG,
+      apiKey: API_KEY,
+      fetch: fakeFetchBySubstring(searchRoutes),
+      recordUsage: ok.recordUsage,
+    });
+    expect(summaryOf(ok.recorded)).toEqual([
+      ["serpapi", "google_shopping", null, "ok"],
+      ["serpapi", "google_immersive_product", null, "ok"],
+    ]);
+    expect(ok.recorded.every((call) => call.variantSlug === SLUG)).toBe(true);
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
+
+    const bad = collecting();
+    const failed = await searchQuotes({
+      slug: SLUG,
+      apiKey: API_KEY,
+      fetch: fakeFetchBySubstring([["serpapi.com", json("{}", 500)]]),
+      recordUsage: bad.recordUsage,
+    });
+    expect(failed.outcome.status).toBe("failed");
+    expect(bad.recorded).toEqual([
+      expect.objectContaining({ outcome: "failed", errorKind: "http", httpStatus: 500 }),
+    ]);
+    expect(failed.usage).toEqual({ calls: 1, recorded: 1 });
+  });
+
+  it("searchQuotes still reports the search when the ledger cannot be written", async () => {
+    const report = await searchQuotes({
+      slug: SLUG,
+      apiKey: API_KEY,
+      fetch: fakeFetchBySubstring(searchRoutes),
+      recordUsage: async () => {
+        throw new Error("database down");
+      },
+    });
+    expect(report.outcome.status).toBe("ok");
+    expect(report.usage).toEqual({ calls: 2, recorded: 0 });
+  });
+
+  it("fetchHistory records every archive request under the page's retailer", async () => {
+    const calls: Call[] = [];
+    const { recordUsage, recorded } = collecting();
+    const report = await fetchHistory({
+      slug: SLUG,
+      fetch: fakeFetchBySubstring(historyRoutes, calls),
+      now: () => FIXED_NOW,
+      recordUsage,
+    });
+
+    expect(recorded).toHaveLength(calls.length);
+    expect(recorded.every((call) => call.provider === "wayback")).toBe(true);
+    expect(recorded.every((call) => call.variantSlug === SLUG)).toBe(true);
+    const jb = recorded.filter((call) => call.retailerSlug === "jb-hi-fi");
+    expect(jb.map((call) => call.operation).sort()).toEqual([
+      "cdx",
+      "snapshot",
+      "snapshot",
+      "snapshot",
+      "snapshot",
+    ]);
+    expect(report.usage).toEqual({ calls: calls.length, recorded: calls.length });
+  });
+
+  it("fetchHistory still reports the history when the ledger cannot be written", async () => {
+    const report = await fetchHistory({
+      slug: SLUG,
+      fetch: fakeFetchBySubstring(historyRoutes),
+      now: () => FIXED_NOW,
+      recordUsage: async () => {
+        throw new Error("database down");
+      },
+    });
+    expect(report.lowest).not.toBeNull();
+    expect(report.usage.recorded).toBe(0);
+    expect(report.usage.calls).toBeGreaterThan(0);
+  });
+
+  it("extractQuote records the page and the model call under the matched variant", async () => {
+    const { recordUsage, recorded } = collecting();
+    const report = await extractQuote({
+      url: EXTRACT_URL,
+      apiKey: GEMINI_KEY,
+      fetch: fakeFetchBySubstring(extractRoutes),
+      now: () => FIXED_NOW,
+      recordUsage,
+    });
+
+    expect(recorded.map((call) => [call.provider, call.retailerSlug, call.variantSlug])).toEqual([
+      ["retailer", "example-electronics-com-au", SLUG],
+      ["gemini", "example-electronics-com-au", SLUG],
+    ]);
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
+    expect(JSON.stringify(recorded)).not.toContain(GEMINI_KEY);
+  });
+
+  it("extractQuote records a failed read with no variant, and survives a ledger that cannot be written", async () => {
+    const { recordUsage, recorded } = collecting();
+    const report = await extractQuote({
+      url: EXTRACT_URL,
+      apiKey: GEMINI_KEY,
+      fetch: fakeFetchBySubstring([["example-electronics", html(bingLee, 403)]]),
+      recordUsage,
+    });
+    expect(report.outcome.status).toBe("failed");
+    expect(recorded).toEqual([
+      expect.objectContaining({ outcome: "failed", errorKind: "blocked", variantSlug: null }),
+    ]);
+
+    const lost = await extractQuote({
+      url: EXTRACT_URL,
+      apiKey: GEMINI_KEY,
+      fetch: fakeFetchBySubstring(extractRoutes),
+      recordUsage: async () => {
+        throw new Error("database down");
+      },
+    });
+    expect(lost.outcome.status).toBe("ok");
+    expect(lost.usage).toEqual({ calls: 2, recorded: 0 });
   });
 });

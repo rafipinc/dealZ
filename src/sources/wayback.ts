@@ -127,7 +127,10 @@ function newest(timestamps: string[], maxSnapshots: number): string[] {
 
 async function discoverViaCdx(input: ArchiveSourceInput, pageUrl: string): Promise<string[]> {
   const url = cdxUrl(pageUrl, input.from, input.to);
-  const body = await fetchArchive(input, url, { headers: { accept: "application/json" } });
+  const body = await fetchArchive(input, url, {
+    headers: { accept: "application/json" },
+    call: { provider: "wayback", operation: "cdx" },
+  });
   if (body.trim() === "") return [];
   let rows: unknown;
   try {
@@ -174,6 +177,7 @@ async function discoverViaAvailability(
       try {
         const body = await fetchArchive(input, availabilityUrl(pageUrl, month), {
           headers: { accept: "application/json" },
+          call: { provider: "wayback", operation: "availability" },
         });
         return closestTimestampOf(body);
       } catch (error) {
@@ -242,6 +246,7 @@ export const fetchWaybackHistory: ArchiveSource = async (input) => {
             return await fetchText(input, snapshotUrl, {
               headers: { accept: "text/html" },
               timeoutMs: SNAPSHOT_TIMEOUT_MS,
+              call: { provider: "wayback", operation: "snapshot" },
             });
           } catch (error) {
             // Flagged here, before the gate hands the slot to the next

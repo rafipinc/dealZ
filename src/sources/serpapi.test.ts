@@ -5,18 +5,21 @@ import {
   ENTITY_CONFIDENCE,
   FALLBACK_CONFIDENCE,
   MAX_CANDIDATES,
+  SERPAPI_ACCOUNT_ENDPOINT,
   SERPAPI_ENDPOINT,
+  fetchSerpApiAccount,
   isCandidate,
   readSearchCondition,
   readShippingCents,
   readStoreAvailability,
   redactApiKey,
   searchGoogleShopping,
+  serpApiAccountUrl,
   serpApiImmersiveUrl,
   serpApiRequestUrl,
   storesVerify,
 } from "./serpapi";
-import { SourceError, type FetchLike, type SearchSourceInput } from "./types";
+import { SourceError, type FetchLike, type SearchSourceInput, type SourceCall } from "./types";
 
 function fixture(name: string): string {
   return readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
@@ -677,5 +680,262 @@ describe("searchGoogleShopping", () => {
     const quotes = await searchGoogleShopping(inputWith(good));
     expect(JSON.stringify(quotes)).not.toContain(API_KEY);
     expect(quotes.every((q) => !q.url.includes("api_key"))).toBe(true);
+  });
+});
+
+describe("searchGoogleShopping metering", () => {
+  /** An input whose meter collects, with a clock that advances 700 ms a read. */
+  function metered(fetch: FetchLike, patch: Partial<SearchSourceInput> = {}) {
+    const calls: SourceCall[] = [];
+    let reads = 0;
+    const input = inputWith(fetch, {
+      now: () => new Date(FIXED_NOW.getTime() + 700 * reads++),
+      meter: (call) => void calls.push(call),
+      ...patch,
+    });
+    return { input, calls };
+  }
+
+  it("reports one call per hop for the recorded pair, with no retailer, model or tokens", async () => {
+    const { fetch, calls: requests } = fakeFetch();
+    const { input, calls } = metered(fetch);
+    await searchGoogleShopping(input);
+
+    expect(requests).toHaveLength(2);
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.operation)).toEqual([
+      "google_shopping",
+      "google_immersive_product",
+    ]);
+    expect(calls[0]).toEqual({
+      provider: "serpapi",
+      operation: "google_shopping",
+      startedAt: FIXED_NOW,
+      durationMs: 700,
+      outcome: "ok",
+      errorKind: null,
+      httpStatus: 200,
+      model: null,
+      inputTokens: null,
+      outputTokens: null,
+      retailerSlug: null,
+    });
+  });
+
+  it("reports every hop-2 request, one per candidate tried", async () => {
+    const { fetch, calls: requests } = fakeFetch({
+      shopping: () =>
+        jsonResponse({
+          shopping_results: [1, 2, 3].map((n) =>
+            result(n, { immersive_product_page_token: `T-${n}` }),
+          ),
+        }),
+      immersive: {
+        "T-1": () => jsonResponse(entityOf("55")),
+        "T-2": () => jsonResponse({}, 500),
+        "T-3": () => jsonResponse(entityOf("65")),
+      },
+    });
+    const { input, calls } = metered(fetch);
+    await searchGoogleShopping(input);
+
+    expect(calls).toHaveLength(requests.length);
+    expect(calls.map((call) => [call.operation, call.outcome, call.errorKind])).toEqual([
+      ["google_shopping", "ok", null],
+      ["google_immersive_product", "ok", null],
+      ["google_immersive_product", "failed", "http"],
+      ["google_immersive_product", "ok", null],
+    ]);
+    expect(calls[2].httpStatus).toBe(500);
+  });
+
+  it("reports an error in a 200 payload as a failed call with the 200", async () => {
+    const { fetch } = fakeFetch({ shopping: () => jsonResponse({ error: "Out of searches" }) });
+    const { input, calls } = metered(fetch);
+    await sourceErrorFrom(searchGoogleShopping(input));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ outcome: "failed", errorKind: "http", httpStatus: 200 });
+  });
+
+  it("reports a body that is not JSON as a failed unparseable call", async () => {
+    const { fetch } = fakeFetch({ shopping: () => new Response("<html>", { status: 200 }) });
+    const { input, calls } = metered(fetch);
+    await sourceErrorFrom(searchGoogleShopping(input));
+    expect(calls[0]).toMatchObject({
+      outcome: "failed",
+      errorKind: "unparseable",
+      httpStatus: 200,
+    });
+  });
+
+  it("reports a 401 as http and a rejected fetch as network, never with the key", async () => {
+    const denied = metered(fakeFetch({ shopping: () => jsonResponse({}, 401) }).fetch);
+    await sourceErrorFrom(searchGoogleShopping(denied.input));
+    expect(denied.calls).toHaveLength(1);
+    expect(denied.calls[0]).toMatchObject({
+      outcome: "failed",
+      errorKind: "http",
+      httpStatus: 401,
+    });
+
+    const down = metered(async (url) => {
+      throw new Error(`connect failed for ${url}`);
+    });
+    await sourceErrorFrom(searchGoogleShopping(down.input));
+    expect(down.calls).toHaveLength(1);
+    expect(down.calls[0]).toMatchObject({
+      outcome: "failed",
+      errorKind: "network",
+      httpStatus: null,
+    });
+    expect(JSON.stringify([...denied.calls, ...down.calls])).not.toContain(API_KEY);
+  });
+
+  it("never puts the key or a URL in a call", async () => {
+    const { input, calls } = metered(fakeFetch().fetch);
+    await searchGoogleShopping(input);
+    const text = JSON.stringify(calls);
+    expect(text).not.toContain(API_KEY);
+    expect(text).not.toContain("serpapi.com");
+  });
+
+  it("returns the quotes even when the meter throws", async () => {
+    const { input } = metered(fakeFetch().fetch, {
+      meter: () => {
+        throw new Error("ledger down");
+      },
+    });
+    expect(await searchGoogleShopping(input)).toHaveLength(13);
+  });
+});
+
+describe("fetchSerpApiAccount", () => {
+  const accountBody = fixture("serpapi-account.json");
+
+  function accountFetch(respond: () => Response | Promise<Response>) {
+    const calls: Call[] = [];
+    const fetch: FetchLike = async (url, init) => {
+      calls.push({ url, init });
+      return respond();
+    };
+    return { fetch, calls };
+  }
+
+  it("builds the account URL with the key as a parameter", () => {
+    expect(serpApiAccountUrl("a b&c")).toBe(`${SERPAPI_ACCOUNT_ENDPOINT}?api_key=a+b%26c`);
+    expect(redactApiKey(serpApiAccountUrl(API_KEY))).toBe(
+      `${SERPAPI_ACCOUNT_ENDPOINT}?api_key=REDACTED`,
+    );
+  });
+
+  it("reads the plan and what is left of it from the fixture", async () => {
+    const { fetch, calls } = accountFetch(() => new Response(accountBody, { status: 200 }));
+    const account = await fetchSerpApiAccount({ apiKey: API_KEY, fetch, now: () => FIXED_NOW });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(serpApiAccountUrl(API_KEY));
+    expect(account).toEqual({
+      planName: "Free Plan",
+      searchesPerMonth: 250,
+      thisMonthUsage: 38,
+      planSearchesLeft: 212,
+      totalSearchesLeft: 212,
+      fetchedAt: FIXED_NOW,
+    });
+  });
+
+  it("keeps neither the key nor the account's email", async () => {
+    const body = JSON.stringify({
+      ...(JSON.parse(accountBody) as Record<string, unknown>),
+      api_key: API_KEY,
+      account_email: "someone@example.com",
+    });
+    const { fetch } = accountFetch(() => new Response(body, { status: 200 }));
+    const text = JSON.stringify(await fetchSerpApiAccount({ apiKey: API_KEY, fetch }));
+    expect(text).not.toContain(API_KEY);
+    expect(text).not.toContain("someone@example.com");
+  });
+
+  it("has no real key or email in its fixture", () => {
+    const recorded = JSON.parse(accountBody) as Record<string, unknown>;
+    expect(recorded.api_key).toBe("REDACTED");
+    expect(recorded.account_email).toBe("redacted@example.com");
+  });
+
+  it("reads absent or malformed counts as null", async () => {
+    const { fetch } = accountFetch(() =>
+      jsonResponse({ plan_name: "Developer", searches_per_month: "many" }),
+    );
+    const account = await fetchSerpApiAccount({ apiKey: API_KEY, fetch, now: () => FIXED_NOW });
+    expect(account).toEqual({
+      planName: "Developer",
+      searchesPerMonth: null,
+      thisMonthUsage: null,
+      planSearchesLeft: null,
+      totalSearchesLeft: null,
+      fetchedAt: FIXED_NOW,
+    });
+  });
+
+  it("throws unparseable when the answer names no plan", async () => {
+    const { fetch } = accountFetch(() => jsonResponse({ account_status: "Active" }));
+    const error = await sourceErrorFrom(fetchSerpApiAccount({ apiKey: API_KEY, fetch }));
+    expect(error.kind).toBe("unparseable");
+    expect(error.retailerSlug).toBe("serpapi");
+  });
+
+  it("throws http with SerpApi's message when the payload carries an error", async () => {
+    const { fetch } = accountFetch(() => jsonResponse({ error: "Invalid API key." }));
+    const error = await sourceErrorFrom(fetchSerpApiAccount({ apiKey: API_KEY, fetch }));
+    expect(error.kind).toBe("http");
+    expect(error.message).toContain("Invalid API key.");
+  });
+
+  it("throws http on a 401 and network on a rejected fetch, never with the key", async () => {
+    const denied = await sourceErrorFrom(
+      fetchSerpApiAccount({
+        apiKey: API_KEY,
+        fetch: accountFetch(() => jsonResponse({}, 401)).fetch,
+      }),
+    );
+    expect(denied.kind).toBe("http");
+    expect(denied.status).toBe(401);
+    expect(denied.message).not.toContain(API_KEY);
+    expect(denied.message).toContain("api_key=REDACTED");
+
+    const down = await sourceErrorFrom(
+      fetchSerpApiAccount({
+        apiKey: API_KEY,
+        fetch: async (url) => {
+          throw new Error(`connect failed for ${url}`);
+        },
+      }),
+    );
+    expect(down.kind).toBe("network");
+    expect(down.message).not.toContain(API_KEY);
+  });
+
+  it("throws unparseable, without the key, when the body is not JSON", async () => {
+    const { fetch } = accountFetch(() => new Response("<html>", { status: 200 }));
+    const error = await sourceErrorFrom(fetchSerpApiAccount({ apiKey: API_KEY, fetch }));
+    expect(error.kind).toBe("unparseable");
+    expect(error.message).not.toContain(API_KEY);
+  });
+
+  it("reports one account call to the meter, ok or failed", async () => {
+    const calls: SourceCall[] = [];
+    const meter = (call: SourceCall) => void calls.push(call);
+    const ok = accountFetch(() => new Response(accountBody, { status: 200 }));
+    await fetchSerpApiAccount({ apiKey: API_KEY, fetch: ok.fetch, now: () => FIXED_NOW, meter });
+    const bad = accountFetch(() => jsonResponse({ error: "Invalid API key." }));
+    await sourceErrorFrom(
+      fetchSerpApiAccount({ apiKey: API_KEY, fetch: bad.fetch, now: () => FIXED_NOW, meter }),
+    );
+
+    expect(calls.map((call) => [call.provider, call.operation, call.outcome])).toEqual([
+      ["serpapi", "account", "ok"],
+      ["serpapi", "account", "failed"],
+    ]);
+    expect(JSON.stringify(calls)).not.toContain(API_KEY);
   });
 });
