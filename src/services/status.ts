@@ -136,24 +136,6 @@ export function safeFailureMessage(reason: unknown, env: Env = process.env): str
   );
 }
 
-/**
- * The reason behind a failure, redacted as safeFailureMessage does. The query
- * layer wraps a driver error in one whose message is the SQL that failed; the
- * innermost Error in the cause chain says why (connection refused, a table
- * missing), which is what a person needs. A failure that is not an Error is
- * given as its text. A cause chain that loops back on itself stops at the
- * last Error not yet seen.
- */
-export function safeFailureReason(reason: unknown, env: Env = process.env): string {
-  let root = reason;
-  const seen = new Set<unknown>([root]);
-  while (root instanceof Error && root.cause instanceof Error && !seen.has(root.cause)) {
-    root = root.cause;
-    seen.add(root);
-  }
-  return safeFailureMessage(root, env);
-}
-
 async function checkDatabase(
   given: QueryDb | undefined,
   migrationsExpected: number,

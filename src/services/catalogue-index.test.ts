@@ -29,6 +29,7 @@ import {
 } from "./catalogue-index";
 import { defaultDb } from "./default-db";
 import { NotFoundError, ValidationError } from "./errors";
+import type { SeededCollection } from "./tracked-products";
 
 // The helpers reach a database; here they record what they were asked.
 vi.mock("@/db/queries/catalogue-candidates", () => ({
@@ -507,6 +508,171 @@ describe("refreshIndex", () => {
       },
     ]);
     expect(report.usage).toEqual({ calls: 1, recorded: 1 });
+  });
+
+  describe("a store with two collections", () => {
+    const POWERLAND = {
+      retailerSlug: "powerland",
+      retailerName: "Powerland",
+      origin: POWERLAND_ORIGIN,
+      note: null,
+    };
+    const twoCollections: SeededCollection[] = [
+      { ...POWERLAND, collection: "televisions" },
+      { ...POWERLAND, collection: "soundbars" },
+    ];
+
+    /** Answers each collection with its own body; a collection not named is a test error. */
+    function fetchByCollection(bodies: Record<string, [string, string]>): FetchLike {
+      return async (url) => {
+        const name = /\/collections\/([^/]+)\//.exec(url)?.[1] ?? "";
+        const entry = bodies[name];
+        if (entry === undefined) throw new Error(`Unexpected request to ${url}`);
+        const [body, type] = entry;
+        return new Response(body, { status: 200, headers: { "content-type": type } });
+      };
+    }
+
+    it("removes nothing of the store when one of its collections fails", async () => {
+      const deleteUnseen = fakeDelete(9);
+      const report = await refreshIndex({
+        seededCollections: twoCollections,
+        fetch: fetchByCollection({
+          televisions: [televisions, "application/json"],
+          soundbars: [bingLee, "text/html"],
+        }),
+        recordUsage: async () => undefined,
+        deleteUnseen,
+        db,
+      });
+
+      expect(deleteUnseen).not.toHaveBeenCalled();
+      expect(report.collections.map((c) => [c.collection, c.status])).toEqual([
+        ["televisions", "ok"],
+        ["soundbars", "failed"],
+      ]);
+      expect(report.collections[0]).toMatchObject({ found: 6, written: 6, removed: 0 });
+    });
+
+    it("removes nothing of the store when its first collection lists no products", async () => {
+      const deleteUnseen = fakeDelete(9);
+      const report = await refreshIndex({
+        seededCollections: twoCollections,
+        fetch: fetchByCollection({
+          televisions: [JSON.stringify({ products: [] }), "application/json"],
+          soundbars: [televisions, "application/json"],
+        }),
+        recordUsage: async () => undefined,
+        deleteUnseen,
+        db,
+      });
+
+      expect(deleteUnseen).not.toHaveBeenCalled();
+      expect(report.collections.map((c) => c.status)).toEqual(["failed", "ok"]);
+      expect(report.collections[1]).toMatchObject({ removed: 0 });
+    });
+
+    it("removes the store's unseen rows once, after both pulls, reported on its last collection", async () => {
+      const events: string[] = [];
+      upsert.mockImplementation(async (_db, rows) => {
+        events.push("upsert");
+        return rows.length;
+      });
+      const deleteUnseen = fakeDelete(3, events);
+      try {
+        const report = await refreshIndex({
+          seededCollections: twoCollections,
+          fetch: fetchByCollection({
+            televisions: [televisions, "application/json"],
+            soundbars: [televisions, "application/json"],
+          }),
+          recordUsage: async () => undefined,
+          deleteUnseen,
+          db,
+        });
+
+        // Rows from neither pull are dropped, and only once both are in.
+        expect(events).toEqual(["upsert", "upsert", "delete"]);
+        expect(deleteUnseen).toHaveBeenCalledTimes(1);
+        expect(deleteUnseen).toHaveBeenCalledWith(db, {
+          retailerSlug: "powerland",
+          seenSince: DB_NOW,
+        });
+        expect(report.collections).toEqual([
+          expect.objectContaining({ collection: "televisions", status: "ok", removed: 0 }),
+          expect.objectContaining({ collection: "soundbars", status: "ok", removed: 3 }),
+        ]);
+      } finally {
+        upsert.mockImplementation(async (_db, rows) => rows.length);
+      }
+    });
+
+    it("still removes another store's rows when one store fails", async () => {
+      const deleteUnseen = fakeDelete(1);
+      const report = await refreshIndex({
+        seededCollections: [
+          ...twoCollections,
+          {
+            retailerSlug: "other-store",
+            retailerName: "Other Store",
+            origin: "https://other.example",
+            collection: "tvs",
+            note: null,
+          },
+        ],
+        fetch: fetchByCollection({
+          televisions: [televisions, "application/json"],
+          soundbars: [bingLee, "text/html"],
+          tvs: [televisions, "application/json"],
+        }),
+        recordUsage: async () => undefined,
+        deleteUnseen,
+        db,
+      });
+
+      expect(deleteUnseen).toHaveBeenCalledTimes(1);
+      expect(deleteUnseen).toHaveBeenCalledWith(db, {
+        retailerSlug: "other-store",
+        seenSince: DB_NOW,
+      });
+      expect(report.collections.map((c) => [c.retailerSlug, c.collection, c.status])).toEqual([
+        ["powerland", "televisions", "ok"],
+        ["powerland", "soundbars", "failed"],
+        ["other-store", "tvs", "ok"],
+      ]);
+      expect(report.collections[2]).toMatchObject({ removed: 1 });
+    });
+
+    it("pulls only the asked store's collections from an injected list", async () => {
+      const calls: string[] = [];
+      const report = await refreshIndex({
+        retailerSlug: "powerland",
+        seededCollections: twoCollections,
+        fetch: fakeFetch(televisions, "application/json", calls),
+        recordUsage: async () => undefined,
+        deleteUnseen: fakeDelete(0),
+        db,
+      });
+      expect(report.collections.map((c) => c.collection)).toEqual(["televisions", "soundbars"]);
+      expect(calls).toHaveLength(2);
+    });
+
+    it("throws ValidationError for a malformed seeded collection, before any request", async () => {
+      const calls: string[] = [];
+      const attempt = refreshIndex({
+        seededCollections: [{ ...POWERLAND, collection: "", origin: "not a url" }],
+        fetch: fakeFetch(televisions, "application/json", calls),
+        db,
+      });
+      await expect(attempt).rejects.toBeInstanceOf(ValidationError);
+      expect(calls).toEqual([]);
+    });
+
+    it("throws NotFoundError for an empty seeded list", async () => {
+      const attempt = refreshIndex({ seededCollections: [], db });
+      await expect(attempt).rejects.toBeInstanceOf(NotFoundError);
+      await expect(attempt).rejects.toThrow("No seeded collection to refresh: no store is seeded");
+    });
   });
 
   it("drops nothing for a store whose pull failed", async () => {

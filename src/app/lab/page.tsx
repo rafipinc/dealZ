@@ -15,7 +15,7 @@ import { isLocalDevelopment } from "@/lib/local-only";
 import { formatAud } from "@/lib/money";
 import { MAX_QUERY_LENGTH } from "@/services/discovery";
 import { trackedVariants, type TrackedVariant } from "@/services/tracked-products";
-import { CatalogSearchPanel } from "./catalog-search-panel";
+import { CatalogueSearchPanel } from "./catalogue-search-panel";
 import { ExtractPanel } from "./extract-panel";
 import { HistoryPanel } from "./history-panel";
 import { loadIndexStatus, loadSerpApiBudget } from "./index-loaders";
@@ -153,7 +153,7 @@ export default async function LabPage() {
           cap) and the storefronts that answer scripted requests, and remembers what they return. No
           price is saved; each request is logged to the usage ledger.
         </p>
-        <CatalogSearchPanel
+        <CatalogueSearchPanel
           maxQueryLength={MAX_QUERY_LENGTH}
           indexStatus={indexStatus}
           serpApiBudget={serpApiBudget}

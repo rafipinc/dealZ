@@ -1,5 +1,5 @@
 // Thin helpers over catalogue_candidate, the local search index: one row per
-// product a retailer storefront has shown DealZ (ADR-0017, proposed). Rows are
+// product a retailer storefront has shown DealZ (ADR-0017). Rows are
 // replaced in place on every sighting, so there is an upsert and no insert.
 
 import { and, count, desc, eq, lt, max, or, sql } from "drizzle-orm";

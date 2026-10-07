@@ -740,7 +740,7 @@ function IndexStatusLine({
  * while this client component must not import a service module, which
  * reaches the database driver and cannot be bundled for the browser.
  */
-export function CatalogSearchPanel({
+export function CatalogueSearchPanel({
   maxQueryLength,
   indexStatus,
   serpApiBudget,

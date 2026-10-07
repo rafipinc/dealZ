@@ -308,7 +308,7 @@ export const apiUsage = pgTable(
 );
 
 // The local search index: one row per product a retailer storefront has shown
-// DealZ, from a listing pull or a live search (ADR-0017, proposed; the staging
+// DealZ, from a listing pull or a live search (ADR-0017; the staging
 // table ADR-0010 deferred). A snapshot of what the store said, never price
 // history: no row here is a price_observation, and nothing references this
 // table. A row is replaced in place on every sighting; first_seen_at survives.

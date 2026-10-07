@@ -35,7 +35,9 @@
 // must be under SERPAPI_DAILY_CAP (20 by default). The budget is read only
 // once the index has answered and only when it holds too little, so a
 // ledger that cannot be read never stops the free path: Google is skipped
-// and the report says why. What both sources return is remembered in the
+// and the report says why. The budget read, the paid call and its ledger
+// write run one search at a time, so two searches cannot both take the last
+// search under the cap. What both sources return is remembered in the
 // index and the index is searched again, so a Google row and a storefront
 // row for one product come back as one product with two offers.
 
@@ -114,6 +116,8 @@ export type CountOkCalls = (
  * cancelled and may land later; it is not counted.
  */
 export const INDEX_WRITE_TIMEOUT_MS = 2_000;
+/** How long a search waits for the day's budget before treating it as unknown. */
+export const BUDGET_READ_TIMEOUT_MS = 2_000;
 
 /** One limit for every search box: the index and the sources take the same queries. */
 export { MAX_QUERY_LENGTH } from "./catalogue-index";
@@ -657,29 +661,72 @@ function budgetOf(budget: SerpApiBudget | null): DiscoverBudget | null {
 }
 
 /**
- * The budget, or null when the ledger could not be read. The budget gates
- * a paid call; it is never a reason to fail the free path, and a budget
- * that cannot be known allows nothing.
+ * The budget, or null when the ledger could not be read in time. The budget
+ * gates a paid call; it is never a reason to fail the free path, and a budget
+ * that cannot be known allows nothing. Bounded, because it is read inside the
+ * paid turn and a read that never answered would hold every later search.
  */
 async function budgetBestEffort(input: SerpApiBudgetInput): Promise<SerpApiBudget | null> {
   try {
-    return await serpApiBudget(input);
+    return await withTimeout(
+      serpApiBudget(input),
+      BUDGET_READ_TIMEOUT_MS,
+      "The usage ledger did not answer",
+    );
   } catch {
     return null;
   }
 }
 
-/** Reads the budget, then asks Google Shopping only when the key is set and the budget is known and allows it. */
-async function askGoogleShoppingWithinBudget(
+// DealZ's search runs in one Node process (a local dev tool), so an
+// in-process chain is enough to stop two searches both passing the cap.
+let paidTurn: Promise<unknown> = Promise.resolve();
+
+/** Runs `work` once every earlier call's work has settled, one at a time. */
+function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
+  const run = paidTurn.then(work);
+  paidTurn = run.catch(() => undefined);
+  return run;
+}
+
+interface GoogleWithinBudget {
+  budget: SerpApiBudget | null;
+  outcome: GoogleShoppingOutcome;
+  /** The Google call as the ledger took it, written before the next search reads the budget. */
+  usage: UsageRecording;
+}
+
+/**
+ * Reads the budget, then asks Google Shopping only when the key is set and
+ * the budget is known and allows it. The read, the paid call and its ledger
+ * write run one search at a time, so the next search's read counts this
+ * call: two searches at the cap minus one cannot both spend. Only this part
+ * waits its turn; the index and the storefronts never do.
+ */
+function askGoogleShoppingWithinBudget(
   ask: Ask,
   apiKey: string | null,
   budgetInput: SerpApiBudgetInput,
-): Promise<{ budget: SerpApiBudget | null; outcome: GoogleShoppingOutcome }> {
-  const budget = await budgetBestEffort(budgetInput);
-  if (apiKey === null) return { budget, outcome: { status: "skipped", reason: "no_key" } };
-  if (budget === null) return { budget, outcome: { status: "skipped", reason: "budget_unknown" } };
-  if (!budget.allowed) return { budget, outcome: { status: "skipped", reason: "cap_reached" } };
-  return { budget, outcome: await askGoogleShopping(ask, apiKey) };
+  recordUsage: UsageRecorder | undefined,
+): Promise<GoogleWithinBudget> {
+  return oneAtATime(async () => {
+    const none: UsageRecording = { calls: 0, recorded: 0 };
+    const budget = await budgetBestEffort(budgetInput);
+    if (apiKey === null) {
+      return { budget, outcome: { status: "skipped", reason: "no_key" }, usage: none };
+    }
+    if (budget === null) {
+      return { budget, outcome: { status: "skipped", reason: "budget_unknown" }, usage: none };
+    }
+    if (!budget.allowed) {
+      return { budget, outcome: { status: "skipped", reason: "cap_reached" }, usage: none };
+    }
+    // Its own ledger, flushed inside the turn: the budget is read from the ledger.
+    const ledger = usageLedger(recordUsage);
+    const outcome = await askGoogleShopping({ ...ask, meter: ledger.meter }, apiKey);
+    // A search is for no one tracked variant.
+    return { budget, outcome, usage: await ledger.flush(null) };
+  });
 }
 
 /**
@@ -731,7 +778,7 @@ export async function discoverProducts(input: DiscoverProductsInput): Promise<Di
   // The budget is read only now, after the index: the free path never waits on the ledger.
   const [storefronts, google] = await Promise.all([
     askStorefronts(ask, limit),
-    askGoogleShoppingWithinBudget(ask, apiKey, budgetInput),
+    askGoogleShoppingWithinBudget(ask, apiKey, budgetInput, parsed.data.recordUsage),
   ]);
   const googleShopping = google.outcome;
 
@@ -742,13 +789,17 @@ export async function discoverProducts(input: DiscoverProductsInput): Promise<Di
       : []),
   ];
   // Both best effort and both bounded, side by side: neither delays the report by more than the bound.
-  const [remembered, usage] = await Promise.all([
+  const [remembered, storefrontUsage] = await Promise.all([
     found.length === 0
       ? Promise.resolve(0)
       : rememberBestEffort(() => rememberCandidates({ candidates: found, source: "search", db })),
     // A search is for no one tracked variant.
     ledger.flush(null),
   ]);
+  const usage: UsageRecording = {
+    calls: storefrontUsage.calls + google.usage.calls,
+    recorded: storefrontUsage.recorded + google.usage.recorded,
+  };
   // Only once the sources are in: the second search is what groups them.
   const second = await search({ query, limit: MAX_SEARCH_LIMIT, db });
   // Re-read after the ledger was written, so the report counts this search

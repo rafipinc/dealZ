@@ -6,10 +6,11 @@
 // cannot be reached. Not a server action file: nothing here is callable
 // from the browser.
 
+import { rootCause } from "@/lib/errors";
 import { indexStatus, refreshIndex, searchIndex } from "@/services/catalogue-index";
 import { discoverProducts, serpApiBudget, type DiscoverProductsInput } from "@/services/discovery";
 import { NotFoundError, ValidationError } from "@/services/errors";
-import { safeFailureReason } from "@/services/status";
+import { safeFailureMessage } from "@/services/status";
 import {
   indexUnavailableView,
   serpApiBudgetUnavailableView,
@@ -38,7 +39,7 @@ export async function loadIndexStatus(deps: IndexDeps = {}): Promise<IndexStatus
     return toIndexStatusView(await indexStatus(deps));
   } catch (error) {
     // Redacted: a database error can quote the connection string.
-    return indexUnavailableView(safeFailureReason(error));
+    return indexUnavailableView(safeFailureMessage(rootCause(error)));
   }
 }
 
@@ -50,7 +51,7 @@ export async function loadSuggestions(
     return toSuggestView(await searchIndex({ query, limit: SUGGEST_LIMIT, ...deps }));
   } catch (error) {
     if (error instanceof ValidationError) return { ok: false, error: error.message };
-    return { ok: false, error: `${INDEX_UNAVAILABLE}: ${safeFailureReason(error)}` };
+    return { ok: false, error: `${INDEX_UNAVAILABLE}: ${safeFailureMessage(rootCause(error))}` };
   }
 }
 
@@ -64,7 +65,7 @@ export async function runRefreshIndex(deps: RefreshDeps = {}): Promise<RefreshVi
     if (error instanceof NotFoundError || error instanceof ValidationError) {
       return { ok: false, error: error.message };
     }
-    return { ok: false, error: `Refresh failed: ${safeFailureReason(error)}` };
+    return { ok: false, error: `Refresh failed: ${safeFailureMessage(rootCause(error))}` };
   }
 }
 
@@ -81,7 +82,7 @@ export async function loadSerpApiBudget(deps: BudgetDeps = {}): Promise<SerpApiB
     return toSerpApiBudgetView(await serpApiBudget(deps));
   } catch (error) {
     // Redacted: a ledger error can quote the connection string.
-    return serpApiBudgetUnavailableView(safeFailureReason(error));
+    return serpApiBudgetUnavailableView(safeFailureMessage(rootCause(error)));
   }
 }
 
@@ -99,6 +100,6 @@ export async function runDiscover(
     if (error instanceof NotFoundError || error instanceof ValidationError) {
       return { ok: false, error: error.message };
     }
-    return { ok: false, error: `Search failed: ${safeFailureReason(error)}` };
+    return { ok: false, error: `Search failed: ${safeFailureMessage(rootCause(error))}` };
   }
 }

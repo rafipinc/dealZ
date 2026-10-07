@@ -1,5 +1,5 @@
-// catalogue-index: the local search index of storefront products (ADR-0017,
-// proposed). One catalogue_candidate row per product a store has shown
+// catalogue-index: the local search index of storefront products (ADR-0017).
+// One catalogue_candidate row per product a store has shown
 // DealZ, written by a listing pull, by every live search and by every
 // identifier read, and searched without asking a store.
 //
@@ -351,6 +351,8 @@ export interface RefreshIndexInput {
   deleteUnseen?: DeleteUnseenListingRows;
   /** Injected so unit tests stub the database clock. Defaults to the query helper. */
   databaseNow?: DatabaseNow;
+  /** Injected so tests give a store more than one collection. Defaults to the tracked table's. */
+  seededCollections?: readonly SeededCollection[];
   db?: QueryDb;
 }
 
@@ -366,7 +368,13 @@ export interface CollectionOutcomeOk extends CollectionBase {
   found: number;
   /** Rows written to the index. Below `found` only when a product had no handle. */
   written: number;
-  /** This store's listing rows the pull did not touch: products it no longer lists, dropped (ADR-0017 item 9). */
+  /**
+   * The store's listing rows no pull of this refresh touched: products it no
+   * longer lists, dropped (ADR-0017 item 9). Dropped once per store, after
+   * all of its collections, and reported on its last collection; 0 on its
+   * other collections, and on every collection of a store with one failed
+   * or empty collection, since then nothing of that store is dropped.
+   */
   removed: number;
 }
 
@@ -392,8 +400,17 @@ const deleteUnseenSchema = z
 
 const databaseNowSchema = z.custom<DatabaseNow>((value) => typeof value === "function").optional();
 
+const seededCollectionSchema = z.object({
+  retailerSlug: z.string().regex(SLUG_RE, "Expected a kebab-case slug"),
+  retailerName: z.string().min(1),
+  origin: z.url({ protocol: /^https?$/ }),
+  collection: z.string().min(1),
+  note: z.string().nullable(),
+});
+
 const refreshIndexInputSchema = z.object({
   retailerSlug: z.string().min(1).optional(),
+  seededCollections: z.array(seededCollectionSchema).readonly().optional(),
   fetch: fetchSchema,
   now: nowSchema,
   recordUsage: recordUsageSchema,
@@ -420,15 +437,16 @@ function failureOf(reason: unknown): { kind: SourceErrorKind; message: string } 
 
 /**
  * Pulls every seeded collection, one after another, and remembers what each
- * lists with source `listing`. Once a collection is remembered, that store's
- * listing rows last seen before the refresh began are dropped: a product the
- * store no longer lists leaves the index (ADR-0017 item 9); a `search` or
- * `inspect` row stays. "Began" is read from the database's clock, the one
+ * lists with source `listing`. Once every collection of a store is
+ * remembered, that store's listing rows last seen before the refresh began
+ * are dropped, once: a product the store no longer lists leaves the index
+ * (ADR-0017 item 9); a `search` or `inspect` row stays. "Began" is read from the database's clock, the one
  * that stamps last_seen_at, so skew between the hosts cannot drop a fresh
  * row or keep a stale one. A store that cannot be read is a failed outcome,
  * never a throw, and nothing of its is dropped; so is a collection that
  * lists no products, since an empty answer would otherwise empty the store's
- * rows. Every page is metered as `listing`. A database failure propagates:
+ * rows. One failed or empty collection keeps every row of its store: the
+ * rows its pull would have refreshed are not told apart from the others. Every page is metered as `listing`. A database failure propagates:
  * the write is the point of a refresh.
  */
 export async function refreshIndex(input: RefreshIndexInput = {}): Promise<RefreshIndexReport> {
@@ -440,10 +458,11 @@ export async function refreshIndex(input: RefreshIndexInput = {}): Promise<Refre
   const now = parsed.data.now ?? (() => new Date());
   const deleteUnseen = parsed.data.deleteUnseen ?? deleteUnseenListingRows;
   const clock = parsed.data.databaseNow ?? databaseNow;
-  const targets: readonly SeededCollection[] =
+  const seeded: readonly SeededCollection[] = parsed.data.seededCollections ?? seededCollections;
+  const targets =
     retailerSlug === undefined
-      ? seededCollections
-      : seededCollections.filter((seeded) => seeded.retailerSlug === retailerSlug);
+      ? seeded
+      : seeded.filter((entry) => entry.retailerSlug === retailerSlug);
   if (targets.length === 0) {
     throw new NotFoundError(
       retailerSlug === undefined
@@ -459,19 +478,19 @@ export async function refreshIndex(input: RefreshIndexInput = {}): Promise<Refre
   const refreshedAt = await clock(db);
   const seenSince = refreshedAt;
   const collections: CollectionOutcome[] = [];
-  for (const seeded of targets) {
+  for (const target of targets) {
     const base: CollectionBase = {
-      retailerSlug: seeded.retailerSlug,
-      retailerName: seeded.retailerName,
-      collection: seeded.collection,
+      retailerSlug: target.retailerSlug,
+      retailerName: target.retailerName,
+      collection: target.collection,
     };
     let candidates: ProductCandidate[];
     try {
       candidates = await listingSources.storefront_listing({
-        retailerSlug: seeded.retailerSlug,
-        retailerName: seeded.retailerName,
-        origin: seeded.origin,
-        collection: seeded.collection,
+        retailerSlug: target.retailerSlug,
+        retailerName: target.retailerName,
+        origin: target.origin,
+        collection: target.collection,
         fetch,
         now,
         meter: ledger.meter,
@@ -485,9 +504,17 @@ export async function refreshIndex(input: RefreshIndexInput = {}): Promise<Refre
       continue;
     }
     const { written } = await remember({ candidates, source: "listing", db });
-    // Only once the pull is in: a failed write throws above, and drops nothing.
-    const removed = await deleteUnseen(db, { retailerSlug: seeded.retailerSlug, seenSince });
-    collections.push({ ...base, status: "ok", found: candidates.length, written, removed });
+    collections.push({ ...base, status: "ok", found: candidates.length, written, removed: 0 });
+  }
+
+  // Only once every pull is in: a failed write throws above, and drops nothing.
+  for (const store of new Set(collections.map((outcome) => outcome.retailerSlug))) {
+    const own = collections.filter((outcome) => outcome.retailerSlug === store);
+    if (own.some((outcome) => outcome.status !== "ok")) continue;
+    const last = own.at(-1);
+    // Never true after the check above; it narrows the type for TypeScript.
+    if (last?.status !== "ok") continue;
+    last.removed = await deleteUnseen(db, { retailerSlug: store, seenSince });
   }
 
   // A pull is for no one tracked variant.

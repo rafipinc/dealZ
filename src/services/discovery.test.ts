@@ -14,6 +14,7 @@ import {
   type IndexedProduct,
 } from "./catalogue-index";
 import {
+  BUDGET_READ_TIMEOUT_MS,
   DEFAULT_SERPAPI_DAILY_CAP,
   discoverProducts,
   findProducts,
@@ -1113,6 +1114,30 @@ describe("discoverProducts", () => {
     expect(report.usage).toEqual({ calls: 2, recorded: 2 });
   });
 
+  it("treats a budget read that never answers as budget_unknown, so the next search is not held behind it", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const hanging = {
+        query: "LG C5 65",
+        fetch: fakeFetchByOrigin(fanoutRoutes),
+        now: () => FIXED_NOW,
+        searchIndex: fakeIndex([]).search,
+        recordUsage: async () => undefined,
+        countOkCalls: () => new Promise<OkCallsByOperation[]>(() => undefined),
+      };
+      const first = discoverProducts(hanging);
+      const second = discoverProducts(hanging);
+      await vi.advanceTimersByTimeAsync(2 * BUDGET_READ_TIMEOUT_MS);
+      const reports = await Promise.all([first, second]);
+      for (const report of reports) {
+        expect(report.googleShopping).toEqual({ status: "skipped", reason: "budget_unknown" });
+        expect(report.storefronts?.every((store) => store.status === "ok")).toBe(true);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the first budget reading when the re-read after a Google answer fails", async () => {
     let reads = 0;
     const report = await discoverProducts({
@@ -1130,6 +1155,93 @@ describe("discoverProducts", () => {
     expect(report.googleShopping.status).toBe("ok");
     expect(reads).toBe(2);
     expect(report.budget).toEqual({ cap: 20, capSource: "default", usedToday: 4, remaining: 16 });
+  });
+
+  it("lets only one of two concurrent searches spend the last search under the cap", async () => {
+    vi.stubEnv(SERPAPI_DAILY_CAP_ENV, "1");
+    const calls: Call[] = [];
+    const ledger: { provider: string; operation: string; outcome: string }[] = [];
+    // The ledger as the budget reads it: every successful SerpApi search recorded so far.
+    const countOkCalls: CountOkCalls = async () =>
+      ledgerRows(
+        ledger.filter(
+          (call) =>
+            call.provider === "serpapi" &&
+            call.operation === "google_shopping" &&
+            call.outcome === "ok",
+        ).length,
+      );
+    const search = (query: string) =>
+      discoverProducts({
+        query,
+        fetch: fakeFetchByOrigin(fanoutRoutes, calls),
+        now: () => FIXED_NOW,
+        searchIndex: fakeIndex([]).search,
+        recordUsage: async (call) => {
+          ledger.push({
+            provider: call.provider,
+            operation: call.operation,
+            outcome: call.outcome,
+          });
+        },
+        countOkCalls,
+      });
+
+    const [first, second] = await Promise.all([search("LG C5 65"), search("LG C5 55")]);
+
+    expect(serpApiCalls(calls)).toHaveLength(1);
+    const outcomes = [first.googleShopping, second.googleShopping];
+    expect(outcomes.filter((outcome) => outcome.status === "ok")).toHaveLength(1);
+    expect(outcomes).toContainEqual({ status: "skipped", reason: "cap_reached" });
+    // The stores were asked by both: only the paid call waits its turn.
+    expect(first.storefronts?.every((store) => store.status === "ok")).toBe(true);
+    expect(second.storefronts?.every((store) => store.status === "ok")).toBe(true);
+  });
+
+  it("asks the stores while another search holds the paid call", async () => {
+    let releaseGoogle: () => void = () => undefined;
+    const googleHeld = new Promise<void>((resolve) => {
+      releaseGoogle = resolve;
+    });
+    const storeOrigins: string[] = [];
+    const slowGoogle = fakeFetchByOrigin({
+      ...fanoutRoutes,
+      [SERPAPI_ORIGIN]: async (url) => {
+        await googleHeld;
+        return json(serpApiS85h)(url);
+      },
+    });
+    const first = discoverProducts({
+      query: "LG C5 65",
+      fetch: slowGoogle,
+      now: () => FIXED_NOW,
+      searchIndex: fakeIndex([]).search,
+      recordUsage: async () => undefined,
+      countOkCalls: noSerpApiToday,
+    });
+    const second = discoverProducts({
+      query: "LG C5 55",
+      fetch: fakeFetchByOrigin({
+        ...fanoutRoutes,
+        [JB_ORIGIN]: (url) => {
+          storeOrigins.push(JB_ORIGIN);
+          return json(jbLgC5)(url);
+        },
+        [POWERLAND_ORIGIN]: (url) => {
+          storeOrigins.push(POWERLAND_ORIGIN);
+          return json(powerlandLgC5)(url);
+        },
+      }),
+      now: () => FIXED_NOW,
+      searchIndex: fakeIndex([]).search,
+      recordUsage: async () => undefined,
+      countOkCalls: noSerpApiToday,
+    });
+    // The first search's Google call is still out, yet the second has asked both stores.
+    await vi.waitFor(() => expect(storeOrigins).toHaveLength(2));
+    releaseGoogle();
+    const reports = await Promise.all([first, second]);
+    expect(reports.map((report) => report.googleShopping.status)).toEqual(["ok", "ok"]);
   });
 
   it("skips Google Shopping without a key, from the environment or the argument", async () => {
