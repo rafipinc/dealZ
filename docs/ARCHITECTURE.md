@@ -49,11 +49,11 @@ The sources layer (`src/sources/`, proposed in ADR-0012) sits beside services an
 |---|---|---|---|
 | Database | `src/db/` | Drizzle schema (source of truth), client, thin typed queries | Drizzle only |
 | Services | `src/services/` | Business rules and invariants, as plain functions | `src/db`, `src/lib`, `src/sources` |
-| Sources | `src/sources/` | One retailer page, one aggregator query, one archived page or a page read by a model ([ADR-0013](adr/0013-llm-extraction-boundaries.md)) in; `PriceQuote`s out, each with provenance and confidence. HTTP requests and their parsing. Never the database | `src/lib` |
+| Sources | `src/sources/` | One retailer page, one aggregator query, one archived page or a page read by a model ([ADR-0013](adr/0013-llm-extraction-boundaries.md)) in; `PriceQuote`s out, each with provenance and confidence. A discovery source takes one query and returns `ProductCandidate`s instead ([ADR-0016](adr/0016-catalogue-discovery-through-storefront-search.md), proposed). HTTP requests and their parsing. Never the database | `src/lib` |
 | Adapters | `src/app/` | Pages, server actions, route handlers: parse input, call one service, shape output | `src/services`, `src/lib` |
 | Shared | `src/lib/` | Pure helpers: GTIN normalisation, URL canonicalisation, model-code parsing | Nothing internal |
 
-The Sources row comes from [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md), status Proposed, as a phase 1 spike. The model reader is [ADR-0013](adr/0013-llm-extraction-boundaries.md), status Proposed. The meter in rule 7 is [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), status Proposed.
+The Sources row comes from [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md), status Proposed, as a phase 1 spike. The model reader is [ADR-0013](adr/0013-llm-extraction-boundaries.md), status Proposed. The meter in rule 7 is [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), accepted.
 
 1. Nothing outside `src/db` imports Drizzle.
 2. Adapters hold no business rules. A route handler and a server action that do the same thing call the same service function.
@@ -61,7 +61,7 @@ The Sources row comes from [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md
 4. Every service input is validated with a Zod schema at the boundary. Insert shapes are derived from the Drizzle tables with drizzle-zod, so each shape is defined once.
 5. Services throw typed errors (`NotFoundError`, `ConflictError`, `ValidationError`). Adapters map them to HTTP status codes or UI state; nothing else catches them.
 6. `src/sources` imports `src/lib` only. Adapters never call a source; they call a service. Every source takes `fetch` as a parameter so tests replay fixtures.
-7. A source reports each HTTP request it makes to an optional injected `meter`, one `SourceCall` per request, ok or failed ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), proposed). A call never carries a URL or a key. A meter that throws is ignored. The source still never touches the database: the calling service decides what a call becomes.
+7. A source reports each HTTP request it makes to an optional injected `meter`, one `SourceCall` per request, ok or failed ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md)). A call never carries a URL or a key. A meter that throws is ignored. The source still never touches the database: the calling service decides what a call becomes.
 
 ### 3.1 The live-price ladder
 
@@ -79,18 +79,21 @@ The Wayback Machine is the history source (`fetchHistory`), not a rung of this l
 
 ## 4. Services
 
-Phase 1 builds the first five modules. `quotes` is a phase 1 spike per ADR-0012 and ADR-0013 (both proposed). `usage` and `status` exist per [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md) (proposed) and serve the local status page at `/lab/status`. `pricing` is planned for phase 3 and is listed so the mission's core question has a home.
+Phase 1 builds the first five modules, plus `discovery`, a spike per ADR-0016 (proposed), and `catalogue-index`, a spike per ADR-0017 (proposed). `quotes` is a phase 1 spike per ADR-0012 and ADR-0013 (both proposed). `usage` and `status` exist per [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md) and serve the local status page at `/lab/status`. `pricing` is planned for phase 3 and is listed so the mission's core question has a home.
 
 | Module | Phase | Functions | Invariants it owns |
 |---|---|---|---|
 | `retailers` | 1 | `createRetailer`, `getRetailerBySlug` | Slug and domain are unique; a listing cannot exist without a retailer |
-| `catalog` | 1 | `createProduct`, `createVariant`, `addIdentifier`, `resolveVariant` | Slugs are derived and unique; GTINs are normalised to 14 digits and check-digit validated; no merge below tier 2 |
+| `catalog` | 1 | `createProduct`, `createVariant`, `addIdentifier`, `resolveVariant`, `searchCatalog` (per ADR-0016, proposed) | Slugs are derived and unique; GTINs are normalised to 14 digits and check-digit validated; no merge below tier 2 |
+| `discovery` (spike, [ADR-0016](adr/0016-catalogue-discovery-through-storefront-search.md) and [ADR-0017](adr/0017-local-search-index.md), both proposed) | 1 | `findProducts`, `inspectCandidate`, `discoverProducts`, `serpApiBudget` | A search creates no catalogue row, only a confirmed add does; what a search or an identifier read saw is remembered in the index as candidates (ADR-0017), best effort, bounded at 2 seconds, and each report says how many rows were `remembered`; every storefront request is metered (ADR-0014); a candidate whose GTIN, MPN or URL matches a tracked variant is reported as held, never as new; `inspectCandidate` reads only a `/products/` path on a searchable storefront. The catalogue search that precedes the external sources (ADR-0016 item 4) runs on the index now and on `catalog` rows when that exists. A paid search only on an explicit query, only on an index miss, never above the daily cap `SERPAPI_DAILY_CAP`; the dropdown never pays (ADR-0017 item 11): one SerpApi request a query, the product-entity hop only, its results remembered in the index, and a skipped search reported as such. Ranking is a service rule: `discoverProducts` returns the storefront and Google Shopping candidates as one list ordered by `lib/relevance`, and the page only maps it |
+| `catalogue-index` (spike, [ADR-0017](adr/0017-local-search-index.md) proposed) | 1 | `remember`, `rememberInspect`, `refreshIndex`, `searchIndex`, `indexStatus` | Never creates a catalogue row: every row it holds is a candidate, and adding stays the confirmed action of ADR-0016 item 8; an identifier once read is never erased by a later sighting without one; `searchIndex` never calls a store, drops a row the relevance rule of ADR-0016 item 12 judges unrelated, and groups the rest into one product per GTIN, model code or title with every store's offer; `refreshIndex` drops only the `listing` rows of a store whose pull it remembered, never a `search` or `inspect` row, nothing of a store that failed and nothing of a collection that returned no products; its cut-off is read from the database's clock, the one that stamps `last_seen_at`; every pull is metered (ADR-0014), operation `listing`; a database failure propagates, and the caller decides whether the write was the point |
+| `tracked-products` (spike, ADR-0012) | 1 | `matchTrackedVariant` | The tracked variants are a TypeScript table until `catalog` exists; a candidate matches one by GTIN, by model code (its MPN or retailer SKU) or by canonical URL, and the report says which |
 | `listings` | 1 | `upsertListing`, `markSeen`, `deactivate` | Canonical URL has tracking parameters stripped; every listing records its match method |
 | `observations` | 1 | `record`, `correct`, `current`, `history` | Append-only; a correction supersedes exactly one observation on the same listing |
 | `deals` | 1 | `createDraft`, `publish`, `expire`, `retract`, `listPublished` | Transitions are draft → published → expired or retracted, nothing else; publishing sets `published_at` |
 | `quotes` (spike, ADR-0012) | 1 | `fetchQuotes`, `searchQuotes`, `fetchHistory`, `extractQuote` | Never persists a price; records every outbound call in the usage ledger, best effort, waiting at most 2 seconds, and each report's `usage` says how many calls were made and how many were recorded (ADR-0014); every retailer's outcome reported separately; an outage is a failed outcome, never an empty one; a page with no structured data falls back to the model per ADR-0013, and a quote below the review threshold is a candidate that never wins cheapest; the paid search runs only for a retailer still without a price (section 3.1) |
 | `usage` (ADR-0014) | 1 | `record`, `summary`, `daily`, `recentCalls`, `lastOk`, `dashboard` | The ledger is append-only: one write, the rest reads. Cost is estimated at write time from `src/lib/api-prices`, at the price in force when the call started, and never recomputed. Whether a call is unpriced is decided at read time, and a total that includes unpriced calls is a lower bound. A period is half-open, `from` included and `to` excluded. Days are the calendar days of the time zone the caller gives |
-| `status` (ADR-0014) | 1 | `checkServices` | Changes nothing but the usage ledger, where its own SerpApi Account call is recorded like any other. Never returns a key's value, only set or not set. Each check stands alone: one failing never hides the others. The database gets 3 seconds to answer |
+| `status` (ADR-0014) | 1 | `checkServices`, `safeFailureMessage`, `safeFailureReason` | Changes nothing but the usage ledger, where its own SerpApi Account call is recorded like any other. Never returns a key's value, only set or not set. Each check stands alone: one failing never hides the others. The database gets 3 seconds to answer. A failure shown to a person, here or by a `/lab` loader, has every key and connection string the environment holds removed |
 | `pricing` (planned) | 3 | `verdict`, `summary` | Read-only. Computes position of the current price against the variant's own history and RRP: lowest ever, percentage under the recent median, days since last lower price. Arithmetic over `price_observation` only; never a model and never an external source |
 
 Two helpers sit beside the modules. `src/services/default-db.ts` loads the application database handle on first use, so a service that takes an injected handle in tests opens no connection at import time. `src/services/usage-ledger.ts` is the bridge from a source's meter to `usage.record`, shared by `quotes` and `status`: it collects calls and writes them at the end, waiting at most 2 seconds.
@@ -111,7 +114,8 @@ Four layers and one opinion table. Price history hangs off the variant, the phys
 | `price_observation` | One price on one listing at one time. Append-only |
 | `deal` | An editorial call about one observation |
 | `identifier`, `retailer` | Lookup tables for matching and for shops |
-| `api_usage` | One outbound call to an external service. Append-only. Outside the catalogue shape, no foreign keys ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), proposed) |
+| `api_usage` | One outbound call to an external service. Append-only. Outside the catalogue shape, no foreign keys ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md)) |
+| `catalogue_candidate` | One store product seen, a snapshot for search. Never price history ([ADR-0017](adr/0017-local-search-index.md), proposed) |
 
 [DATA_MODEL.md](DATA_MODEL.md) lists every invariant and the constraint or trigger that enforces it.
 
@@ -168,7 +172,7 @@ Route handlers are added when a consumer needs them, not ahead of time. When the
 | 4 | Ingestion | One structured-data scraper (JB Hi-Fi's Shopify product JSON), staging table, match audit |
 | Later | iOS client, price alerts and watchlists, more categories, more retailers |
 
-Phase 1 also carries a live-fetch spike per [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) (proposed): a sources layer and a lab page for one tracked variant, persisting no price. Phase 1 also carries the usage ledger and the local status page at `/lab/status` per [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md) (proposed). Both lab pages are served only by a development server. Scheduled fetching stays in phase 4.
+Phase 1 also carries a live-fetch spike per [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) (proposed): a sources layer and a lab page for one tracked variant, persisting no price. Phase 1 also carries the usage ledger and the local status page at `/lab/status` per [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md). Phase 1 also carries the catalogue discovery spike per [ADR-0016](adr/0016-catalogue-discovery-through-storefront-search.md) (proposed) and the local search index per [ADR-0017](adr/0017-local-search-index.md) (proposed): the `catalogue_candidate` table, seeded from one store's collection and learned from every search and identifier read, searched as the developer types. The search bar and its dropdown live at the top of `/lab`, decided by Rafi on 2026-10-06 (ADR-0017 item 3, amending ADR-0016 item 1); there is no `/lab/catalog` page. Every lab page is served only by a development server. Scheduled fetching stays in phase 4.
 
 ## 11. Open decisions
 
@@ -178,7 +182,7 @@ Recorded here so they are not forgotten. Each becomes an ADR when it is made.
 |---|---|---|
 | Auth provider | Phase 2 | Supabase Auth |
 | Component library and charts | Phase 3 | shadcn/ui on Tailwind, Recharts |
-| Product search | Phase 3 | Postgres full-text search with a trigram index |
+| Product search | Phase 1 | Settled by [ADR-0017](adr/0017-local-search-index.md) (proposed): a trigram index on the local candidate table now; full-text for descriptions later |
 | Scraper runtime | Phase 4 | GitHub Actions scheduled workflow |
 | Staging table shape for unmatched pages | Phase 4 | Designed with the first scraper (ADR-0010) |
 | Database behind Vercel preview deployments | Phase 2 | The production project while data is hand-entered; a Supabase branch per preview before ingestion |

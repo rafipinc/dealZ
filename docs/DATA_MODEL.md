@@ -1,7 +1,7 @@
 # DealZ Data Model
 
-**Status:** accepted 2026-09-17.
-**Source of truth:** [`src/db/schema.ts`](../src/db/schema.ts), [`src/db/sql/triggers.sql`](../src/db/sql/triggers.sql) and, for `api_usage`, [`src/db/sql/api-usage-triggers.sql`](../src/db/sql/api-usage-triggers.sql). This document explains the shape; the code defines it.
+**Status:** accepted 2026-09-17, updated 2026-10-06 (`catalogue_candidate`, ADR-0017 proposed).
+**Source of truth:** [`src/db/schema.ts`](../src/db/schema.ts), [`src/db/sql/triggers.sql`](../src/db/sql/triggers.sql), for `api_usage` [`src/db/sql/api-usage-triggers.sql`](../src/db/sql/api-usage-triggers.sql) and for `catalogue_candidate` [`src/db/sql/catalogue-candidate-search.sql`](../src/db/sql/catalogue-candidate-search.sql). This document explains the shape; the code defines it.
 
 ## Principles
 
@@ -52,6 +52,9 @@ An editorial call: this observation is worth telling people about. References th
 ### api_usage
 The usage ledger: one row per outbound call to an external service ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), proposed). It sits outside the catalogue shape above and has no foreign keys. `provider` is an open set (`serpapi`, `gemini`, `wayback`, `retailer`), so it is text with a slug check. `outcome` is `ok` or `failed`; a failed row carries the source's `error_kind`. `cost_micros` is the estimated cost in millionths of a US dollar, computed by the service at write time from the price in force when the call started. A stored zero does not say whether a call was free or unpriced; that is decided at read time from the price table, so no column holds it. It is the one exception to integer cents, because a single Gemini call costs a fraction of a cent. `retailer_slug` and `variant_slug` are text, not foreign keys: the tracked products are not rows yet. Append-only. It never holds an API key or a request URL.
 
+### catalogue_candidate
+The local search index: one row per product a retailer storefront has shown DealZ, from a listing pull or a live search ([ADR-0017](adr/0017-local-search-index.md), proposed). It is the staging table [ADR-0010](adr/0010-listing-match-audit-and-staging.md) deferred to phase 4, brought forward. A row is a snapshot of what the store said, never price history: no row here is a `price_observation`, and nothing references the table. The upsert key is `retailer_slug` and `handle`; a repeat sighting replaces the row in place, keeps `first_seen_at` and moves `last_seen_at`, and an identifier once read (`gtin`, `mpn`, `retailer_sku`) is never erased by a sighting that lacks it. `retailer_slug` is text with a slug check, not a foreign key, for the same reason as on `api_usage`. `source` (`listing`, `search`, `inspect`) is text with a check rather than an enum, so a fourth source needs no enum migration. Title search runs on a `pg_trgm` GIN index; the extension and that index live in the hand-written SQL file, since the index cannot precede the extension inside a generated migration. Columns are in [`src/db/schema.ts`](../src/db/schema.ts).
+
 ## Invariants and where they live
 
 | Invariant | Enforced by |
@@ -74,6 +77,13 @@ The usage ledger: one row per outbound call to an external service ([ADR-0014](a
 | A call outcome is `ok` or `failed` | enum `api_call_outcome` |
 | A failed call names its error kind, an ok call has none | check `api_usage_error_kind_only_when_failed` |
 | Call durations, token counts and costs are non-negative | checks `api_usage_duration_non_negative`, `api_usage_input_tokens_non_negative`, `api_usage_output_tokens_non_negative`, `api_usage_cost_non_negative` |
+| One candidate per product per store | unique `catalogue_candidate_retailer_handle_uq` |
+| A candidate's retailer is a slug | check `catalogue_candidate_retailer_slug_format` |
+| A candidate's GTIN, when present, is 14 digits | check `catalogue_candidate_gtin_is_14_digits` |
+| Candidate prices are non-negative | checks `catalogue_candidate_price_non_negative`, `catalogue_candidate_compare_at_non_negative` |
+| A candidate's currency is an ISO 4217 code | check `catalogue_candidate_currency_iso4217` |
+| A candidate's source is `listing`, `search` or `inspect` | check `catalogue_candidate_source_known` |
+| A repeat sighting keeps `first_seen_at` and a stored identifier | `upsertCatalogueCandidates` (ON CONFLICT DO UPDATE with coalesce); not a constraint, tested as one |
 
 ## Matching
 
@@ -86,7 +96,7 @@ Ingestion resolves a page to a variant through `identifier`, in trust order:
 | 3 | Normalised title match | No: staged for review | `title`, once confirmed |
 | 4 | LLM-assisted structured match with a confidence score | No: staged for review | `llm`, once confirmed |
 
-In v1 every listing is entered by hand and recorded as `manual` with confidence 1. The staging table for unmatched pages is designed with the first scraper (phase 4).
+In v1 every listing is entered by hand and recorded as `manual` with confidence 1. Pages the storefronts show that are not yet listings sit in `catalogue_candidate` (ADR-0017, proposed), which is the staging table ADR-0010 deferred.
 
 ## Corrections
 
@@ -113,9 +123,17 @@ The original stays in the table for audit. Chains are allowed: a correction can 
 | Published deals, newest first | deal → observation → listing → variant → product | `deal_status_published_idx` |
 | Resolve a scraped identifier | identifier by type and value, plus retailer for SKUs | `identifier_type_value_retailer_uq` |
 | Calls and estimated cost per provider over a period | api_usage by provider and time | `api_usage_provider_time_idx` |
+| Successful calls per operation for a provider over a period (`countOkCallsByOperation`) | api_usage by provider and time, `outcome = 'ok'`, grouped by `operation` | `api_usage_provider_time_idx` |
 | Calls and estimated cost per day and provider, by the calendar days of a time zone (`dailyApiUsage`) | api_usage over a period, bucketed by `called_at` in that zone | `api_usage_time_idx` |
 | Calls per day, provider and model, to tell an unpriced call from a free one (`modelCallsByDay`) | same buckets, grouped by model as well | `api_usage_time_idx` |
 | Most recent external calls | api_usage newest first | `api_usage_time_idx` |
+| Search the index by title (`searchCatalogueCandidates`) | catalogue_candidate by substring of `title` (ILIKE) or trigram similarity above a floor, best match first then most recently seen | `catalogue_candidate_title_trgm_idx` (GIN, `gin_trgm_ops`) serves the ILIKE arm; `similarity(title, q) > 0.1` cannot use it and is computed on the candidate rows for the filter and the ordering |
+| Search the index by identifier (`searchCatalogueCandidates`) | catalogue_candidate by exact `gtin`, `mpn` or `retailer_sku` | `catalogue_candidate_gtin_idx`, `catalogue_candidate_mpn_idx`; `retailer_sku` is sequential |
+| Write a storefront's products (`upsertCatalogueCandidates`) | catalogue_candidate by retailer and handle | `catalogue_candidate_retailer_handle_uq` |
+| Drop what a store no longer lists (`deleteUnseenListingRows`) | catalogue_candidate `listing` rows of one retailer with `last_seen_at` before the refresh began, an instant read from the database's clock by `databaseNow` so it is the clock that stamped the rows | `catalogue_candidate_retailer_handle_uq` (leading column) |
+| How big the index is, per retailer (`countCatalogueCandidates`) | catalogue_candidate grouped by `retailer_slug` | sequential; the table is small |
+
+Only the `%` operator and LIKE/ILIKE can use a trigram GIN index. If the table grows enough for the similarity scan to show, the upgrade is the `%` operator with `set_limit()` in place of the explicit floor, which keeps the same ranking and lets the index serve both arms.
 
 When these get slow, the answer is a materialised summary per variant, not a change to the fact table.
 
@@ -125,5 +143,5 @@ When these get slow, the answer is a materialised summary per variant, not a cha
 - Users and auth. `deal.created_by` is free text until phase 2.
 - Currency conversion. Everything is AUD in v1; the column exists so history is never ambiguous.
 - Stock and availability. A second append-only observation table, added later without changing anything here.
-- Staging table for unmatched pages. Designed with the first scraper.
+- Staging table for unmatched pages: no longer omitted. It exists as `catalogue_candidate` ([ADR-0017](adr/0017-local-search-index.md), proposed), brought forward from phase 4 as the local search index.
 - Variant-level images. Product-level hero image only, until a category with colour variants arrives.

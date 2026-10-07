@@ -29,7 +29,7 @@ When a document is added, renamed or retired, this table changes in the same com
 | [BUILD_MAP.md](BUILD_MAP.md) | both | Registry of components: layer, path, phase, stage, the ADRs behind each, whether it is public | A component is designed, built, tested, shipped or retired |
 | [PUBLIC.md](PUBLIC.md) | both | The allowlist for the public build log: treatment and public summary per ADR and per session, hidden journeys, the blocklist | Every new ADR and every session; a new retailer, provider or technique |
 | [e2e/JOURNEYS.md](../e2e/JOURNEYS.md) | ops | Registry of user journeys and their end-to-end status | A journey is designed, shipped, covered or retired |
-| `src/db/schema.ts`, `src/db/sql/triggers.sql`, `src/db/sql/api-usage-triggers.sql` | both | The database as code, with comments saying why | Every schema change |
+| `src/db/schema.ts`, `src/db/sql/triggers.sql`, `src/db/sql/api-usage-triggers.sql`, `src/db/sql/catalogue-candidate-search.sql` | both | The database as code, with comments saying why | Every schema change |
 
 ## Reading order
 

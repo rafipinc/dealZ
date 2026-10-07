@@ -97,7 +97,13 @@ Keys in use:
 | Name | Service | Needed for | Where to get it |
 |---|---|---|---|
 | `GEMINI_API_KEY` | Google Gemini | Extraction now, in the lab's model panel and as the page fallback; matching in phase 4 ([ADR-0013](adr/0013-llm-extraction-boundaries.md), proposed) | aistudio.google.com |
-| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, and the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8) | serpapi.com. The Free Plan is 250 searches a month, as the account endpoint reported on 2026-10-01; a search is two calls as a rule |
+| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8), and product discovery on an index miss ([ADR-0017](adr/0017-local-search-index.md) items 10 and 11, proposed) | serpapi.com. The Free Plan is 250 searches a month, as the account endpoint reported on 2026-10-01; a price search is two calls as a rule, a discovery search one |
+
+Settings beside the keys. These are not secrets: they go in `.env.local`, and `.env.example` lists them with their defaults.
+
+| Name | Default | Meaning |
+|---|---|---|
+| `SERPAPI_DAILY_CAP` | `20` | The day's SerpApi searches allowed, Australia/Sydney, counted from the usage ledger: every successful `google_shopping` and `google_immersive_product` call that day, whichever lab panel made it. The price panel's gap fill ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8) counts against it but is never blocked by it; only Google Shopping discovery is. The free Account call is not counted. `0` disables Google Shopping discovery. Read by the `discovery` service per ADR-0017 item 11 (proposed, phase 1) |
 
 Each key is one Keychain item named `dealz/NAME` under the login account, visible in Keychain Access. `npm run dev` without keys still works; the panels that need one show a setup notice. In CI and on Vercel there is no Keychain: CI needs no keys, and production values are entered in Vercel's dashboard, never copied from a laptop.
 
@@ -169,6 +175,7 @@ Hand-written SQL follows one convention ([ADR-0014](adr/0014-usage-ledger-and-st
 |---|---|
 | `triggers.sql` | `0001_triggers.sql` |
 | `api-usage-triggers.sql` | `0003_api-usage-triggers.sql` |
+| `catalogue-candidate-search.sql` | `0005_catalogue-candidate-search.sql` |
 
 To add a pair:
 
