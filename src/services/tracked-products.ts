@@ -10,7 +10,10 @@
 // cover it: Google Shopping reads its feed and the Wayback Machine may hold
 // a capture.
 
+import { z } from "zod";
+import { canonicaliseUrl } from "@/lib/url";
 import type { PageSourceMethod } from "@/sources";
+import { ValidationError } from "./errors";
 
 export interface TrackedRetailerPage {
   retailerSlug: string;
@@ -47,6 +50,54 @@ export interface TrackedVariant {
   /** At least one, so the search panel always has a query. */
   searches: [TrackedSearch, ...TrackedSearch[]];
 }
+
+/** A Shopify storefront whose predictive search answers scripted requests (ADR-0016 item 2). */
+export interface SearchableStorefront {
+  retailerSlug: string;
+  retailerName: string;
+  /** The storefront origin, e.g. https://www.jbhifi.com.au */
+  origin: string;
+  note: string | null;
+}
+
+// Bing Lee is a Shopify store too, but DataDome answers its search with a
+// challenge page, the same as its product pages, so it is absent: a
+// bot-protected store is not searched (ADR-0012 item 5).
+export const searchableStorefronts: readonly SearchableStorefront[] = [
+  {
+    retailerSlug: "jb-hi-fi",
+    retailerName: "JB Hi-Fi",
+    origin: "https://www.jbhifi.com.au",
+    note: "Predictive search answers a title or GTIN query; titles carry no model code (research note 2026-10-06).",
+  },
+  {
+    retailerSlug: "powerland",
+    retailerName: "Powerland",
+    origin: "https://powerland.com.au",
+    note: "Titles end with the model code.",
+  },
+];
+
+/** A storefront collection the catalogue index pulls on refresh (ADR-0017 item 2). */
+export interface SeededCollection {
+  retailerSlug: string;
+  retailerName: string;
+  /** The storefront origin, e.g. https://powerland.com.au */
+  origin: string;
+  /** The collection handle, e.g. "televisions". */
+  collection: string;
+  note: string | null;
+}
+
+export const seededCollections: readonly SeededCollection[] = [
+  {
+    retailerSlug: "powerland",
+    retailerName: "Powerland",
+    origin: "https://powerland.com.au",
+    collection: "televisions",
+    note: "Decided by Rafi on 2026-10-06: Powerland's TV collection is pulled; JB Hi-Fi is learned from use until its terms are read (ADR-0017).",
+  },
+];
 
 export const trackedVariants: readonly TrackedVariant[] = [
   {
@@ -122,3 +173,69 @@ export const trackedVariants: readonly TrackedVariant[] = [
     ],
   },
 ];
+
+// ---------- Matching a found product to a tracked variant ----------
+
+/** Which identifier tied a found product to a tracked variant, in trust order (ADR-0004). */
+export type MatchedBy = "gtin" | "mpn" | "url";
+
+export interface TrackedMatch {
+  /** The tracked variant this product already is, or null for a new product. */
+  trackedVariantSlug: string | null;
+  matchedBy: MatchedBy | null;
+}
+
+/** What a found product offers for matching: its page and whatever identifiers it carried. */
+export interface Identified {
+  url: string;
+  identifiers: { gtin: string | null; mpn: string | null; retailerSku: string | null };
+}
+
+// A candidate or a quote passes whole; only the page and the identifiers are read.
+const identifiedSchema = z.object({
+  url: z.string(),
+  identifiers: z.object({
+    gtin: z.string().nullable(),
+    mpn: z.string().nullable(),
+    retailerSku: z.string().nullable(),
+  }),
+});
+
+function normaliseCode(value: string | null): string | null {
+  return value === null ? null : value.trim().toUpperCase();
+}
+
+/** The tracked variant's page URLs, canonicalised the way a candidate's is. */
+function trackedUrlsOf(variant: TrackedVariant): string[] {
+  return variant.pages.map((page) => canonicaliseUrl(page.url));
+}
+
+/**
+ * The tracked variant a found product already is, by GTIN first, then model
+ * code (the MPN, or a retailer SKU that is the model code), then page URL.
+ * Null for a product the tracked table does not hold. Shared by the
+ * discovery and catalogue-index services so "held" means one thing. Throws
+ * ValidationError for a product without a URL or identifiers.
+ */
+export function matchTrackedVariant(input: Identified): TrackedMatch {
+  const parsed = identifiedSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ValidationError("Invalid matchTrackedVariant input", parsed.error.issues);
+  }
+  const found = parsed.data;
+  const mpn = normaliseCode(found.identifiers.mpn);
+  const sku = normaliseCode(found.identifiers.retailerSku);
+  for (const variant of trackedVariants) {
+    if (found.identifiers.gtin !== null && found.identifiers.gtin === variant.gtin) {
+      return { trackedVariantSlug: variant.slug, matchedBy: "gtin" };
+    }
+    const target = normaliseCode(variant.mpn);
+    if (mpn === target || sku === target) {
+      return { trackedVariantSlug: variant.slug, matchedBy: "mpn" };
+    }
+    if (trackedUrlsOf(variant).includes(found.url)) {
+      return { trackedVariantSlug: variant.slug, matchedBy: "url" };
+    }
+  }
+  return { trackedVariantSlug: null, matchedBy: null };
+}

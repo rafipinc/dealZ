@@ -167,7 +167,9 @@ function geminiKeyOf(given: string | undefined): string | null {
   return keyOf(given, process.env.GEMINI_API_KEY);
 }
 
-function serpApiKeyOf(given: string | undefined): string | null {
+/** The SerpApi key from the argument or SERPAPI_API_KEY; null when neither is set. Shared with discovery. */
+// A key lookup helper, not a service function: there is no input to validate, only a string to prefer.
+export function serpApiKeyOf(given: string | undefined): string | null {
   return keyOf(given, process.env.SERPAPI_API_KEY);
 }
 

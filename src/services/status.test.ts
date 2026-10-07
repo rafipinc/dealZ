@@ -12,6 +12,7 @@ import {
   checkServices,
   DATABASE_TIMEOUT_MS,
   safeFailureMessage,
+  safeFailureReason,
   type CheckServicesInput,
   type ServicesStatus,
 } from "./status";
@@ -481,6 +482,54 @@ describe("safeFailureMessage", () => {
     expect(safeFailureMessage("pool closed", {})).toBe("pool closed");
     expect(safeFailureMessage(new Error("relation does not exist"), { DATABASE_URL: DB_URL })).toBe(
       "relation does not exist",
+    );
+  });
+});
+
+describe("safeFailureReason", () => {
+  /** How the query layer reports a closed connection: the SQL in the message, the driver's reason in the cause. */
+  function failedQuery(cause: unknown): Error {
+    return new Error("Failed query: select count(*) from catalogue_candidate", { cause });
+  }
+
+  it("names the root cause of a nested failure, with the connection string redacted", () => {
+    const error = failedQuery(
+      new Error("pool error", { cause: new Error(`connect ECONNREFUSED ${DB_URL}`) }),
+    );
+    expect(safeFailureReason(error, { DATABASE_URL: DB_URL })).toBe(
+      "connect ECONNREFUSED REDACTED",
+    );
+  });
+
+  it("reads process.env when no environment is given", () => {
+    vi.stubEnv("DATABASE_URL", DB_URL);
+    expect(safeFailureReason(failedQuery(new Error(`connect ECONNREFUSED ${DB_URL}`)))).toBe(
+      "connect ECONNREFUSED REDACTED",
+    );
+  });
+
+  it("gives a failure without a cause as it is", () => {
+    expect(safeFailureReason(new Error("relation catalogue_candidate does not exist"), {})).toBe(
+      "relation catalogue_candidate does not exist",
+    );
+  });
+
+  it("stops at the last Error when the cause is not one", () => {
+    expect(safeFailureReason(failedQuery("ECONNRESET"), {})).toBe(
+      "Failed query: select count(*) from catalogue_candidate",
+    );
+  });
+
+  it("stops at the last new Error when a cause chain loops back on itself", () => {
+    const outer = new Error("outer");
+    const inner = new Error("inner", { cause: outer });
+    outer.cause = inner;
+    expect(safeFailureReason(outer, {})).toBe("inner");
+  });
+
+  it("gives the text of a failure that is not an Error, redacted", () => {
+    expect(safeFailureReason(`pool closed for ${DB_URL}`, { DATABASE_URL: DB_URL })).toBe(
+      "pool closed for REDACTED",
     );
   });
 });
