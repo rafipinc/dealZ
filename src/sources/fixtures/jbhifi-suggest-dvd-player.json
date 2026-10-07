@@ -1,0 +1,288 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "blaupunkt-bpdvd200-10-dual-screen-portable-dvd-player",
+          "id": 7334368968905,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/796705-Product-0-I-638875408203196455.jpg?v=1751944090",
+          "price": "199.00",
+          "price_max": "199.00",
+          "price_min": "199.00",
+          "tags": [
+            "Brand:Blaupunkt",
+            "LimitedStock"
+          ],
+          "title": "Blaupunkt BPDVD200 10\" Dual Screen Portable DVD Player",
+          "type": "VISUAL",
+          "url": "/products/blaupunkt-bpdvd200-10-dual-screen-portable-dvd-player?_pos=1&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "BLAUPUNKT",
+          "featured_image": {
+            "alt": "Blaupunkt BPDVD200 10\" Dual Screen Portable DVD Player",
+            "aspect_ratio": 1.0,
+            "height": 2048,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/796705-Product-0-I-638875408203196455.jpg?v=1751944090",
+            "width": 2048
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "lenoxx-15-4-swivel-portable-dvd-player-and-screen-rechargeable",
+          "id": 7333791236297,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/fb6758c0a5b447e7948896622e645dcc_4f727ddd-f171-4364-90b8-0650390f4480.jpg?v=1755227713",
+          "price": "169.95",
+          "price_max": "175.16",
+          "price_min": "169.95",
+          "tags": [
+            "Brand:Lenoxx",
+            "InStock"
+          ],
+          "title": "Lenoxx 15.4\" Swivel Portable DVD Player and Screen (Rechargeable)",
+          "type": "VISUAL",
+          "url": "/products/lenoxx-15-4-swivel-portable-dvd-player-and-screen-rechargeable?_pos=2&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LENOXX",
+          "featured_image": {
+            "alt": "Lenoxx 15.4\" Swivel Portable DVD Player and Screen (Rechargeable)",
+            "aspect_ratio": 1.0,
+            "height": 1600,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/fb6758c0a5b447e7948896622e645dcc_4f727ddd-f171-4364-90b8-0650390f4480.jpg?v=1755227713",
+            "width": 1600
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "laser-multi-region-dvd-player",
+          "id": 7337707438281,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/910260-Product-0-I-639239273411178782.jpg?v=1788330607",
+          "price": "39.00",
+          "price_max": "39.00",
+          "price_min": "39.00",
+          "tags": [
+            "Brand:Laser",
+            "InStock"
+          ],
+          "title": "Laser Multi-Region DVD Player",
+          "type": "VISUAL",
+          "url": "/products/laser-multi-region-dvd-player?_pos=3&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LASER",
+          "featured_image": {
+            "alt": "Laser Multi-Region DVD Player",
+            "aspect_ratio": 1.0,
+            "height": 1904,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/910260-Product-0-I-639239273411178782.jpg?v=1788330607",
+            "width": 1904
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "lenoxx-10-1-portable-dvd-player-with-270-degrees-swivel-screen-rechargeable",
+          "id": 7336572158153,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/5f94a49bb9ee48a68f336d113d3da20d.jpg?v=1777518412",
+          "price": "119.95",
+          "price_max": "119.95",
+          "price_min": "119.95",
+          "tags": [
+            "Brand:Lenoxx",
+            "InStock"
+          ],
+          "title": "Lenoxx 10.1\" Portable DVD Player with 270-Degrees Swivel-Screen & Rechargeable",
+          "type": "VISUAL",
+          "url": "/products/lenoxx-10-1-portable-dvd-player-with-270-degrees-swivel-screen-rechargeable?_pos=4&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LENOXX",
+          "featured_image": {
+            "alt": "Lenoxx 10.1\" Portable DVD Player with 270-Degrees Swivel-Screen & Rechargeable",
+            "aspect_ratio": 1.0,
+            "height": 1600,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/5f94a49bb9ee48a68f336d113d3da20d.jpg?v=1777518412",
+            "width": 1600
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "laser-9-dual-portable-dvd-player",
+          "id": 7337708552393,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/910264-Product-0-I-639239277003239567.jpg?v=1788330965",
+          "price": "229.00",
+          "price_max": "229.00",
+          "price_min": "229.00",
+          "tags": [
+            "Brand:Laser",
+            "InStock"
+          ],
+          "title": "Laser 9\" Dual Portable DVD Player",
+          "type": "VISUAL",
+          "url": "/products/laser-9-dual-portable-dvd-player?_pos=5&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LASER",
+          "featured_image": {
+            "alt": "Laser 9\" Dual Portable DVD Player",
+            "aspect_ratio": 1.0,
+            "height": 2040,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/910264-Product-0-I-639239277003239567.jpg?v=1788330965",
+            "width": 2040
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "laser-10-portable-dvd-player",
+          "id": 7337707962569,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/578887-Product-0-I-639239275204485698.jpg?v=1788330786",
+          "price": "169.00",
+          "price_max": "169.00",
+          "price_min": "169.00",
+          "tags": [
+            "Brand:Laser",
+            "InStock"
+          ],
+          "title": "Laser 10\" Portable DVD Player",
+          "type": "VISUAL",
+          "url": "/products/laser-10-portable-dvd-player?_pos=6&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LASER",
+          "featured_image": {
+            "alt": "Laser 10\" Portable DVD Player",
+            "aspect_ratio": 1.0,
+            "height": 1895,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/578887-Product-0-I-639239275204485698.jpg?v=1788330786",
+            "width": 1895
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "laser-7-portable-dvd-player-1",
+          "id": 7337708290249,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/910263-Product-0-I-639239276404388746.jpg?v=1788330904",
+          "price": "99.00",
+          "price_max": "99.00",
+          "price_min": "99.00",
+          "tags": [
+            "Brand:Laser",
+            "InStock"
+          ],
+          "title": "Laser 7\" Portable DVD Player",
+          "type": "VISUAL",
+          "url": "/products/laser-7-portable-dvd-player-1?_pos=7&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LASER",
+          "featured_image": {
+            "alt": "Laser 7\" Portable DVD Player",
+            "aspect_ratio": 1.0,
+            "height": 1870,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/910263-Product-0-I-639239276404388746.jpg?v=1788330904",
+            "width": 1870
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "blaupunkt-dvd-player-with-hdmi",
+          "id": 6664581710025,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/598362-Product-0-I-638149118598861180.jpg?v=1679275518",
+          "price": "49.00",
+          "price_max": "49.00",
+          "price_min": "49.00",
+          "tags": [
+            "Brand:Blaupunkt",
+            "InStock"
+          ],
+          "title": "Blaupunkt DVD Player with HDMI",
+          "type": "VISUAL",
+          "url": "/products/blaupunkt-dvd-player-with-hdmi?_pos=8&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "BLAUPUNKT",
+          "featured_image": {
+            "alt": "Blaupunkt DVD Player with HDMI",
+            "aspect_ratio": 1.0,
+            "height": 2048,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/598362-Product-0-I-638149118598861180.jpg?v=1679275518",
+            "width": 2048
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "blaupunkt-bpdvd10-10-portable-dvd-player",
+          "id": 5154064105606,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/475994-Product-0-I-637345552671020069.jpg?v=1598922535",
+          "price": "129.00",
+          "price_max": "129.00",
+          "price_min": "129.00",
+          "tags": [
+            "Brand:Blaupunkt",
+            "InStock"
+          ],
+          "title": "Blaupunkt BPDVD10 10\" Portable DVD Player",
+          "type": "VISUAL",
+          "url": "/products/blaupunkt-bpdvd10-10-portable-dvd-player?_pos=9&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "BLAUPUNKT",
+          "featured_image": {
+            "alt": "Blaupunkt BPDVD10 10\" Portable DVD Player",
+            "aspect_ratio": 1.0,
+            "height": 1061,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/475994-Product-0-I-637345552671020069.jpg?v=1598922535",
+            "width": 1061
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "lenoxx-compact-mini-dvd-player-multi-region-playback-black",
+          "id": 7336808153289,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/0418b88216d24db78fe7833496358215.jpg?v=1780024816",
+          "price": "49.95",
+          "price_max": "49.95",
+          "price_min": "49.95",
+          "tags": [
+            "Brand:Lenoxx",
+            "InStock"
+          ],
+          "title": "Lenoxx Compact Mini DVD Player \u2013 Multi-Region Playback (Black)",
+          "type": "VISUAL",
+          "url": "/products/lenoxx-compact-mini-dvd-player-multi-region-playback-black?_pos=10&_psq=DVD+player&_psid=583d28a81&_ss=e",
+          "variants": [],
+          "vendor": "LENOXX",
+          "featured_image": {
+            "alt": "Lenoxx Compact Mini DVD Player \u2013 Multi-Region Playback (Black)",
+            "aspect_ratio": 1.0,
+            "height": 1600,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/0418b88216d24db78fe7833496358215.jpg?v=1780024816",
+            "width": 1600
+          }
+        }
+      ]
+    }
+  }
+}

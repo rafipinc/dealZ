@@ -1,0 +1,288 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-s-1tb-console-robot-white",
+          "id": 7332847419593,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749726-Product-0-I-638968586405888713.jpg?v=1761261966",
+          "price": "849.00",
+          "price_max": "849.00",
+          "price_min": "849.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series S 1TB Console (Robot White)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-s-1tb-console-robot-white?_pos=1&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series S 1TB Console (Robot White)",
+            "aspect_ratio": 1.0,
+            "height": 1200,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749726-Product-0-I-638968586405888713.jpg?v=1761261966",
+            "width": 1200
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-x-1tb-digital-console-robot-white",
+          "id": 7332847452361,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749727-Product-0-I-638596367404641478.jpg?v=1761260165",
+          "price": "999.00",
+          "price_max": "999.00",
+          "price_min": "999.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series X 1TB Digital Console (Robot White)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-x-1tb-digital-console-robot-white?_pos=2&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series X 1TB Digital Console (Robot White)",
+            "aspect_ratio": 1.0,
+            "height": 1200,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749727-Product-0-I-638596367404641478.jpg?v=1761260165",
+            "width": 1200
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-s-512gb-console-1",
+          "id": 7333326422217,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/794687-Product-0-I-638682604208042514.jpg?v=1732663751",
+          "price": "699.00",
+          "price_max": "699.00",
+          "price_min": "699.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series S 512GB Console",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-s-512gb-console-1?_pos=3&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series S 512GB Console",
+            "aspect_ratio": 1.0,
+            "height": 1016,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/794687-Product-0-I-638682604208042514.jpg?v=1732663751",
+            "width": 1016
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-x-1tb-console-1",
+          "id": 7336704147657,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896402-Product-0-I-639148533605517434.jpg?v=1779256630",
+          "price": "1099.00",
+          "price_max": "1099.00",
+          "price_min": "1099.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series X 1TB Console",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-x-1tb-console-1?_pos=4&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series X 1TB Console",
+            "aspect_ratio": 1.0,
+            "height": 1034,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896402-Product-0-I-639148533605517434.jpg?v=1779256630",
+            "width": 1034
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "powerwave-rgb-lighting-stand-for-xbox-series-x",
+          "id": 6664860565705,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/661231-Product-0-I-638295648604372381.jpg?v=1693968139",
+          "price": "39.00",
+          "price_max": "39.00",
+          "price_min": "39.00",
+          "tags": [
+            "Brand:Powerwave",
+            "InStock"
+          ],
+          "title": "Powerwave RGB Lighting Stand for Xbox Series X",
+          "type": "GAMES HARDWARE",
+          "url": "/products/powerwave-rgb-lighting-stand-for-xbox-series-x?_pos=5&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "POWERWAVE",
+          "featured_image": {
+            "alt": "Powerwave RGB Lighting Stand for Xbox Series X",
+            "aspect_ratio": 1.0,
+            "height": 1775,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/661231-Product-0-I-638295648604372381.jpg?v=1693968139",
+            "width": 1775
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "lexar-sl500-1tb-portable-ssd-black",
+          "id": 7336496791753,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/894792-Product-0-I-639130668002556940.jpg?v=1778743381",
+          "price": "399.00",
+          "price_max": "399.00",
+          "price_min": "399.00",
+          "tags": [
+            "Brand:Lexar",
+            "LimitedStock"
+          ],
+          "title": "Lexar SL500 1TB Portable SSD (Black)",
+          "type": "IT",
+          "url": "/products/lexar-sl500-1tb-portable-ssd-black?_pos=6&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "LEXAR",
+          "featured_image": {
+            "alt": "Lexar SL500 1TB Portable SSD (Black)",
+            "aspect_ratio": 1.0,
+            "height": 403,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/894792-Product-0-I-639130668002556940.jpg?v=1778743381",
+            "width": 403
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "rog-xbox-ally-x20-amd-ryzen-ai-z2-extreme-24gb-1tb-120hz-gaming-handheld-80wh",
+          "id": 7337586819273,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/906326-Product-0-I-639231448206217447.jpg?v=1787548084",
+          "price": "2499.00",
+          "price_max": "2499.00",
+          "price_min": "2499.00",
+          "tags": [
+            "Brand:Asus",
+            "InStock"
+          ],
+          "title": "ROG Xbox Ally X20 AMD Ryzen AI Z2 Extreme 24GB 1TB 120Hz Gaming Handheld (80Wh)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/rog-xbox-ally-x20-amd-ryzen-ai-z2-extreme-24gb-1tb-120hz-gaming-handheld-80wh?_pos=7&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "ASUS",
+          "featured_image": {
+            "alt": "ROG Xbox Ally X20 AMD Ryzen AI Z2 Extreme 24GB 1TB 120Hz Gaming Handheld (80Wh)",
+            "aspect_ratio": 1.0,
+            "height": 2048,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/906326-Product-0-I-639231448206217447.jpg?v=1787548084",
+            "width": 2048
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1799.00",
+          "compare_at_price_min": "1799.00",
+          "handle": "lenovo-legion-go-s-amd-ryzen-z1-extreme-1tb",
+          "id": 7334689439945,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/829211-Product-0-I-638908222803283771.jpg?v=1755225553",
+          "price": "1399.00",
+          "price_max": "1399.00",
+          "price_min": "1399.00",
+          "tags": [
+            "Brand:Lenovo",
+            "InStock"
+          ],
+          "title": "Lenovo Legion Go S AMD Ryzen Z1 Extreme (1TB)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/lenovo-legion-go-s-amd-ryzen-z1-extreme-1tb?_pos=8&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "LENOVO",
+          "featured_image": {
+            "alt": "Lenovo Legion Go S AMD Ryzen Z1 Extreme (1TB)",
+            "aspect_ratio": 1.0,
+            "height": 584,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/829211-Product-0-I-638908222803283771.jpg?v=1755225553",
+            "width": 584
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "ps5-playstation-5-slim-console",
+          "id": 7334865371337,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/835274-Product-0-I-638935031404418180.jpg?v=1783576326",
+          "price": "999.00",
+          "price_max": "999.00",
+          "price_min": "999.00",
+          "tags": [
+            "Brand:Sony Comp",
+            "InStock"
+          ],
+          "title": "PS5 PlayStation 5 Slim Console",
+          "type": "GAMES HARDWARE",
+          "url": "/products/ps5-playstation-5-slim-console?_pos=9&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "SONY COMP",
+          "featured_image": {
+            "alt": "PS5 PlayStation 5 Slim Console",
+            "aspect_ratio": 1.0,
+            "height": 2048,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/835274-Product-0-I-638935031404418180.jpg?v=1783576326",
+            "width": 2048
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "seagate-game-drive-portable-2tb-xbox-hard-drive",
+          "id": 6535329972425,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/527659-Product-0-I-638424271203709091.jpg?v=1706832372",
+          "price": "269.00",
+          "price_max": "269.00",
+          "price_min": "269.00",
+          "tags": [
+            "Brand:Seagate Gaming",
+            "InStock"
+          ],
+          "title": "Seagate Game Drive Portable 2TB Xbox Hard Drive",
+          "type": "IT",
+          "url": "/products/seagate-game-drive-portable-2tb-xbox-hard-drive?_pos=10&_psq=Xbox+Series+S&_psid=ff0c89774&_ss=e",
+          "variants": [],
+          "vendor": "SEAGATE GAMING",
+          "featured_image": {
+            "alt": "Seagate Game Drive Portable 2TB Xbox Hard Drive",
+            "aspect_ratio": 1.0,
+            "height": 1445,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/527659-Product-0-I-638424271203709091.jpg?v=1706832372",
+            "width": 1445
+          }
+        }
+      ]
+    }
+  }
+}

@@ -143,3 +143,19 @@ export function pageUrlOf(input: Pick<SourceInput, "retailerSlug" | "url">): str
     });
   }
 }
+
+/** A storefront origin as a URL origin, or throws SourceError so rule 9 holds for a bad one. */
+export function originOf(input: { retailerSlug: string; origin: string }): string {
+  let url: URL;
+  try {
+    url = new URL(input.origin);
+  } catch (cause) {
+    throw new SourceError("unparseable", input.retailerSlug, `Invalid origin: ${input.origin}`, {
+      cause,
+    });
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new SourceError("unparseable", input.retailerSlug, `Invalid origin: ${input.origin}`);
+  }
+  return url.origin;
+}

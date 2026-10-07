@@ -15,8 +15,15 @@
 //
 // When no entity is accepted, the hop-1 results that match `mustMatch` are
 // mapped as quotes at a lower confidence: one seller each, unverified.
+//
+// discoverGoogleShopping is the catalogue search's miss path (decided by
+// Rafi on 2026-10-06): hop 1 only, every result mapped to a ProductCandidate
+// with no filtering, so one paid request shows what Google holds for a
+// query. Nothing here decides whether that request may be made; the daily
+// cap is the discovery service's.
 
 import { z } from "zod";
+import { readModelCode as readTitleModelCode } from "../lib/model-code";
 import { parseCents } from "../lib/money";
 import { slugify } from "../lib/slug";
 import { canonicaliseUrl } from "../lib/url";
@@ -26,8 +33,10 @@ import {
   SourceError,
   type Availability,
   type FetchLike,
+  type GoogleShoppingDiscoverySource,
   type Meter,
   type PriceQuote,
+  type ProductCandidate,
   type QuoteCondition,
   type SearchSource,
   type SearchSourceInput,
@@ -56,6 +65,9 @@ export const FALLBACK_CONFIDENCE = 0.5;
 const GOOGLE_SHOPPING_URL = "https://www.google.com/shopping";
 /** Used when the seller name has no letters or digits to slugify. */
 const UNKNOWN_SELLER_SLUG = "unknown-seller";
+/** Hop-1 results kept by the discovery function, in position order. */
+export const DISCOVERY_DEFAULT_LIMIT = 20;
+export const DISCOVERY_MAX_LIMIT = 40;
 
 /** The fields of a hop-1 shopping result DealZ keeps in `raw`. */
 const rawItemShape = {
@@ -74,14 +86,21 @@ const rawItemShape = {
   tag: z.string().optional(),
 };
 
-/** Provider fields are tolerated on the way in but never kept. The token is read, not kept. */
+/**
+ * Provider fields are tolerated on the way in but never kept. The token is
+ * read, not kept; the thumbnail is kept by the discovery function only.
+ */
 const itemSchema = z.looseObject({
   ...rawItemShape,
   immersive_product_page_token: z.string().optional(),
+  thumbnail: z.string().optional(),
 });
 
 /** z.object strips unknown keys and omits absent optional ones, so `raw` is exactly rawItemShape. */
 const rawItemSchema = z.object(rawItemShape);
+
+/** A candidate's `raw`: the quote's fields plus the thumbnail, which a search result shows and a price never needs. */
+const discoveryRawItemSchema = z.object({ ...rawItemShape, thumbnail: z.string().optional() });
 
 type ShoppingItem = z.infer<typeof itemSchema>;
 
@@ -197,7 +216,8 @@ export function readShippingCents(store: {
   return parseCents(store.shipping);
 }
 
-function readModelCode(title: string): string | null {
+/** The Samsung-style code of the price search. The discovery function uses the general rule of lib/model-code. */
+function readSamsungModelCode(title: string): string | null {
   const match = MODEL_CODE_RE.exec(title);
   return match === null ? null : match[0];
 }
@@ -217,7 +237,7 @@ export function isCandidate(
   input: Pick<SearchSourceInput, "mustMatch" | "verifyTokens">,
 ): boolean {
   if (!input.mustMatch.every((token) => containsToken(title, token))) return false;
-  const modelCode = readModelCode(title);
+  const modelCode = readSamsungModelCode(title);
   if (modelCode === null) return true;
   return input.verifyTokens.some((token) => token.toLowerCase() === modelCode.toLowerCase());
 }
@@ -272,7 +292,7 @@ function quoteFromStore(
     condition: readSearchCondition({ title: title ?? "", tag: store.tag }),
     identifiers: {
       gtin: null,
-      mpn: title === null ? null : readModelCode(title),
+      mpn: title === null ? null : readSamsungModelCode(title),
       retailerSku: null,
     },
     provenance: { kind: "search", via: entity.product_link ?? null },
@@ -304,7 +324,7 @@ function quoteFromItem(item: ShoppingItem, region: string, fetchedAt: Date): Pri
     shippingCents: item.delivery !== undefined && /free/i.test(item.delivery) ? 0 : null,
     availability: "unknown",
     condition: readSearchCondition(item),
-    identifiers: { gtin: null, mpn: readModelCode(item.title), retailerSku: null },
+    identifiers: { gtin: null, mpn: readSamsungModelCode(item.title), retailerSku: null },
     provenance: { kind: "search", via: item.product_link ?? null },
     confidence: FALLBACK_CONFIDENCE,
     evidence: item.title,
@@ -462,6 +482,74 @@ export const searchGoogleShopping: SearchSource = async (input) => {
     if (quote !== null) quotes.push(quote);
   }
   return quotes.sort((a, b) => a.priceCents - b.priceCents);
+};
+
+// ---------- Discovery: one hop, every result a candidate (ADR-0017, miss path) ----------
+
+function clampDiscoveryLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return DISCOVERY_DEFAULT_LIMIT;
+  return Math.min(DISCOVERY_MAX_LIMIT, Math.max(1, Math.trunc(limit)));
+}
+
+/**
+ * A hop-1 result as a candidate. Nothing is dropped for want of a price:
+ * the index allows a row without one, and a seller Google lists is worth
+ * knowing about. The handle is Google's product id, else a slug of seller
+ * and title, so the index's (retailer, handle) key holds.
+ */
+function candidateFromItem(item: ShoppingItem, region: string, fetchedAt: Date): ProductCandidate {
+  const priceCents = parseCents(item.extracted_price ?? item.price);
+  return {
+    retailerSlug: slugify(item.source) || UNKNOWN_SELLER_SLUG,
+    retailerName: item.source,
+    method: "google_shopping",
+    fetchedAt,
+    title: item.title,
+    // Google names no brand; the relevance rule judges the title alone.
+    brand: null,
+    storeType: null,
+    // The seller's own page when Google gives it, else Google's product page.
+    url: canonicalOrNull(item.link) ?? canonicalOrNull(item.product_link) ?? GOOGLE_SHOPPING_URL,
+    handle: item.product_id ?? (slugify(`${item.source}-${item.title}`) || null),
+    priceCents,
+    currency: currencyOf(region),
+    strikethroughCents:
+      priceCents === null
+        ? null
+        : strikethroughAbove(priceCents, parseCents(item.extracted_old_price ?? item.old_price)),
+    availability: "unknown",
+    imageUrl: item.thumbnail ?? null,
+    identifiers: { gtin: null, mpn: readTitleModelCode(item.title), retailerSku: null },
+    provenance: { kind: "search", via: item.product_link ?? null },
+    raw: discoveryRawItemSchema.parse(item),
+  };
+}
+
+/**
+ * One request, hop 1, every result a candidate in position order. Throws
+ * SourceError under the "serpapi" slug, with the key redacted, as the price
+ * search does; an `error` body is a failed call.
+ */
+export const discoverGoogleShopping: GoogleShoppingDiscoverySource = async (input) => {
+  const now = input.now ?? (() => new Date());
+  const limit = clampDiscoveryLimit(input.limit);
+
+  const response = await fetchSerpApi(
+    input,
+    "google_shopping",
+    serpApiRequestUrl(input.query, input.region, input.apiKey),
+    shoppingResponseSchema,
+  );
+  const fetchedAt = now();
+
+  const candidates: ProductCandidate[] = [];
+  for (const entry of response.shopping_results ?? []) {
+    if (candidates.length >= limit) break;
+    // A malformed result drops out alone, never the search.
+    const item = itemSchema.safeParse(entry);
+    if (item.success) candidates.push(candidateFromItem(item.data, input.region, fetchedAt));
+  }
+  return candidates;
 };
 
 // ---------- Account: plan and quota, for the status page ----------

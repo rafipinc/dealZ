@@ -125,7 +125,9 @@ export type SourceOperation =
   | "cdx" // wayback, the capture index
   | "availability" // wayback, the closest-capture fallback
   | "snapshot" // wayback, one archived page
-  | "page"; // retailer, one live page or product JSON
+  | "page" // retailer, one live page or product JSON
+  | "search" // retailer, one storefront search (ADR-0016)
+  | "listing"; // retailer, one page of a collection's products.json (ADR-0016)
 
 /**
  * One HTTP request a source actually made, for the usage ledger. Reported
@@ -226,3 +228,95 @@ export interface ArchiveResult {
 
 /** One page, one quote per archived snapshot that parses. */
 export type ArchiveSource = (input: ArchiveSourceInput) => Promise<ArchiveResult>;
+
+// ---------- Discovery: one query to a storefront, many candidates (ADR-0016) ----------
+
+export type DiscoveryMethod = "storefront_search" | "storefront_listing" | "google_shopping";
+
+/** One product a discovery source found for a query. Not a price fact; never persisted by the search (ADR-0016). */
+export interface ProductCandidate {
+  retailerSlug: string;
+  retailerName: string | null;
+  method: DiscoveryMethod;
+  fetchedAt: Date;
+  title: string;
+  /** The brand as the store names it (Shopify `vendor`). */
+  brand: string | null;
+  /** The store's own product type or category label, as printed. */
+  storeType: string | null;
+  /** Canonical product page URL (tracking stripped). */
+  url: string;
+  /** The store's handle, for the product JSON. */
+  handle: string | null;
+  priceCents: number | null;
+  currency: string;
+  strikethroughCents: number | null;
+  availability: Availability;
+  imageUrl: string | null;
+  /** Only what the search response exposed. Predictive search carries none; the product JSON does. */
+  identifiers: QuoteIdentifiers;
+  /** Which fields came from which source, for the "what data are we using" view. `via` is the search or listing URL. */
+  provenance: { kind: "search"; via: string | null };
+  raw: unknown;
+}
+
+export interface DiscoverySourceInput {
+  retailerSlug: string;
+  retailerName?: string;
+  /** The storefront origin, e.g. https://www.jbhifi.com.au */
+  origin: string;
+  query: string;
+  /** Results asked for. Default 10, at most 20. */
+  limit?: number;
+  fetch?: FetchLike;
+  now?: () => Date;
+  meter?: Meter;
+}
+
+/** One query to one storefront, every product its search suggests. */
+export type DiscoverySource = (input: DiscoverySourceInput) => Promise<ProductCandidate[]>;
+
+/**
+ * One query to Google Shopping through SerpApi, hop 1 only: one paid
+ * request, one candidate per result, each fronted by one seller. The miss
+ * path of the catalogue search, decided by Rafi on 2026-10-06; the daily
+ * cap is the service's, not the source's.
+ */
+export interface GoogleShoppingDiscoveryInput {
+  /** A title, a model code or a GTIN's digits; Google Shopping indexes all three. */
+  query: string;
+  /** ISO 3166-1 alpha-2, lower-cased for the provider. */
+  region: string;
+  apiKey: string;
+  /** Results kept, in position order. Default 20, at most 40. Never sent to the provider. */
+  limit?: number;
+  fetch?: FetchLike;
+  now?: () => Date;
+  meter?: Meter;
+}
+
+/** One query to Google Shopping, every result as a candidate. Not a price source. */
+export type GoogleShoppingDiscoverySource = (
+  input: GoogleShoppingDiscoveryInput,
+) => Promise<ProductCandidate[]>;
+
+export interface ListingSourceInput {
+  retailerSlug: string;
+  retailerName?: string;
+  /** The storefront origin, e.g. https://powerland.com.au */
+  origin: string;
+  /** The collection handle, e.g. "televisions". */
+  collection: string;
+  /** Upper bound on pages walked. Default 4, at most 40. */
+  maxPages?: number;
+  /** Politeness pause between pages. Default 500; tests pass 0. */
+  delayMs?: number;
+  /** How the pause is waited; injected so a test asserts the wait without a clock. */
+  sleep?: (ms: number) => Promise<void>;
+  fetch?: FetchLike;
+  now?: () => Date;
+  meter?: Meter;
+}
+
+/** One storefront collection, every product in it, page by page. */
+export type ListingSource = (input: ListingSourceInput) => Promise<ProductCandidate[]>;

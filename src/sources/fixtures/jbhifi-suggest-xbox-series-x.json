@@ -1,0 +1,288 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-s-1tb-console-robot-white",
+          "id": 7332847419593,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749726-Product-0-I-638968586405888713.jpg?v=1761261966",
+          "price": "849.00",
+          "price_max": "849.00",
+          "price_min": "849.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series S 1TB Console (Robot White)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-s-1tb-console-robot-white?_pos=1&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series S 1TB Console (Robot White)",
+            "aspect_ratio": 1.0,
+            "height": 1200,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749726-Product-0-I-638968586405888713.jpg?v=1761261966",
+            "width": 1200
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-x-1tb-console-1",
+          "id": 7336704147657,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896402-Product-0-I-639148533605517434.jpg?v=1779256630",
+          "price": "1099.00",
+          "price_max": "1099.00",
+          "price_min": "1099.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series X 1TB Console",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-x-1tb-console-1?_pos=2&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series X 1TB Console",
+            "aspect_ratio": 1.0,
+            "height": 1034,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896402-Product-0-I-639148533605517434.jpg?v=1779256630",
+            "width": 1034
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-s-512gb-console-1",
+          "id": 7333326422217,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/794687-Product-0-I-638682604208042514.jpg?v=1732663751",
+          "price": "699.00",
+          "price_max": "699.00",
+          "price_min": "699.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series S 512GB Console",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-s-512gb-console-1?_pos=3&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series S 512GB Console",
+            "aspect_ratio": 1.0,
+            "height": 1016,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/794687-Product-0-I-638682604208042514.jpg?v=1732663751",
+            "width": 1016
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "xbox-series-x-1tb-digital-console-robot-white",
+          "id": 7332847452361,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749727-Product-0-I-638596367404641478.jpg?v=1761260165",
+          "price": "999.00",
+          "price_max": "999.00",
+          "price_min": "999.00",
+          "tags": [
+            "Brand:Microsoft",
+            "InStock"
+          ],
+          "title": "Xbox Series X 1TB Digital Console (Robot White)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/xbox-series-x-1tb-digital-console-robot-white?_pos=4&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "MICROSOFT",
+          "featured_image": {
+            "alt": "Xbox Series X 1TB Digital Console (Robot White)",
+            "aspect_ratio": 1.0,
+            "height": 1200,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/749727-Product-0-I-638596367404641478.jpg?v=1761260165",
+            "width": 1200
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "moza-esx-racing-wheel-for-xbox-series-x-s",
+          "id": 7333076009161,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/784168-Product-0-I-638742413403727726.jpg?v=1738816152",
+          "price": "249.00",
+          "price_max": "249.00",
+          "price_min": "249.00",
+          "tags": [
+            "AwaitingStock",
+            "Brand:Moza Racing"
+          ],
+          "title": "MOZA ESX Racing Wheel for XBOX Series X/S",
+          "type": "GAMES HARDWARE",
+          "url": "/products/moza-esx-racing-wheel-for-xbox-series-x-s?_pos=5&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "MOZA RACING",
+          "featured_image": {
+            "alt": "MOZA ESX Racing Wheel for XBOX Series X/S",
+            "aspect_ratio": 1.0,
+            "height": 2048,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/784168-Product-0-I-638742413403727726.jpg?v=1738816152",
+            "width": 2048
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "powera-advantage-wireless-controller-for-xbox-series-xs-beach-vibes",
+          "id": 7337061581001,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896439-Product-0-I-639180423606716052.jpg?v=1782445625",
+          "price": "139.00",
+          "price_max": "139.00",
+          "price_min": "139.00",
+          "tags": [
+            "Brand:Power A",
+            "InStock"
+          ],
+          "title": "PowerA Advantage Wireless Controller for XBOX Series X|S (Beach Vibes)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/powera-advantage-wireless-controller-for-xbox-series-xs-beach-vibes?_pos=6&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "POWER A",
+          "featured_image": {
+            "alt": "PowerA Advantage Wireless Controller for XBOX Series X|S (Beach Vibes)",
+            "aspect_ratio": 1.0,
+            "height": 2000,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896439-Product-0-I-639180423606716052.jpg?v=1782445625",
+            "width": 2000
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "powera-fusion-pro-wireless-controller-with-lumectra-for-xbox-series-xs",
+          "id": 7332841980105,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/778078-Product-0-I-638592778941656250_1c6f6ff0-e2bf-4a12-8467-1851bb8e6bd0.jpg?v=1729117647",
+          "price": "149.00",
+          "price_max": "149.00",
+          "price_min": "149.00",
+          "tags": [
+            "Brand:Power A",
+            "LimitedStock"
+          ],
+          "title": "PowerA Fusion Pro Wireless Controller with Lumectra for Xbox Series X|S",
+          "type": "GAMES HARDWARE",
+          "url": "/products/powera-fusion-pro-wireless-controller-with-lumectra-for-xbox-series-xs?_pos=7&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "POWER A",
+          "featured_image": {
+            "alt": "PowerA Fusion Pro Wireless Controller with Lumectra for Xbox Series X|S",
+            "aspect_ratio": 1.0,
+            "height": 2000,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/778078-Product-0-I-638592778941656250_1c6f6ff0-e2bf-4a12-8467-1851bb8e6bd0.jpg?v=1729117647",
+            "width": 2000
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "powerwave-charging-display-stand-for-xbox-series-x-s-black",
+          "id": 6664329986249,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/598692-Product-0-I-637959163977545472.jpg?v=1660283917",
+          "price": "29.00",
+          "price_max": "29.00",
+          "price_min": "29.00",
+          "tags": [
+            "Brand:Powerwave",
+            "InStock"
+          ],
+          "title": "Powerwave Charging Display Stand for Xbox Series X/S (Black)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/powerwave-charging-display-stand-for-xbox-series-x-s-black?_pos=8&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "POWERWAVE",
+          "featured_image": {
+            "alt": "Powerwave Charging Display Stand for Xbox Series X/S (Black)",
+            "aspect_ratio": 1.0,
+            "height": 1695,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/598692-Product-0-I-637959163977545472.jpg?v=1660283917",
+            "width": 1695
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "powera-dual-charging-station-for-xbox-series-x-s-black",
+          "id": 6664615035081,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/625236-Product-0-I-638173764019153650.jpg?v=1681779669",
+          "price": "59.00",
+          "price_max": "59.00",
+          "price_min": "59.00",
+          "tags": [
+            "AwaitingStock",
+            "Brand:Power A"
+          ],
+          "title": "PowerA Dual Charging Station for XBOX Series X/S (Black)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/powera-dual-charging-station-for-xbox-series-x-s-black?_pos=9&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "POWER A",
+          "featured_image": {
+            "alt": "PowerA Dual Charging Station for XBOX Series X/S (Black)",
+            "aspect_ratio": 1.0,
+            "height": 2000,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/products/625236-Product-0-I-638173764019153650.jpg?v=1681779669",
+            "width": 2000
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "0.00",
+          "compare_at_price_min": "0.00",
+          "handle": "powera-advantage-plus-wired-controller-for-xbox-series-xs-moonlit-palms",
+          "id": 7337060860105,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896438-Product-0-I-639180392406531489.jpg?v=1782442506",
+          "price": "69.00",
+          "price_max": "69.00",
+          "price_min": "69.00",
+          "tags": [
+            "Brand:Power A",
+            "InStock"
+          ],
+          "title": "PowerA Advantage Plus Wired Controller for XBOX Series X|S (Moonlit Palms)",
+          "type": "GAMES HARDWARE",
+          "url": "/products/powera-advantage-plus-wired-controller-for-xbox-series-xs-moonlit-palms?_pos=10&_psq=Xbox+Series+X&_psid=487115c45&_ss=e",
+          "variants": [],
+          "vendor": "POWER A",
+          "featured_image": {
+            "alt": "PowerA Advantage Plus Wired Controller for XBOX Series X|S (Moonlit Palms)",
+            "aspect_ratio": 1.0,
+            "height": 2000,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/896438-Product-0-I-639180392406531489.jpg?v=1782442506",
+            "width": 2000
+          }
+        }
+      ]
+    }
+  }
+}
