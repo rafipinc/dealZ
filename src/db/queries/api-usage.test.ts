@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, type TestDb } from "../test-db";
 import {
   type ApiUsageInsert,
+  countOkCallsByOperation,
   dailyApiUsage,
   insertApiUsage,
   lastOkPerTarget,
@@ -227,6 +228,69 @@ describe("dailyApiUsage", () => {
       String((e as Error | undefined)?.message),
     );
     expect(messages.join(" ")).toContain('time zone "Mars/Olympus" not recognized');
+  });
+});
+
+describe("countOkCallsByOperation", () => {
+  const serpSeptember = { provider: "serpapi", ...september };
+
+  it("counts successful calls per operation, ordered by operation", async () => {
+    await seed(
+      serpOk,
+      serpOk,
+      { ...serpOk, operation: "account" },
+      { ...serpOk, operation: "google_product" },
+    );
+
+    expect(await countOkCallsByOperation(t.db, serpSeptember)).toEqual([
+      { operation: "account", count: 1 },
+      { operation: "google_product", count: 1 },
+      { operation: "google_shopping", count: 2 },
+    ]);
+  });
+
+  it("leaves failed calls out, so a failure does not count as spent quota", async () => {
+    await seed(
+      serpOk,
+      { ...serpOk, outcome: "failed", errorKind: "http", httpStatus: 500 },
+      {
+        ...serpOk,
+        operation: "account",
+        outcome: "failed",
+        errorKind: "network",
+        httpStatus: null,
+      },
+    );
+
+    expect(await countOkCallsByOperation(t.db, serpSeptember)).toEqual([
+      { operation: "google_shopping", count: 1 },
+    ]);
+  });
+
+  it("leaves other providers out", async () => {
+    await seed(serpOk, geminiOk, { ...geminiOk, operation: "google_shopping" });
+
+    expect(await countOkCallsByOperation(t.db, serpSeptember)).toEqual([
+      { operation: "google_shopping", count: 1 },
+    ]);
+  });
+
+  it("includes a call at from and excludes a call at to", async () => {
+    await seed(
+      { ...serpOk, calledAt: september.from },
+      { ...serpOk, calledAt: september.to },
+      { ...serpOk, calledAt: at("2026-08-31T23:59:59Z") },
+    );
+
+    expect(await countOkCallsByOperation(t.db, serpSeptember)).toEqual([
+      { operation: "google_shopping", count: 1 },
+    ]);
+  });
+
+  it("returns nothing for an empty period", async () => {
+    await seed({ ...serpOk, calledAt: at("2026-10-02T00:00:00Z") });
+
+    expect(await countOkCallsByOperation(t.db, serpSeptember)).toEqual([]);
   });
 });
 

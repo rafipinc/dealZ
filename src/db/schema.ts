@@ -1,9 +1,10 @@
 // DealZ data model. Single source of truth for the database.
 //
 // `drizzle-kit generate` turns this file into SQL migrations. Behaviour that
-// Drizzle cannot express (triggers) lives in ./sql/triggers.sql and is applied
-// through a custom migration. docs/DATA_MODEL.md explains the reasoning behind
-// each table; docs/SETUP.md covers the migration workflow.
+// Drizzle cannot express (triggers, extensions, the trigram index) lives in
+// ./sql/*.sql and is applied through custom migrations. docs/DATA_MODEL.md
+// explains the reasoning behind each table; docs/SETUP.md covers the migration
+// workflow.
 //
 // Conventions
 // - uuid primary keys, timestamptz everywhere, integer cents for money.
@@ -156,7 +157,7 @@ export const identifier = pgTable(
 );
 
 // One retailer page for one variant. A row here means the match is confirmed;
-// unmatched pages will live in a staging table (phase 4), never here.
+// unmatched pages live in catalogue_candidate, never here.
 export const listing = pgTable(
   "listing",
   {
@@ -303,5 +304,71 @@ export const apiUsage = pgTable(
       sql`${t.outputTokens} IS NULL OR ${t.outputTokens} >= 0`,
     ),
     check("api_usage_cost_non_negative", sql`${t.costMicros} >= 0`),
+  ],
+);
+
+// The local search index: one row per product a retailer storefront has shown
+// DealZ, from a listing pull or a live search (ADR-0017, proposed; the staging
+// table ADR-0010 deferred). A snapshot of what the store said, never price
+// history: no row here is a price_observation, and nothing references this
+// table. A row is replaced in place on every sighting; first_seen_at survives.
+//
+// What Drizzle cannot express lives in sql/catalogue-candidate-search.sql: the
+// pg_trgm extension, the trigram GIN index on title (it must follow the
+// extension, so it cannot sit in a generated migration) and the updated_at
+// trigger.
+export const catalogueCandidate = pgTable(
+  "catalogue_candidate",
+  {
+    id: id(),
+    // Text, not a foreign key: the tracked retailers are not rows yet, same
+    // reasoning as api_usage.retailer_slug (ADR-0014 item 7).
+    retailerSlug: text("retailer_slug").notNull(),
+    handle: text("handle").notNull(), // the store's product handle
+    canonicalUrl: text("canonical_url").notNull(), // tracking stripped; see lib/url
+    title: text("title").notNull(),
+    brand: text("brand"), // as the store names it
+    storeType: text("store_type"), // the store's product type label
+    mpn: text("mpn"), // model code read from the title or SKU; see lib/model-code
+    gtin: text("gtin"), // 14 digits when present, as in identifier
+    retailerSku: text("retailer_sku"),
+    priceCents: integer("price_cents"), // what the store showed; not an observation
+    compareAtCents: integer("compare_at_cents"),
+    currency: text("currency").notNull().default("AUD"), // ISO 4217
+    available: boolean("available"), // null when unknown
+    imageUrl: text("image_url"),
+    // How the row arrived. Text with a check, not an enum, so a fourth source
+    // needs no enum migration.
+    source: text("source").notNull(), // listing, search, inspect
+    raw: jsonb("raw").notNull().default({}), // what the parser read
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // One row per product per store: the upsert key.
+    unique("catalogue_candidate_retailer_handle_uq").on(t.retailerSlug, t.handle),
+    // Exact identifier lookups. Title search uses the trigram index in sql/.
+    index("catalogue_candidate_gtin_idx").on(t.gtin),
+    index("catalogue_candidate_mpn_idx").on(t.mpn),
+    check(
+      "catalogue_candidate_retailer_slug_format",
+      sql`${t.retailerSlug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`,
+    ),
+    check(
+      "catalogue_candidate_gtin_is_14_digits",
+      sql`${t.gtin} IS NULL OR ${t.gtin} ~ '^[0-9]{14}$'`,
+    ),
+    check(
+      "catalogue_candidate_price_non_negative",
+      sql`${t.priceCents} IS NULL OR ${t.priceCents} >= 0`,
+    ),
+    check(
+      "catalogue_candidate_compare_at_non_negative",
+      sql`${t.compareAtCents} IS NULL OR ${t.compareAtCents} >= 0`,
+    ),
+    check("catalogue_candidate_currency_iso4217", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+    check("catalogue_candidate_source_known", sql`${t.source} IN ('listing', 'search', 'inspect')`),
   ],
 );
