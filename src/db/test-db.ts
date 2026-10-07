@@ -4,6 +4,7 @@
 // imports this.
 
 import { PGlite } from "@electric-sql/pglite";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "./schema";
@@ -11,7 +12,9 @@ import * as schema from "./schema";
 const MIGRATIONS_FOLDER = "./drizzle/migrations";
 
 export async function createTestDb() {
-  const client = new PGlite();
+  // pg_trgm is bundled with PGlite but must be registered before
+  // 0005_catalogue-candidate-search.sql can CREATE EXTENSION it.
+  const client = new PGlite({ extensions: { pg_trgm } });
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
 

@@ -1,0 +1,292 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1499.00",
+          "compare_at_price_min": "1499.00",
+          "handle": "samsung-65-mini-led-m70h-4k-vision-ai-smart-tv-ua65m70hawxxy",
+          "id": 9362228904175,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/ua43m70hawxxy-1.jpg?v=1776948013",
+          "price": "1140.00",
+          "price_max": "1140.00",
+          "price_min": "1140.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" Mini LED M70H 4K Vision AI Smart TV UA65M70HAWXXY",
+          "type": "4K Ultra HD LED",
+          "url": "/products/samsung-65-mini-led-m70h-4k-vision-ai-smart-tv-ua65m70hawxxy?_pos=1&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" Mini LED M70H 4K Vision AI Smart TV UA65M70HAWXXY",
+            "aspect_ratio": 1.584,
+            "height": 1052,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/ua43m70hawxxy-1.jpg?v=1776948013",
+            "width": 1666
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2529.00",
+          "compare_at_price_min": "2529.00",
+          "handle": "samsung-65-the-frame-ls03he-qled-uhd-4k-vision-ai-smart-tv-qa65ls03hewxxy",
+          "id": 9484478578927,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa65ls03hewxxy-1.jpg?v=1784964875",
+          "price": "1539.00",
+          "price_max": "1539.00",
+          "price_min": "1539.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" The Frame LS03HE QLED UHD 4K Vision AI Smart TV QA65LS03HEWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-65-the-frame-ls03he-qled-uhd-4k-vision-ai-smart-tv-qa65ls03hewxxy?_pos=2&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" The Frame LS03HE QLED UHD 4K Vision AI Smart TV QA65LS03HEWXXY",
+            "aspect_ratio": 1.659,
+            "height": 1004,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa65ls03hewxxy-1.jpg?v=1784964875",
+            "width": 1666
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2199.00",
+          "compare_at_price_min": "2199.00",
+          "handle": "samsung-65-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa65qn80hawxxy",
+          "id": 9356381290735,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "price": "1849.00",
+          "price_max": "1849.00",
+          "price_min": "1849.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-65-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa65qn80hawxxy?_pos=3&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY",
+            "aspect_ratio": 1.645,
+            "height": 1065,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+            "width": 1752
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3679.00",
+          "compare_at_price_min": "3679.00",
+          "handle": "samsung-65-the-frame-pro-ls03hw-qled-4k-vision-ai-smart-tv-qa65ls03hwwxxy",
+          "id": 9485502808303,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55ls03hwwxxy-1.jpg?v=1785136630",
+          "price": "2879.00",
+          "price_max": "2879.00",
+          "price_min": "2879.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" The Frame Pro LS03HW QLED 4K Vision AI Smart TV QA65LS03HWWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-65-the-frame-pro-ls03hw-qled-4k-vision-ai-smart-tv-qa65ls03hwwxxy?_pos=4&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" The Frame Pro LS03HW QLED 4K Vision AI Smart TV QA65LS03HWWXXY",
+            "aspect_ratio": 1.669,
+            "height": 998,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55ls03hwwxxy-1.jpg?v=1785136630",
+            "width": 1666
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2499.00",
+          "compare_at_price_min": "2499.00",
+          "handle": "samsung-65-micro-rgb-r85h-4k-samsung-vision-ai-smart-tv-2026-mra65r85hawxxy",
+          "id": 9433916604655,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/mra85r85hawxxy-1.jpg?v=1781858158",
+          "price": "2225.00",
+          "price_max": "2225.00",
+          "price_min": "2225.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" Micro RGB R85H 4K Samsung Vision AI Smart TV 2026 MRA65R85HAWXXY",
+          "type": "",
+          "url": "/products/samsung-65-micro-rgb-r85h-4k-samsung-vision-ai-smart-tv-2026-mra65r85hawxxy?_pos=5&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" Micro RGB R85H 4K Samsung Vision AI Smart TV 2026 MRA65R85HAWXXY",
+            "aspect_ratio": 1.644,
+            "height": 1066,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/mra85r85hawxxy-1.jpg?v=1781858158",
+            "width": 1753
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3299.00",
+          "compare_at_price_min": "3299.00",
+          "handle": "samsung-65-s85h-4k-vision-ai-oled-smart-tv-qa65s85haexxy",
+          "id": 9357809975535,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55s85haexxy-1.jpg?v=1776662047",
+          "price": "2388.00",
+          "price_max": "2388.00",
+          "price_min": "2388.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" S85H 4K Vision AI OLED Smart TV QA65S85HAEXXY",
+          "type": "OLED",
+          "url": "/products/samsung-65-s85h-4k-vision-ai-oled-smart-tv-qa65s85haexxy?_pos=6&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" S85H 4K Vision AI OLED Smart TV QA65S85HAEXXY",
+            "aspect_ratio": 1.579,
+            "height": 795,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55s85haexxy-1.jpg?v=1776662047",
+            "width": 1255
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1999.00",
+          "compare_at_price_min": "1999.00",
+          "handle": "samsung-11-1-4-channel-q-series-soundbar-wireless-subwoofer-hw-q990h-xy",
+          "id": 9381462507759,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-q990h-xy-1.jpg?v=1778509326",
+          "price": "1209.00",
+          "price_max": "1209.00",
+          "price_min": "1209.00",
+          "tags": [
+            "AUDIO-1Y",
+            "hifi-and-soundbars"
+          ],
+          "title": "Samsung 11.1.4 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q990H/XY",
+          "type": "Subwoofer",
+          "url": "/products/samsung-11-1-4-channel-q-series-soundbar-wireless-subwoofer-hw-q990h-xy?_pos=7&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 11.1.4 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q990H/XY",
+            "aspect_ratio": 2.908,
+            "height": 644,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-q990h-xy-1.jpg?v=1778509326",
+            "width": 1873
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2499.00",
+          "compare_at_price_min": "2499.00",
+          "handle": "tcl-65-c7l-sqd-4k-qled-uhd-mini-led-smart-google-tv-65c7l",
+          "id": 9364202750191,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c7l-1.jpg?v=1777145714",
+          "price": "1539.00",
+          "price_max": "1539.00",
+          "price_min": "1539.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "TCL 65\" C7L SQD  4K QLED UHD Mini LED Smart Google TV 65C7L",
+          "type": "4K QLED UHD",
+          "url": "/products/tcl-65-c7l-sqd-4k-qled-uhd-mini-led-smart-google-tv-65c7l?_pos=8&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "TCL",
+          "featured_image": {
+            "alt": "TCL 65\" C7L SQD  4K QLED UHD Mini LED Smart Google TV 65C7L",
+            "aspect_ratio": 1.658,
+            "height": 808,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c7l-1.jpg?v=1777145714",
+            "width": 1340
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3837.00",
+          "compare_at_price_min": "3837.00",
+          "handle": "samsung-55-series-9-s90d-oled-4k-smart-tv-qa55s90dawxxy",
+          "id": 9239342776559,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa65s90dawxxy-1_1.jpg?v=1772943120",
+          "price": "1999.00",
+          "price_max": "1999.00",
+          "price_min": "1999.00",
+          "tags": [
+            "CLEARANCE",
+            "OBSOLETE",
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 55\" Series 9 S90D OLED 4K Smart TV QA55S90DAWXXY",
+          "type": "OLED",
+          "url": "/products/samsung-55-series-9-s90d-oled-4k-smart-tv-qa55s90dawxxy?_pos=9&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 55\" Series 9 S90D OLED 4K Smart TV QA55S90DAWXXY",
+            "aspect_ratio": 1.587,
+            "height": 1104,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa65s90dawxxy-1_1.jpg?v=1772943120",
+            "width": 1752
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3299.00",
+          "compare_at_price_min": "3299.00",
+          "handle": "samsung-55-s90f-4k-vision-ai-oled-smart-tv-qa55s90fawxxy",
+          "id": 9240005935343,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55s90fawxxy-1.jpg?v=1772858621",
+          "price": "2099.00",
+          "price_max": "2099.00",
+          "price_min": "2099.00",
+          "tags": [
+            "CLEARANCE",
+            "OBSOLETE",
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 55\" S90F 4K Vision AI OLED Smart TV QA55S90FAWXXY",
+          "type": "OLED",
+          "url": "/products/samsung-55-s90f-4k-vision-ai-oled-smart-tv-qa55s90fawxxy?_pos=10&_psq=Samsung+S90H+65&_psid=0d741c144&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 55\" S90F 4K Vision AI OLED Smart TV QA55S90FAWXXY",
+            "aspect_ratio": 1.587,
+            "height": 1104,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55s90fawxxy-1.jpg?v=1772858621",
+            "width": 1752
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1295.00",
+          "compare_at_price_min": "1295.00",
+          "handle": "lg-65-qned70-4k-smart-qned-mini-led-ai-tv-65qned70bsa",
+          "id": 9480364032239,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/43qned70bsa-1.jpg?v=1784634334",
+          "price": "1189.00",
+          "price_max": "1189.00",
+          "price_min": "1189.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "LG 65\" QNED70 4K Smart QNED Mini LED AI TV 65QNED70BSA",
+          "type": "4K QNED TV",
+          "url": "/products/lg-65-qned70-4k-smart-qned-mini-led-ai-tv-65qned70bsa?_pos=1&_psq=LG+C5+65&_psid=04828331f&_ss=e",
+          "variants": [],
+          "vendor": "LG",
+          "featured_image": {
+            "alt": "LG 65\" QNED70 4K Smart QNED Mini LED AI TV 65QNED70BSA",
+            "aspect_ratio": 1.567,
+            "height": 1016,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/43qned70bsa-1.jpg?v=1784634334",
+            "width": 1592
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3299.00",
+          "compare_at_price_min": "3299.00",
+          "handle": "lg-65-ai-b6-4k-smart-oled-tv-2026-oled65b6psa",
+          "id": 9483338121455,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/oled65b6psa-1.jpg?v=1784876834",
+          "price": "2989.00",
+          "price_max": "2989.00",
+          "price_min": "2989.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "LG 65\" AI B6 4K Smart OLED TV 2026 OLED65B6PSA",
+          "type": "OLED",
+          "url": "/products/lg-65-ai-b6-4k-smart-oled-tv-2026-oled65b6psa?_pos=2&_psq=LG+C5+65&_psid=04828331f&_ss=e",
+          "variants": [],
+          "vendor": "LG",
+          "featured_image": {
+            "alt": "LG 65\" AI B6 4K Smart OLED TV 2026 OLED65B6PSA",
+            "aspect_ratio": 1.598,
+            "height": 1056,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/oled65b6psa-1.jpg?v=1784876834",
+            "width": 1688
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1999.00",
+          "compare_at_price_min": "1999.00",
+          "handle": "lg-65-qned86-4k-smart-qned-evo-mini-led-ai-tv-65qned86bsa",
+          "id": 9482808328431,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/65qned86bsa-1.jpg?v=1784809439",
+          "price": "1810.00",
+          "price_max": "1810.00",
+          "price_min": "1810.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "LG 65\" QNED86 4K Smart QNED evo Mini LED AI TV 65QNED86BSA",
+          "type": "4K QNED TV",
+          "url": "/products/lg-65-qned86-4k-smart-qned-evo-mini-led-ai-tv-65qned86bsa?_pos=3&_psq=LG+C5+65&_psid=04828331f&_ss=e",
+          "variants": [],
+          "vendor": "LG",
+          "featured_image": {
+            "alt": "LG 65\" QNED86 4K Smart QNED evo Mini LED AI TV 65QNED86BSA",
+            "aspect_ratio": 1.633,
+            "height": 752,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/65qned86bsa-1.jpg?v=1784809439",
+            "width": 1228
+          }
+        }
+      ]
+    }
+  }
+}

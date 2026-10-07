@@ -45,6 +45,16 @@ export interface LastOkForTarget {
   lastOkAt: Date;
 }
 
+/** A period narrowed to one provider's calls. */
+export interface ProviderPeriod extends UsagePeriod {
+  provider: string;
+}
+
+export interface OkCallsByOperation {
+  operation: string;
+  count: number;
+}
+
 const inPeriod = ({ from, to }: UsagePeriod) =>
   and(gte(apiUsage.calledAt, from), lt(apiUsage.calledAt, to));
 
@@ -75,6 +85,23 @@ export async function summariseApiUsage(
     .where(inPeriod(period))
     .groupBy(apiUsage.provider)
     .orderBy(apiUsage.provider);
+}
+
+/**
+ * Successful calls per operation for one provider over the period, ordered by
+ * operation. The budget check reads this: a failed call is not spent quota, so
+ * only `ok` rows count. An operation with no successful calls has no row.
+ */
+export async function countOkCallsByOperation(
+  db: QueryDb,
+  { provider, ...period }: ProviderPeriod,
+): Promise<OkCallsByOperation[]> {
+  return db
+    .select({ operation: apiUsage.operation, count: count() })
+    .from(apiUsage)
+    .where(and(eq(apiUsage.provider, provider), eq(apiUsage.outcome, "ok"), inPeriod(period)))
+    .groupBy(apiUsage.operation)
+    .orderBy(apiUsage.operation);
 }
 
 /**

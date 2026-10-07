@@ -4,18 +4,26 @@
 // service function, shape the report for the client. No business rule lives
 // here.
 
+import { revalidatePath } from "next/cache";
 import { isLocalDevelopment } from "@/lib/local-only";
+import { inspectCandidate } from "@/services/discovery";
 import { NotFoundError, ValidationError } from "@/services/errors";
 import { extractQuote, fetchHistory, fetchQuotes, searchQuotes } from "@/services/quotes";
+import { loadSuggestions, runDiscover, runRefreshIndex } from "./index-loaders";
 import {
   toExtractView,
   toHistoryView,
+  toInspectView,
   toQuoteView,
   toSearchView,
+  type DiscoverViewResult,
   type ExtractViewResult,
   type HistoryViewResult,
+  type InspectViewResult,
   type QuoteView,
+  type RefreshViewResult,
   type SearchViewResult,
+  type SuggestViewResult,
   type ViewError,
 } from "./view";
 
@@ -116,4 +124,65 @@ export async function extractQuoteAction(
     }
     return toViewError(error, "Extraction");
   }
+}
+
+function fieldOf(formData: FormData, name: string): string {
+  // Passed raw: the service validates the value and throws ValidationError for a bad one.
+  const value = formData.get(name);
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * The Enter search (ADR-0017 item 6, miss path decided by Rafi on
+ * 2026-10-06): the index first; when it holds too little, the storefronts
+ * and Google Shopping together, the latter only with a key and under the
+ * daily cap. What the sources return is remembered in the index.
+ */
+export async function discoverProductsAction(
+  _prev: DiscoverViewResult | null,
+  formData: FormData,
+): Promise<DiscoverViewResult> {
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
+  const view = await runDiscover(fieldOf(formData, "q"));
+  // The status and budget lines under the search box are rendered by the
+  // page; a search that asked the sources changes both.
+  if (view.ok && view.source === "fanout") revalidatePath("/lab");
+  return view;
+}
+
+/** Reads one candidate's product JSON for its identifiers (ADR-0016 item 6). */
+export async function inspectCandidateAction(
+  _prev: InspectViewResult | null,
+  formData: FormData,
+): Promise<InspectViewResult> {
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
+  try {
+    const report = await inspectCandidate({
+      retailerSlug: fieldOf(formData, "retailerSlug"),
+      url: fieldOf(formData, "url"),
+    });
+    return toInspectView(report);
+  } catch (error) {
+    return toViewError(error, "Identifier read");
+  }
+}
+
+/**
+ * The dropdown's query: the local index only, never a store (ADR-0017 item
+ * 6). Called by the client on each keystroke after the debounce, so it takes
+ * the string itself, not a form.
+ */
+export async function suggestProductsAction(query: string): Promise<SuggestViewResult> {
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
+  // Passed raw: the service validates the length and throws ValidationError for a long one.
+  return loadSuggestions(typeof query === "string" ? query : "");
+}
+
+/** Pulls the seeded collections into the index (ADR-0017 item 7). Each page is logged to the usage ledger. */
+export async function refreshIndexAction(): Promise<RefreshViewResult> {
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
+  const view = await runRefreshIndex();
+  // The status line under the search box is rendered by the page; re-render it with the new counts.
+  revalidatePath("/lab");
+  return view;
 }

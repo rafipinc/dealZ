@@ -1,12 +1,16 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { canonicaliseUrl } from "../lib/url";
 import {
+  DISCOVERY_DEFAULT_LIMIT,
+  DISCOVERY_MAX_LIMIT,
   ENTITY_CONFIDENCE,
   FALLBACK_CONFIDENCE,
   MAX_CANDIDATES,
   SERPAPI_ACCOUNT_ENDPOINT,
   SERPAPI_ENDPOINT,
+  discoverGoogleShopping,
   fetchSerpApiAccount,
   isCandidate,
   readSearchCondition,
@@ -937,5 +941,330 @@ describe("fetchSerpApiAccount", () => {
       ["serpapi", "account", "failed"],
     ]);
     expect(JSON.stringify(calls)).not.toContain(API_KEY);
+  });
+});
+
+describe("discoverGoogleShopping", () => {
+  const discoveryInput = { query: QUERY, region: "AU", apiKey: API_KEY, now: () => FIXED_NOW };
+
+  it("makes one hop-1 request and maps every recorded result to a candidate, in position order", async () => {
+    const { fetch, calls } = fakeFetch();
+    const candidates = await discoverGoogleShopping({ ...discoveryInput, fetch });
+
+    expect(calls).toHaveLength(1);
+    const hop1 = new URL(calls[0].url);
+    expect(hop1.origin + hop1.pathname).toBe(SERPAPI_ENDPOINT);
+    expect(hop1.searchParams.get("engine")).toBe("google_shopping");
+    expect(hop1.searchParams.get("q")).toBe(QUERY);
+    expect(hop1.searchParams.get("gl")).toBe("au");
+    expect(hop1.searchParams.get("hl")).toBe("en");
+    expect(hop1.searchParams.get("google_domain")).toBe("google.com.au");
+    expect(hop1.searchParams.has("num")).toBe(false);
+
+    expect(candidates).toHaveLength(5);
+    expect(candidates.map((c) => c.retailerSlug)).toEqual([
+      "desertcart-ae",
+      "electronics-centre",
+      "west-coast-hifi",
+      "the-good-guys",
+      "jw-computers",
+    ]);
+    expect(candidates.every((c) => c.method === "google_shopping")).toBe(true);
+    expect(candidates.every((c) => c.fetchedAt === FIXED_NOW)).toBe(true);
+    expect(candidates.every((c) => c.brand === null && c.storeType === null)).toBe(true);
+    expect(candidates.every((c) => c.availability === "unknown")).toBe(true);
+    expect(JSON.stringify(candidates)).not.toContain(API_KEY);
+    expect(JSON.stringify(candidates)).not.toContain("immersive_product_page_token");
+  });
+
+  it("maps a result in full: seller, Google product page, product id as handle, prices and the model code by the general rule", async () => {
+    const { fetch } = fakeFetch();
+    const candidates = await discoverGoogleShopping({ ...discoveryInput, fetch });
+    const [, electronicsCentre, westCoast, theGoodGuys] = candidates;
+
+    const tggLink = TGG_PRODUCT_LINK;
+    expect(theGoodGuys).toEqual({
+      retailerSlug: "the-good-guys",
+      retailerName: "The Good Guys",
+      method: "google_shopping",
+      fetchedAt: FIXED_NOW,
+      title: "OLED S85H 4K Samsung AI Smart TV",
+      brand: null,
+      storeType: null,
+      url: canonicaliseUrl(tggLink),
+      handle: "1202807262352129590",
+      priceCents: 279500,
+      currency: "AUD",
+      strikethroughCents: 329500,
+      availability: "unknown",
+      imageUrl: null,
+      // "S85H" is too short for the general rule; the Samsung regex is the price search's.
+      identifiers: { gtin: null, mpn: null, retailerSku: null },
+      provenance: { kind: "search", via: tggLink },
+      raw: {
+        position: 4,
+        title: "OLED S85H 4K Samsung AI Smart TV",
+        product_id: "1202807262352129590",
+        product_link: tggLink,
+        source: "The Good Guys",
+        price: "$2,795.00",
+        extracted_price: 2795,
+        old_price: "$3,295",
+        extracted_old_price: 3295,
+        tag: "15% OFF",
+      },
+    });
+
+    const ecLink = shopping.shopping_results[1].product_link as string;
+    expect(electronicsCentre).toEqual({
+      retailerSlug: "electronics-centre",
+      retailerName: "Electronics Centre",
+      method: "google_shopping",
+      fetchedAt: FIXED_NOW,
+      title: "Samsung OLED S85F 4K Vision AI Smart TV",
+      brand: null,
+      storeType: null,
+      url: canonicaliseUrl(ecLink),
+      handle: "10642254035323137035",
+      priceCents: 314900,
+      currency: "AUD",
+      strikethroughCents: 488800,
+      availability: "unknown",
+      imageUrl: null,
+      identifiers: { gtin: null, mpn: null, retailerSku: null },
+      provenance: { kind: "search", via: ecLink },
+      raw: {
+        position: 2,
+        title: "Samsung OLED S85F 4K Vision AI Smart TV",
+        product_id: "10642254035323137035",
+        product_link: ecLink,
+        source: "Electronics Centre",
+        price: "$3,149.00",
+        extracted_price: 3149,
+        old_price: "$4,888",
+        extracted_old_price: 4888,
+        tag: "35% OFF",
+      },
+    });
+
+    // The EU model code is read by the general rule.
+    expect(westCoast.identifiers.mpn).toBe("QE48S85HAEXZT");
+    expect(westCoast.raw).toHaveProperty("delivery");
+  });
+
+  it("keeps a result without a price, with null price and no strikethrough", async () => {
+    const { fetch } = fakeFetch({
+      shopping: () =>
+        jsonResponse({
+          shopping_results: [
+            { title: "A S85H", source: "Shop A", price: "call us", extracted_old_price: 3000 },
+            { title: "B S85H", source: "Shop B", extracted_price: 1999, old_price: "$1,999" },
+          ],
+        }),
+    });
+    const candidates = await discoverGoogleShopping({ ...discoveryInput, fetch });
+    expect(candidates.map((c) => [c.retailerSlug, c.priceCents, c.strikethroughCents])).toEqual([
+      ["shop-a", null, null],
+      ["shop-b", 199900, null],
+    ]);
+  });
+
+  it("prefers the seller's link, then the Google product link, then the Google Shopping page, and slugs a handle when there is no product id", async () => {
+    const { fetch } = fakeFetch({
+      shopping: () =>
+        jsonResponse({
+          shopping_results: [
+            {
+              title: 'Samsung 65" S85H OLED QA65S85HAEXXY',
+              source: "JB Hi-Fi",
+              link: "https://www.jbhifi.com.au/products/samsung-65-s85h?srsltid=AfmBOoq1",
+              product_link: "https://www.google.com.au/shopping/product/2?gl=au",
+              product_id: "2",
+              extracted_price: 2795,
+              thumbnail: "https://serpapi.com/thumb.png",
+            },
+            {
+              title: "Samsung S85H",
+              source: "Shop & Co",
+              link: "shopping://item/1",
+              product_link: "https://www.google.com.au/shopping/product/1?gl=au",
+              extracted_price: 2000,
+            },
+            { title: "A", source: "***", extracted_price: 10 },
+            { title: "***", source: "***" },
+            "not an object",
+            { source: "No title" },
+          ],
+        }),
+    });
+    const candidates = await discoverGoogleShopping({ ...discoveryInput, fetch, region: "nz" });
+
+    expect(candidates).toHaveLength(4);
+    const [jb, shopAndCo, bare, blank] = candidates;
+    expect(jb.url).toBe("https://www.jbhifi.com.au/products/samsung-65-s85h");
+    expect(jb.handle).toBe("2");
+    expect(jb.imageUrl).toBe("https://serpapi.com/thumb.png");
+    expect(jb.identifiers.mpn).toBe("QA65S85HAEXXY");
+    expect(jb.raw).toMatchObject({ thumbnail: "https://serpapi.com/thumb.png" });
+    expect(jb.currency).toBe("NZ");
+
+    expect(shopAndCo.retailerSlug).toBe("shop-and-co");
+    expect(shopAndCo.url).toBe("https://www.google.com.au/shopping/product/1?gl=au");
+    expect(shopAndCo.handle).toBe("shop-and-co-samsung-s85h");
+
+    expect(bare.retailerSlug).toBe("unknown-seller");
+    expect(bare.retailerName).toBe("***");
+    expect(bare.url).toBe("https://www.google.com/shopping");
+    expect(bare.handle).toBe("a");
+    expect(bare.provenance).toEqual({ kind: "search", via: null });
+    expect(bare.imageUrl).toBeNull();
+
+    // Nothing to slug: no handle, so the index skips it, and the search still answers.
+    expect(blank.handle).toBeNull();
+  });
+
+  it("keeps the first `limit` results in position order and never asks the provider for a count", async () => {
+    const results = Array.from({ length: 6 }, (_, i) => result(i + 1));
+    const { fetch, calls } = fakeFetch({
+      shopping: () => jsonResponse({ shopping_results: results }),
+    });
+
+    expect(DISCOVERY_DEFAULT_LIMIT).toBe(20);
+    expect(DISCOVERY_MAX_LIMIT).toBe(40);
+    const all = await discoverGoogleShopping({ ...discoveryInput, fetch });
+    expect(all).toHaveLength(6);
+    const two = await discoverGoogleShopping({ ...discoveryInput, fetch, limit: 2 });
+    expect(two.map((c) => c.retailerSlug)).toEqual(["seller-1", "seller-2"]);
+    const clamped = await discoverGoogleShopping({ ...discoveryInput, fetch, limit: 0.5 });
+    expect(clamped).toHaveLength(1);
+    expect(
+      await discoverGoogleShopping({ ...discoveryInput, fetch, limit: Number.NaN }),
+    ).toHaveLength(6);
+    expect(calls.every((call) => !new URL(call.url).searchParams.has("num"))).toBe(true);
+  });
+
+  it("returns an empty array when shopping_results is empty or missing", async () => {
+    const { fetch: empty } = fakeFetch({ shopping: () => jsonResponse({ shopping_results: [] }) });
+    const { fetch: missing } = fakeFetch({
+      shopping: () => jsonResponse({ search_metadata: { status: "Success" } }),
+    });
+    expect(await discoverGoogleShopping({ ...discoveryInput, fetch: empty })).toEqual([]);
+    expect(await discoverGoogleShopping({ ...discoveryInput, fetch: missing })).toEqual([]);
+  });
+
+  it("never fetches the immersive hop, even when every result carries a token", async () => {
+    const { fetch, calls } = fakeFetch({
+      shopping: () =>
+        jsonResponse({
+          shopping_results: [1, 2].map((n) => result(n, { immersive_product_page_token: `T${n}` })),
+        }),
+      immersive: {
+        T1: () => {
+          throw new Error("must not be called");
+        },
+        T2: () => {
+          throw new Error("must not be called");
+        },
+      },
+    });
+    const candidates = await discoverGoogleShopping({ ...discoveryInput, fetch });
+    expect(calls).toHaveLength(1);
+    expect(candidates).toHaveLength(2);
+    expect(JSON.stringify(candidates)).not.toContain("T1");
+  });
+
+  it("throws http with SerpApi's message, without the key, when the body carries an error", async () => {
+    const { fetch } = fakeFetch({
+      shopping: () => jsonResponse({ error: "Your account has run out of searches." }),
+    });
+    const error = await sourceErrorFrom(discoverGoogleShopping({ ...discoveryInput, fetch }));
+    expect(error.kind).toBe("http");
+    expect(error.retailerSlug).toBe("serpapi");
+    expect(error.message).toContain("run out of searches");
+    expect(error.message).not.toContain(API_KEY);
+  });
+
+  it("throws http on a 401, network on a rejected fetch and unparseable on a non-JSON body, never with the key", async () => {
+    const denied = await sourceErrorFrom(
+      discoverGoogleShopping({
+        ...discoveryInput,
+        fetch: fakeFetch({ shopping: () => jsonResponse({}, 401) }).fetch,
+      }),
+    );
+    expect(denied.kind).toBe("http");
+    expect(denied.status).toBe(401);
+    expect(denied.message).toContain("api_key=REDACTED");
+    expect(denied.message).not.toContain(API_KEY);
+
+    const down = await sourceErrorFrom(
+      discoverGoogleShopping({
+        ...discoveryInput,
+        fetch: async (url) => {
+          throw new Error(`connect failed for ${url}`);
+        },
+      }),
+    );
+    expect(down.kind).toBe("network");
+    expect(down.message).not.toContain(API_KEY);
+
+    const html = await sourceErrorFrom(
+      discoverGoogleShopping({
+        ...discoveryInput,
+        fetch: fakeFetch({ shopping: () => new Response("<html>", { status: 200 }) }).fetch,
+      }),
+    );
+    expect(html.kind).toBe("unparseable");
+    expect(html.message).not.toContain(API_KEY);
+  });
+
+  it("reports one google_shopping call to the meter, ok or failed, without the key or a URL", async () => {
+    const calls: SourceCall[] = [];
+    let reads = 0;
+    const meter = (call: SourceCall) => void calls.push(call);
+    const now = () => new Date(FIXED_NOW.getTime() + 700 * reads++);
+    await discoverGoogleShopping({ ...discoveryInput, fetch: fakeFetch().fetch, now, meter });
+    await sourceErrorFrom(
+      discoverGoogleShopping({
+        ...discoveryInput,
+        fetch: fakeFetch({ shopping: () => jsonResponse({ error: "Out of searches" }) }).fetch,
+        now,
+        meter,
+      }),
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual({
+      provider: "serpapi",
+      operation: "google_shopping",
+      startedAt: FIXED_NOW,
+      durationMs: 700,
+      outcome: "ok",
+      errorKind: null,
+      httpStatus: 200,
+      model: null,
+      inputTokens: null,
+      outputTokens: null,
+      retailerSlug: null,
+    });
+    expect(calls[1]).toMatchObject({
+      operation: "google_shopping",
+      outcome: "failed",
+      errorKind: "http",
+      httpStatus: 200,
+    });
+    const text = JSON.stringify(calls);
+    expect(text).not.toContain(API_KEY);
+    expect(text).not.toContain("serpapi.com");
+  });
+
+  it("returns the candidates even when the meter throws", async () => {
+    const candidates = await discoverGoogleShopping({
+      ...discoveryInput,
+      fetch: fakeFetch().fetch,
+      meter: () => {
+        throw new Error("ledger down");
+      },
+    });
+    expect(candidates).toHaveLength(5);
   });
 });

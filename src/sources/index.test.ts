@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { archiveSources, pageSources, searchSources, SourceError } from "./index";
+import {
+  archiveSources,
+  discoverySources,
+  fetchCandidateIdentifiers,
+  googleShoppingDiscovery,
+  listingSources,
+  pageSources,
+  searchSources,
+  SourceError,
+} from "./index";
 import { fetchLlmExtractQuote } from "./llm-extract";
 import { fetchJsonLdQuote } from "./json-ld";
-import { searchGoogleShopping } from "./serpapi";
+import { discoverGoogleShopping, searchGoogleShopping } from "./serpapi";
 import { fetchShopifyQuote } from "./shopify";
+import { listStorefrontCollection } from "./storefront-listing";
+import { searchStorefront } from "./storefront-search";
 import { fetchWaybackHistory } from "./wayback";
 
 describe("sources index", () => {
@@ -18,6 +29,19 @@ describe("sources index", () => {
   it("maps the search and archive methods to their sources", () => {
     expect(searchSources).toEqual({ serpapi_google_shopping: searchGoogleShopping });
     expect(archiveSources).toEqual({ wayback: fetchWaybackHistory });
+  });
+
+  it("maps the discovery method to its source and exposes the identifier fetch", () => {
+    expect(discoverySources).toEqual({ storefront_search: searchStorefront });
+    expect(typeof fetchCandidateIdentifiers).toBe("function");
+  });
+
+  it("exposes the Google Shopping discovery beside the registry", () => {
+    expect(googleShoppingDiscovery).toBe(discoverGoogleShopping);
+  });
+
+  it("maps the listing method to its source", () => {
+    expect(listingSources).toEqual({ storefront_listing: listStorefrontCollection });
   });
 
   it("re-exports SourceError", () => {

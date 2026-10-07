@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QueryDb } from "@/db/queries/db";
 import { createTestDb, type TestDb } from "@/db/test-db";
+import { rootCause } from "@/lib/errors";
 import { SERPAPI_ACCOUNT_ENDPOINT } from "@/sources/serpapi";
 import type { FetchLike } from "@/sources";
 import { ValidationError } from "./errors";
@@ -482,5 +483,21 @@ describe("safeFailureMessage", () => {
     expect(safeFailureMessage(new Error("relation does not exist"), { DATABASE_URL: DB_URL })).toBe(
       "relation does not exist",
     );
+  });
+
+  it("redacts the root cause a /lab loader passes it, whether an Error or the driver's text", () => {
+    const failedQuery = (cause: unknown) =>
+      new Error("Failed query: select count(*) from catalogue_candidate", { cause });
+    const nested = failedQuery(
+      new Error("pool error", { cause: new Error(`connect ECONNREFUSED ${DB_URL}`) }),
+    );
+    expect(safeFailureMessage(rootCause(nested), { DATABASE_URL: DB_URL })).toBe(
+      "connect ECONNREFUSED REDACTED",
+    );
+    expect(
+      safeFailureMessage(rootCause(failedQuery(`pool closed for ${DB_URL}`)), {
+        DATABASE_URL: DB_URL,
+      }),
+    ).toBe("pool closed for REDACTED");
   });
 });

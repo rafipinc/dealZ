@@ -36,6 +36,7 @@ DIRECT_URL=<production direct connection> npx drizzle-kit migrate
 - Uses the direct connection, never the transaction pooler.
 - Read the SQL in `drizzle/migrations/` first. An applied migration is never edited.
 - Migrations run from a developer machine in v1. A CI step gated on `main` is a phase 2 improvement and gets an ADR when done.
+- Open, for Rafi, before the first production migration: migration `0005_catalogue-candidate-search` runs `CREATE EXTENSION IF NOT EXISTS pg_trgm` with no schema. On Supabase that installs the extension into `public`, which Supabase's security advisor flags. Decide the schema first, for example `extensions`, and confirm the trigram index's operator class still resolves from there. The local stack and PGlite are unaffected. The fix is a new migration or a statement before 0005 runs; an applied migration is never edited.
 
 ## Roll back
 

@@ -1,0 +1,289 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1494.00",
+          "compare_at_price_min": "1494.00",
+          "handle": "samsung-43-the-frame-ls03he-qled-uhd-4k-vision-ai-smart-tv-qa43ls03hewxxy",
+          "id": 9484478513391,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa43ls03hewxxy-1.jpg?v=1784964876",
+          "price": "1030.00",
+          "price_max": "1030.00",
+          "price_min": "1030.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 43\" The Frame LS03HE QLED UHD 4K Vision AI Smart TV QA43LS03HEWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-43-the-frame-ls03he-qled-uhd-4k-vision-ai-smart-tv-qa43ls03hewxxy?_pos=1&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 43\" The Frame LS03HE QLED UHD 4K Vision AI Smart TV QA43LS03HEWXXY",
+            "aspect_ratio": 1.617,
+            "height": 1030,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa43ls03hewxxy-1.jpg?v=1784964876",
+            "width": 1666
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2999.00",
+          "compare_at_price_min": "2999.00",
+          "handle": "samsung-75-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa75qn80hawxxy",
+          "id": 9356381389039,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "price": "2429.00",
+          "price_max": "2429.00",
+          "price_min": "2429.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 75\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA75QN80HAWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-75-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa75qn80hawxxy?_pos=2&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 75\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA75QN80HAWXXY",
+            "aspect_ratio": 1.645,
+            "height": 1065,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+            "width": 1752
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1799.00",
+          "compare_at_price_min": "1799.00",
+          "handle": "samsung-55-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa55qn80hawxxy",
+          "id": 9356352946415,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "price": "1529.00",
+          "price_max": "1529.00",
+          "price_min": "1529.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 55\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA55QN80HAWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-55-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa55qn80hawxxy?_pos=3&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 55\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA55QN80HAWXXY",
+            "aspect_ratio": 1.645,
+            "height": 1065,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+            "width": 1752
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2199.00",
+          "compare_at_price_min": "2199.00",
+          "handle": "samsung-65-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa65qn80hawxxy",
+          "id": 9356381290735,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "price": "1849.00",
+          "price_max": "1849.00",
+          "price_min": "1849.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 65\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-65-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa65qn80hawxxy?_pos=4&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 65\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY",
+            "aspect_ratio": 1.645,
+            "height": 1065,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+            "width": 1752
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2069.00",
+          "compare_at_price_min": "2069.00",
+          "handle": "samsung-55-the-frame-ls03he-qled-uhd-4k-vision-ai-smart-tv-qa55ls03hewxxy",
+          "id": 9484478546159,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55ls03hewxxy-1.jpg?v=1784964875",
+          "price": "1280.00",
+          "price_max": "1280.00",
+          "price_min": "1280.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 55\" The Frame LS03HE QLED UHD 4K Vision AI Smart TV QA55LS03HEWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-55-the-frame-ls03he-qled-uhd-4k-vision-ai-smart-tv-qa55ls03hewxxy?_pos=5&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 55\" The Frame LS03HE QLED UHD 4K Vision AI Smart TV QA55LS03HEWXXY",
+            "aspect_ratio": 1.659,
+            "height": 1004,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55ls03hewxxy-1.jpg?v=1784964875",
+            "width": 1666
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1499.00",
+          "compare_at_price_min": "1499.00",
+          "handle": "hisense-55-s7s-hi-qled-4k-canvas-tv-55s7sau",
+          "id": 9488535453935,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55s7sau-1.jpg?v=1785324612",
+          "price": "1389.00",
+          "price_max": "1389.00",
+          "price_min": "1389.00",
+          "tags": [
+            "BACKORDER",
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "Hisense 55\" S7S Hi-QLED 4K Canvas TV 55S7SAU",
+          "type": "4K Ultra HD LED",
+          "url": "/products/hisense-55-s7s-hi-qled-4k-canvas-tv-55s7sau?_pos=6&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Hisense",
+          "featured_image": {
+            "alt": "Hisense 55\" S7S Hi-QLED 4K Canvas TV 55S7SAU",
+            "aspect_ratio": 1.725,
+            "height": 807,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55s7sau-1.jpg?v=1785324612",
+            "width": 1392
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1399.00",
+          "compare_at_price_min": "1399.00",
+          "handle": "tcl-55-c6l-qd-mini-led-4k-uhd-google-tv-55c6l",
+          "id": 9373770842351,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c6l-1.jpg?v=1777989603",
+          "price": "1149.00",
+          "price_max": "1149.00",
+          "price_min": "1149.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "TCL 55\" C6L QD Mini LED 4K UHD Google TV 55C6L",
+          "type": "4K QLED UHD",
+          "url": "/products/tcl-55-c6l-qd-mini-led-4k-uhd-google-tv-55c6l?_pos=7&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "TCL",
+          "featured_image": {
+            "alt": "TCL 55\" C6L QD Mini LED 4K UHD Google TV 55C6L",
+            "aspect_ratio": 1.613,
+            "height": 744,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c6l-1.jpg?v=1777989603",
+            "width": 1200
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1590.00",
+          "compare_at_price_min": "1590.00",
+          "handle": "yokohama-55-qled-4k-uhd-webos-smart-led-tv-yokt55q8",
+          "id": 9239851303151,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/yokt55q8-_2.jpg?v=1772896988",
+          "price": "599.00",
+          "price_max": "599.00",
+          "price_min": "599.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Yokohama 55\" QLED 4K UHD webOS Smart LED TV YOKT55Q8",
+          "type": "4K QLED UHD",
+          "url": "/products/yokohama-55-qled-4k-uhd-webos-smart-led-tv-yokt55q8?_pos=8&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "Yokohama",
+          "featured_image": {
+            "alt": "Yokohama 55\" QLED 4K UHD webOS Smart LED TV YOKT55Q8",
+            "aspect_ratio": 1.613,
+            "height": 2356,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/yokt55q8-_2.jpg?v=1772896988",
+            "width": 3800
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1899.00",
+          "compare_at_price_min": "1899.00",
+          "handle": "tcl-65-c6l-qd-mini-led-4k-uhd-google-tv-65c6l",
+          "id": 9373770875119,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c6l-1.jpg?v=1777989603",
+          "price": "1459.00",
+          "price_max": "1459.00",
+          "price_min": "1459.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "TCL 65\" C6L QD Mini LED 4K UHD Google TV 65C6L",
+          "type": "4K QLED UHD",
+          "url": "/products/tcl-65-c6l-qd-mini-led-4k-uhd-google-tv-65c6l?_pos=9&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "TCL",
+          "featured_image": {
+            "alt": "TCL 65\" C6L QD Mini LED 4K UHD Google TV 65C6L",
+            "aspect_ratio": 1.613,
+            "height": 744,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c6l-1.jpg?v=1777989603",
+            "width": 1200
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3299.00",
+          "compare_at_price_min": "3299.00",
+          "handle": "tcl-75-c7l-sqd-4k-qled-uhd-mini-led-smart-google-tv-75c7l",
+          "id": 9364202782959,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c7l-1.jpg?v=1777145714",
+          "price": "1950.00",
+          "price_max": "1950.00",
+          "price_min": "1950.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "TCL 75\" C7L SQD  4K QLED UHD Mini LED Smart Google TV 75C7L",
+          "type": "4K QLED UHD",
+          "url": "/products/tcl-75-c7l-sqd-4k-qled-uhd-mini-led-smart-google-tv-75c7l?_pos=10&_psq=DVD+player&_psid=ccbf04fee&_ss=e",
+          "variants": [],
+          "vendor": "TCL",
+          "featured_image": {
+            "alt": "TCL 75\" C7L SQD  4K QLED UHD Mini LED Smart Google TV 75C7L",
+            "aspect_ratio": 1.658,
+            "height": 808,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55c7l-1.jpg?v=1777145714",
+            "width": 1340
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,290 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1799.00",
+          "compare_at_price_min": "1799.00",
+          "handle": "samsung-55-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa55qn80hawxxy",
+          "id": 9356352946415,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "price": "1529.00",
+          "price_max": "1529.00",
+          "price_min": "1529.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 55\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA55QN80HAWXXY",
+          "type": "4K QLED UHD",
+          "url": "/products/samsung-55-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa55qn80hawxxy?_pos=1&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 55\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA55QN80HAWXXY",
+            "aspect_ratio": 1.645,
+            "height": 1065,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+            "width": 1752
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1199.00",
+          "compare_at_price_min": "1199.00",
+          "handle": "hisense-50-series-u6s-uled-mini-led-4k-smart-tv-50u6sau",
+          "id": 9608883011823,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/50u6sau-1.jpg?v=1789049167",
+          "price": "850.00",
+          "price_max": "850.00",
+          "price_min": "850.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "Hisense 50\" Series U6S ULED Mini-LED 4K Smart TV 50U6SAU",
+          "type": "4K QLED UHD",
+          "url": "/products/hisense-50-series-u6s-uled-mini-led-4k-smart-tv-50u6sau?_pos=2&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Hisense",
+          "featured_image": {
+            "alt": "Hisense 50\" Series U6S ULED Mini-LED 4K Smart TV 50U6SAU",
+            "aspect_ratio": 1.605,
+            "height": 698,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/50u6sau-1.jpg?v=1789049167",
+            "width": 1120
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1699.00",
+          "compare_at_price_min": "1699.00",
+          "handle": "samsung-75-mini-led-m70h-4k-vision-ai-smart-tv-ua75m70hawxxy",
+          "id": 9362228936943,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/ua43m70hawxxy-1.jpg?v=1776948013",
+          "price": "1457.00",
+          "price_max": "1457.00",
+          "price_min": "1457.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-1Y"
+          ],
+          "title": "Samsung 75\" Mini LED M70H 4K Vision AI Smart TV UA75M70HAWXXY",
+          "type": "4K Ultra HD LED",
+          "url": "/products/samsung-75-mini-led-m70h-4k-vision-ai-smart-tv-ua75m70hawxxy?_pos=3&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 75\" Mini LED M70H 4K Vision AI Smart TV UA75M70HAWXXY",
+            "aspect_ratio": 1.584,
+            "height": 1052,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/ua43m70hawxxy-1.jpg?v=1776948013",
+            "width": 1666
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1999.00",
+          "compare_at_price_min": "1999.00",
+          "handle": "samsung-11-1-4-channel-q-series-soundbar-wireless-subwoofer-hw-q990h-xy",
+          "id": 9381462507759,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-q990h-xy-1.jpg?v=1778509326",
+          "price": "1209.00",
+          "price_max": "1209.00",
+          "price_min": "1209.00",
+          "tags": [
+            "AUDIO-1Y",
+            "hifi-and-soundbars"
+          ],
+          "title": "Samsung 11.1.4 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q990H/XY",
+          "type": "Subwoofer",
+          "url": "/products/samsung-11-1-4-channel-q-series-soundbar-wireless-subwoofer-hw-q990h-xy?_pos=4&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 11.1.4 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q990H/XY",
+            "aspect_ratio": 2.908,
+            "height": 644,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-q990h-xy-1.jpg?v=1778509326",
+            "width": 1873
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3999.00",
+          "compare_at_price_min": "3999.00",
+          "handle": "hisense-85-series-u7s-mini-led-4k-smart-tv-85u7sau",
+          "id": 9363772899567,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+          "price": "3029.00",
+          "price_max": "3029.00",
+          "price_min": "3029.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "Hisense 85\" Series U7S Mini-LED 4K Smart TV 85U7SAU",
+          "type": "4K QLED UHD",
+          "url": "/products/hisense-85-series-u7s-mini-led-4k-smart-tv-85u7sau?_pos=5&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Hisense",
+          "featured_image": {
+            "alt": "Hisense 85\" Series U7S Mini-LED 4K Smart TV 85U7SAU",
+            "aspect_ratio": 1.598,
+            "height": 871,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+            "width": 1392
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "599.00",
+          "compare_at_price_min": "599.00",
+          "handle": "samsung-5-channel-s-series-soundbar-hw-s61b-xy",
+          "id": 9239175626991,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-s61b-xy-1-new.jpg?v=1772815397",
+          "price": "439.00",
+          "price_max": "439.00",
+          "price_min": "439.00",
+          "tags": [
+            "AUDIO-1Y",
+            "CLEARANCE",
+            "hifi-and-soundbars",
+            "OBSOLETE"
+          ],
+          "title": "Samsung 5 Channel S-Series Soundbar HW-S61B/XY",
+          "type": "Accessory",
+          "url": "/products/samsung-5-channel-s-series-soundbar-hw-s61b-xy?_pos=6&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 5 Channel S-Series Soundbar HW-S61B/XY",
+            "aspect_ratio": 5.457,
+            "height": 501,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-s61b-xy-1-new.jpg?v=1772815397",
+            "width": 2734
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1599.00",
+          "compare_at_price_min": "1599.00",
+          "handle": "hisense-55-series-u7s-mini-led-4k-smart-tv-55u7sau",
+          "id": 9363772670191,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+          "price": "999.00",
+          "price_max": "999.00",
+          "price_min": "999.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "Hisense 55\" Series U7S Mini-LED 4K Smart TV 55U7SAU",
+          "type": "4K QLED UHD",
+          "url": "/products/hisense-55-series-u7s-mini-led-4k-smart-tv-55u7sau?_pos=7&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Hisense",
+          "featured_image": {
+            "alt": "Hisense 55\" Series U7S Mini-LED 4K Smart TV 55U7SAU",
+            "aspect_ratio": 1.598,
+            "height": 871,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+            "width": 1392
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "1099.00",
+          "compare_at_price_min": "1099.00",
+          "handle": "samsung-5-1-2-channel-q-series-soundbar-wireless-subwoofer-hw-q800h-xy",
+          "id": 9381462573295,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-q800h-xy-1.jpg?v=1778508526",
+          "price": "709.00",
+          "price_max": "709.00",
+          "price_min": "709.00",
+          "tags": [
+            "AUDIO-1Y",
+            "hifi-and-soundbars"
+          ],
+          "title": "Samsung 5.1.2 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q800H/XY",
+          "type": "Subwoofer",
+          "url": "/products/samsung-5-1-2-channel-q-series-soundbar-wireless-subwoofer-hw-q800h-xy?_pos=8&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Samsung",
+          "featured_image": {
+            "alt": "Samsung 5.1.2 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q800H/XY",
+            "aspect_ratio": 2.745,
+            "height": 638,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/hw-q800h-xy-1.jpg?v=1778508526",
+            "width": 1751
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2999.00",
+          "compare_at_price_min": "2999.00",
+          "handle": "hisense-75-series-u7s-mini-led-4k-smart-tv-75u7sau",
+          "id": 9363772768495,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+          "price": "2289.00",
+          "price_max": "2289.00",
+          "price_min": "2289.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "Hisense 75\" Series U7S Mini-LED 4K Smart TV 75U7SAU",
+          "type": "4K QLED UHD",
+          "url": "/products/hisense-75-series-u7s-mini-led-4k-smart-tv-75u7sau?_pos=9&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Hisense",
+          "featured_image": {
+            "alt": "Hisense 75\" Series U7S Mini-LED 4K Smart TV 75U7SAU",
+            "aspect_ratio": 1.598,
+            "height": 871,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+            "width": 1392
+          }
+        },
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "2199.00",
+          "compare_at_price_min": "2199.00",
+          "handle": "hisense-65-series-u7s-mini-led-4k-smart-tv-65u7sau",
+          "id": 9363772702959,
+          "image": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+          "price": "1509.00",
+          "price_max": "1509.00",
+          "price_min": "1509.00",
+          "tags": [
+            "televisions",
+            "TELEVISIONS-3Y"
+          ],
+          "title": "Hisense 65\" Series U7S Mini-LED 4K Smart TV 65U7SAU",
+          "type": "4K QLED UHD",
+          "url": "/products/hisense-65-series-u7s-mini-led-4k-smart-tv-65u7sau?_pos=10&_psq=Xbox+Series+S&_psid=04a9ebc68&_ss=e",
+          "variants": [],
+          "vendor": "Hisense",
+          "featured_image": {
+            "alt": "Hisense 65\" Series U7S Mini-LED 4K Smart TV 65U7SAU",
+            "aspect_ratio": 1.598,
+            "height": 871,
+            "url": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/55u7sau-1.jpg?v=1777092013",
+            "width": 1392
+          }
+        }
+      ]
+    }
+  }
+}

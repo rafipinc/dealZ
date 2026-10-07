@@ -1,0 +1,350 @@
+{
+  "products": [
+    {
+      "id": 9239882563823,
+      "title": "LG 42\" Evo C3 4K Smart Gaming TV with Self Lit OLED Pixels OLED42C3PSA",
+      "handle": "lg-42-evo-c3-4k-smart-gaming-tv-with-self-lit-oled-pixels-oled42c3psa",
+      "body_html": "<p>Trimmed for the fixture.</p>",
+      "published_at": "2026-08-26T14:45:57+10:00",
+      "created_at": "2026-02-19T11:58:32+11:00",
+      "updated_at": "2026-10-06T15:32:46+11:00",
+      "vendor": "LG",
+      "product_type": "OLED",
+      "tags": [
+        "CLEARANCE",
+        "OBSOLETE",
+        "televisions",
+        "TELEVISIONS-1Y"
+      ],
+      "variants": [
+        {
+          "id": 47744488374511,
+          "title": "Default Title",
+          "option1": "Default Title",
+          "option2": null,
+          "option3": null,
+          "sku": "OLED42C3PSA",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": null,
+          "available": true,
+          "price": "2389.00",
+          "grams": 26000,
+          "compare_at_price": "3119.00",
+          "position": 1,
+          "product_id": 9239882563823,
+          "created_at": "2026-02-19T11:58:32+11:00",
+          "updated_at": "2026-10-06T15:32:46+11:00"
+        }
+      ],
+      "images": [
+        {
+          "id": 46745804701935,
+          "created_at": "2026-03-08T07:45:41+11:00",
+          "position": 1,
+          "updated_at": "2026-03-08T07:45:41+11:00",
+          "product_id": 9239882563823,
+          "src": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/oled42c3psa-1a-new.jpg?v=1772916341",
+          "width": 1152,
+          "height": 744
+        }
+      ],
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9240005935343,
+      "title": "Samsung 55\" S90F 4K Vision AI OLED Smart TV QA55S90FAWXXY",
+      "handle": "samsung-55-s90f-4k-vision-ai-oled-smart-tv-qa55s90fawxxy",
+      "body_html": "<p>Trimmed for the fixture.</p>",
+      "published_at": "2026-08-26T14:46:26+10:00",
+      "created_at": "2026-02-19T16:39:43+11:00",
+      "updated_at": "2026-10-06T15:32:46+11:00",
+      "vendor": "Samsung",
+      "product_type": "OLED",
+      "tags": [
+        "CLEARANCE",
+        "OBSOLETE",
+        "televisions",
+        "TELEVISIONS-1Y"
+      ],
+      "variants": [
+        {
+          "id": 47746009661679,
+          "title": "Default Title",
+          "option1": "Default Title",
+          "option2": null,
+          "option3": null,
+          "sku": "QA55S90FAWXXY",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": null,
+          "available": true,
+          "price": "2099.00",
+          "grams": 44000,
+          "compare_at_price": "3299.00",
+          "position": 1,
+          "product_id": 9240005935343,
+          "created_at": "2026-02-19T16:39:44+11:00",
+          "updated_at": "2026-10-06T15:32:46+11:00"
+        }
+      ],
+      "images": [
+        {
+          "id": 46739701760239,
+          "created_at": "2026-03-07T15:43:41+11:00",
+          "position": 1,
+          "updated_at": "2026-03-07T15:43:41+11:00",
+          "product_id": 9240005935343,
+          "src": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55s90fawxxy-1.jpg?v=1772858621",
+          "width": 1752,
+          "height": 1104
+        }
+      ],
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9239851303151,
+      "title": "Yokohama 55\" QLED 4K UHD webOS Smart LED TV YOKT55Q8",
+      "handle": "yokohama-55-qled-4k-uhd-webos-smart-led-tv-yokt55q8",
+      "body_html": "<p>Trimmed for the fixture.</p>",
+      "published_at": "2026-09-07T16:56:49+10:00",
+      "created_at": "2026-02-19T10:16:56+11:00",
+      "updated_at": "2026-10-06T15:32:46+11:00",
+      "vendor": "Yokohama",
+      "product_type": "4K QLED UHD",
+      "tags": [
+        "televisions",
+        "TELEVISIONS-1Y"
+      ],
+      "variants": [
+        {
+          "id": 47743938494703,
+          "title": "Default Title",
+          "option1": "Default Title",
+          "option2": null,
+          "option3": null,
+          "sku": "YOKT55Q8",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": null,
+          "available": true,
+          "price": "599.00",
+          "grams": 32000,
+          "compare_at_price": "1590.00",
+          "position": 1,
+          "product_id": 9239851303151,
+          "created_at": "2026-02-19T10:16:56+11:00",
+          "updated_at": "2026-10-06T15:32:46+11:00"
+        }
+      ],
+      "images": [
+        {
+          "id": 46743941415151,
+          "created_at": "2026-03-08T02:23:08+11:00",
+          "position": 1,
+          "updated_at": "2026-03-08T02:23:08+11:00",
+          "product_id": 9239851303151,
+          "src": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/yokt55q8-_2.jpg?v=1772896988",
+          "width": 3800,
+          "height": 2356
+        }
+      ],
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9356381389039,
+      "title": "Samsung 75\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA75QN80HAWXXY",
+      "handle": "samsung-75-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa75qn80hawxxy",
+      "body_html": "<p>Trimmed for the fixture.</p>",
+      "published_at": "2026-09-07T16:51:49+10:00",
+      "created_at": "2026-04-18T14:08:38+10:00",
+      "updated_at": "2026-10-06T15:32:46+11:00",
+      "vendor": "Samsung",
+      "product_type": "4K QLED UHD",
+      "tags": [
+        "televisions",
+        "TELEVISIONS-1Y"
+      ],
+      "variants": [
+        {
+          "id": 48943811461359,
+          "title": "Default Title",
+          "option1": "Default Title",
+          "option2": null,
+          "option3": null,
+          "sku": "QA75QN80HAWXXY",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": null,
+          "available": true,
+          "price": "2429.00",
+          "grams": 80657,
+          "compare_at_price": "2999.00",
+          "position": 1,
+          "product_id": 9356381389039,
+          "created_at": "2026-04-18T14:08:39+10:00",
+          "updated_at": "2026-10-06T15:32:46+11:00"
+        }
+      ],
+      "images": [
+        {
+          "id": 47372029395183,
+          "created_at": "2026-04-18T12:18:09+10:00",
+          "position": 1,
+          "updated_at": "2026-04-18T12:18:11+10:00",
+          "product_id": 9356381389039,
+          "src": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "width": 1752,
+          "height": 1065
+        }
+      ],
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9362228904175,
+      "title": "Samsung 65\" Mini LED M70H 4K Vision AI Smart TV UA65M70HAWXXY",
+      "handle": "samsung-65-mini-led-m70h-4k-vision-ai-smart-tv-ua65m70hawxxy",
+      "body_html": "<p>Trimmed for the fixture.</p>",
+      "published_at": "2026-09-07T16:51:46+10:00",
+      "created_at": "2026-04-23T22:56:05+10:00",
+      "updated_at": "2026-10-06T15:32:46+11:00",
+      "vendor": "Samsung",
+      "product_type": "4K Ultra HD LED",
+      "tags": [
+        "televisions",
+        "TELEVISIONS-1Y"
+      ],
+      "variants": [
+        {
+          "id": 49121243758831,
+          "title": "Default Title",
+          "option1": "Default Title",
+          "option2": null,
+          "option3": null,
+          "sku": "UA65M70HAWXXY",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": null,
+          "available": true,
+          "price": "1140.00",
+          "grams": 52098,
+          "compare_at_price": "1499.00",
+          "position": 1,
+          "product_id": 9362228904175,
+          "created_at": "2026-04-23T22:56:06+10:00",
+          "updated_at": "2026-10-06T15:32:46+11:00"
+        }
+      ],
+      "images": [
+        {
+          "id": 47417348063471,
+          "created_at": "2026-04-23T22:40:11+10:00",
+          "position": 1,
+          "updated_at": "2026-04-23T22:40:13+10:00",
+          "product_id": 9362228904175,
+          "src": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/ua43m70hawxxy-1.jpg?v=1776948013",
+          "width": 1666,
+          "height": 1052
+        }
+      ],
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9356381290735,
+      "title": "Samsung 65\" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY",
+      "handle": "samsung-65-qn80h-4k-vision-ai-uhd-neo-qled-smart-tv-qa65qn80hawxxy",
+      "body_html": "<p>Trimmed for the fixture.</p>",
+      "published_at": "2026-09-07T16:51:46+10:00",
+      "created_at": "2026-04-18T14:08:33+10:00",
+      "updated_at": "2026-10-06T15:32:46+11:00",
+      "vendor": "Samsung",
+      "product_type": "4K QLED UHD",
+      "tags": [
+        "televisions",
+        "TELEVISIONS-1Y"
+      ],
+      "variants": [
+        {
+          "id": 48943811297519,
+          "title": "Default Title",
+          "option1": "Default Title",
+          "option2": null,
+          "option3": null,
+          "sku": "QA65QN80HAWXXY",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": null,
+          "available": true,
+          "price": "1819.00",
+          "grams": 52266,
+          "compare_at_price": "2199.00",
+          "position": 1,
+          "product_id": 9356381290735,
+          "created_at": "2026-04-18T14:08:35+10:00",
+          "updated_at": "2026-10-06T15:32:46+11:00"
+        }
+      ],
+      "images": [
+        {
+          "id": 47372029395183,
+          "created_at": "2026-04-18T12:18:09+10:00",
+          "position": 1,
+          "updated_at": "2026-04-18T12:18:11+10:00",
+          "product_id": 9356381290735,
+          "src": "https://cdn.shopify.com/s/files/1/0700/1214/1807/files/qa55qn70fawxxy-1.jpg?v=1776478691",
+          "width": 1752,
+          "height": 1065
+        }
+      ],
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -21,6 +21,12 @@ export const TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "_gl",
   "ref",
   "igshid",
+  // Shopify predictive search appends these to a result's product URL: the
+  // result's position, the query and a search id. Never part of the page.
+  "_pos",
+  "_psq",
+  "_psid",
+  "_ss",
 ]);
 
 /** True for a known tracking parameter or any `utm_*` parameter, case-insensitively. */

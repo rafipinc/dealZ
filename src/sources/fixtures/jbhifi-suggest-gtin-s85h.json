@@ -1,0 +1,36 @@
+{
+  "resources": {
+    "results": {
+      "products": [
+        {
+          "available": true,
+          "body": "<p>Trimmed for the fixture.</p>",
+          "compare_at_price_max": "3295.00",
+          "compare_at_price_min": "3295.00",
+          "handle": "samsung-65-s85h-oled-4k-smart-ai-tv-2026",
+          "id": 7336212791497,
+          "image": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/902825-Product-0-I-639117152410062071.jpg?v=1776118508",
+          "price": "2795.00",
+          "price_max": "2795.00",
+          "price_min": "2795.00",
+          "tags": [
+            "Brand:Samsung",
+            "InStock"
+          ],
+          "title": "Samsung 65\" S85H OLED 4K Smart AI TV [2026]",
+          "type": "VISUAL",
+          "url": "/products/samsung-65-s85h-oled-4k-smart-ai-tv-2026?_pos=1&_psq=8806097962670&_psid=a99280bfc&_ss=e",
+          "variants": [],
+          "vendor": "SAMSUNG",
+          "featured_image": {
+            "alt": "Samsung 65\" S85H OLED 4K Smart AI TV [2026]",
+            "aspect_ratio": 1.0,
+            "height": 1875,
+            "url": "https://cdn.shopify.com/s/files/1/0024/9803/5810/files/902825-Product-0-I-639117152410062071.jpg?v=1776118508",
+            "width": 1875
+          }
+        }
+      ]
+    }
+  }
+}
