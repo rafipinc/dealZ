@@ -21,6 +21,10 @@ describe("isTrackingParam", () => {
     "_gl",
     "ref",
     "igshid",
+    "_pos",
+    "_psq",
+    "_psid",
+    "_ss",
   ])("treats %s as tracking", (name) => {
     expect(TRACKING_PARAMS.has(name)).toBe(true);
     expect(isTrackingParam(name)).toBe(true);

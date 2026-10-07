@@ -75,9 +75,9 @@ export function isFreeProvider(provider: string): boolean {
 
 /**
  * The SerpApi operations that use up a search. The Account API is free and
- * does not count against the quota.
+ * does not count against the quota. The discovery budget counts the same set.
  */
-const SERPAPI_SEARCH_OPERATIONS: ReadonlySet<string> = new Set([
+export const SERPAPI_SEARCH_OPERATIONS: ReadonlySet<string> = new Set([
   "google_shopping",
   "google_immersive_product",
 ]);
