@@ -1,7 +1,11 @@
 // Lab: a development tool per ADR-0012. Lists the hand-tracked variants and
 // lets a developer fetch live prices, search Google Shopping and read the
 // Wayback Machine's copies for one, then read any page with the model
-// (ADR-0013). Nothing is saved.
+// (ADR-0013). No price is saved. The product search at the top reads the
+// local catalogue index as you type; Enter asks the storefronts and Google
+// Shopping when the index holds too little, under a daily cap on the paid
+// calls, and remembers what they return (ADR-0017). The index holds
+// candidates, never catalogue rows.
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -9,13 +13,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isLocalDevelopment } from "@/lib/local-only";
 import { formatAud } from "@/lib/money";
+import { MAX_QUERY_LENGTH } from "@/services/discovery";
 import { trackedVariants, type TrackedVariant } from "@/services/tracked-products";
+import { CatalogSearchPanel } from "./catalog-search-panel";
 import { ExtractPanel } from "./extract-panel";
 import { HistoryPanel } from "./history-panel";
+import { loadIndexStatus, loadSerpApiBudget } from "./index-loaders";
 import { QuotePanel } from "./quote-panel";
 import { SearchPanel } from "./search-panel";
 
 export const metadata: Metadata = { title: "Lab: live price fetch" };
+
+// The index status and SerpApi budget lines are live state: never prerendered, never cached.
+export const dynamic = "force-dynamic";
 
 const cellClass = "px-3 py-2 align-top";
 
@@ -111,11 +121,13 @@ function VariantCard({ variant }: { variant: TrackedVariant }) {
   );
 }
 
-export default function LabPage() {
+export default async function LabPage() {
   // A development tool only. Its actions fire live requests at retailers and
   // write the local usage ledger, so only a development server serves it
   // (ADR-0012 item 7): never a public deployment, a preview build or a test run.
   if (!isLocalDevelopment(process.env.NODE_ENV)) notFound();
+  // A database that is down is a line under the search box, never a failed page.
+  const [indexStatus, serpApiBudget] = await Promise.all([loadIndexStatus(), loadSerpApiBudget()]);
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
       <header className="flex flex-col gap-1">
@@ -130,6 +142,23 @@ export default function LabPage() {
           </Link>
         </p>
       </header>
+      <section
+        aria-label="Find a product"
+        className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-5 dark:border-zinc-800"
+      >
+        <h2 className="text-xl font-semibold tracking-tight">Find a product</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Type to search the local index by title, model code or GTIN. Enter answers from the index
+          when it holds enough; otherwise it asks Google Shopping (one SerpApi search, under a daily
+          cap) and the storefronts that answer scripted requests, and remembers what they return. No
+          price is saved; each request is logged to the usage ledger.
+        </p>
+        <CatalogSearchPanel
+          maxQueryLength={MAX_QUERY_LENGTH}
+          indexStatus={indexStatus}
+          serpApiBudget={serpApiBudget}
+        />
+      </section>
       {trackedVariants.map((variant) => (
         <VariantCard key={variant.slug} variant={variant} />
       ))}
