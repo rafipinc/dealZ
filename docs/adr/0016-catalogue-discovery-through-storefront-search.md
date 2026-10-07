@@ -1,8 +1,8 @@
 # ADR-0016: Catalogue discovery through retailer storefront search, with a developer dashboard that adds products by confirmation
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-08)
 **Date:** 2026-10-06
-**Decider:** Rafi (proposed by Claude). Rafi decided items 1 to 3 in chat on 2026-10-06. Items 4 onwards are Claude's proposal and await his acceptance. Item 12 was added the same day, after Rafi used the search bar.
+**Decider:** Rafi (proposed by Claude). Rafi decided items 1 to 3 in chat on 2026-10-06. Items 4 to 12 were proposed by Claude. Item 12 was added the same day, after Rafi used the search bar. Rafi accepted the record, Claude's proposed items included, on 2026-10-08.
 
 ## Context
 
@@ -20,11 +20,11 @@ Decided by Rafi:
 
 1. **A catalogue dashboard in the lab, `/lab/catalog`.** Amended by [ADR-0017](0017-local-search-index.md) on 2026-10-06: the dashboard lives on `/lab`. Development-only, like `/lab` and `/lab/status`, with the same table-and-button UI. It searches the catalogue, then discovers products from external sources, and adds a confirmed candidate to the catalogue.
 2. **The first discovery source is Shopify storefront predictive search**, on the tracked Shopify retailers that answer scripted requests (JB Hi-Fi, Powerland). Technology products first.
-3. **Google Shopping through SerpApi is the second rung of discovery**, in a later change, for products the storefronts do not stock. Not in this change.
+3. **Google Shopping through SerpApi is the second rung of discovery**, in a later change, for products the storefronts do not stock. Not in this change. That change is [ADR-0017](0017-local-search-index.md) items 10 and 11.
 
 Proposed by Claude:
 
-4. **Two searches, kept apart and always run in this order.** Catalogue search first, over product, variant and identifier rows: ILIKE on display name, brand and series, exact match on identifier value. The trigram index stays a phase 3 decision (ARCHITECTURE.md section 11). Discovery second. A product already held is shown as held, never as a new candidate.
+4. **Two searches, kept apart and always run in this order.** Catalogue search first, over product, variant and identifier rows: ILIKE on display name, brand and series, exact match on identifier value. The trigram index stays a phase 3 decision (ARCHITECTURE.md section 11). Note: [ADR-0017](0017-local-search-index.md) item 4 brought a trigram index forward to phase 1 for the local candidate index, the `catalogue_candidate` table. Search over catalogue rows is unchanged by that. Discovery second. A product already held is shown as held, never as a new candidate.
 5. **A second output type in the sources layer.** A discovery source takes one query and returns `ProductCandidate`s: title, brand as the store names it, retailer, page URL, handle, the price and compare-at price seen, availability, image URL, identifiers when known, provenance, `fetchedAt` and `raw`. It is not a `PriceQuote`: a candidate carries no observed price fact to persist. The rules of ADR-0012 apply unchanged: `src/lib` only, injected `fetch`, `SourceError`, bot protection respected.
 6. **Identifiers are fetched lazily.** The suggest response carries no barcode or SKU. The product JSON is requested only for a candidate the developer inspects or adds, one request per candidate, read by the existing `shopify_json` reader.
 7. **Query routing in a `discovery` service.** A query of 8 to 14 digits is a GTIN: normalised to 14 digits and validated by `lib/gtin`, matched exactly against the catalogue, and sent as the barcode to the storefronts. Anything else is sent as text. A model-code query is text; a store whose titles hold no model code returns nothing and the next source is tried. Every storefront request is metered (ADR-0014), provider `retailer`, with a new operation `search` beside `page`.
@@ -38,7 +38,7 @@ Proposed by Claude:
 
 - **SerpApi as the first discovery rung.** Quota, no GTIN in its results, and the storefront answers a GTIN query free.
 - **Open Icecat as a discovery source.** Lookup by identifier only, and registration needed. Enrichment later.
-- **Paginating `/collections/all/products.json` for whole catalogues.** Thousands of requests, closer to crawling, a phase 4 and terms-of-use question.
+- **Paginating `/collections/all/products.json` for whole catalogues.** Thousands of requests, closer to crawling, a phase 4 and terms-of-use question. Note: ADR-0017 item 2 pulls one seeded collection, not a whole catalogue; this rejection stands for whole catalogues.
 - **Building the phase 2 admin flow (J-002) now.** Pulls authentication forward.
 - **Creating rows automatically from a search.** A wrong family poisons history. ADR-0010's rule, applied to the catalogue.
 - **The eBay Browse API now.** Needs developer keys and OAuth. A candidate second rung after SerpApi.
@@ -50,7 +50,7 @@ Proposed by Claude:
 
 - The sources layer has two output types, `PriceQuote` and `ProductCandidate`, and ARCHITECTURE.md section 3 says so. `SourceOperation` gains the value `search`.
 - The `discovery` service has a row in ARCHITECTURE.md section 4, planned, and `catalog` gains `searchCatalog`.
-- The Product search open decision in section 11 is partly settled: ILIKE now, the trigram index in phase 3.
+- The Product search open decision in section 11 is partly settled: ILIKE now, the trigram index in phase 3. Note: ADR-0017 settles it, with a trigram index on the local candidate table in phase 1; catalogue rows keep ILIKE.
 - The tracked table is removed in step (f) below. J-017 is in the journey registry. C-027 to C-029 are in BUILD_MAP.md. The blocklist gains the technique and two providers.
 - Terms of use for the search endpoint are the same open question as for the pages (STATUS.md).
 - The build order, one session each. (a) and (c) are independent.
@@ -60,7 +60,7 @@ Proposed by Claude:
 | (a) | PGlite invariant tests for `product`, `variant` and `identifier` |
 | (b) | `retailers` and `catalog` services with `searchCatalog`, seeding the tracked TV |
 | (c) | The `storefront_search` discovery source (`src/sources/storefront-search.ts`) and the `discovery` service |
-| (d) | The `/lab/catalog` page and its actions |
+| (d) | The `/lab/catalog` page and its actions. Note: on `/lab`, per ADR-0017 item 3 |
 | (e) | The `listings` service and the listing row on add |
 | (f) | `/lab` reads rows; the tracked table is deleted |
 

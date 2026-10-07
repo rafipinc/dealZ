@@ -2,11 +2,11 @@
 
 Where DealZ is right now. Rewritten at the end of every session and read at the start of the next.
 
-**Updated:** 2026-10-08. **Phase:** 1, working database and backend layer. **Step:** catalogue discovery and the local search index, going to a pull request from branch `p1/catalog-discovery-adr`. Built on 2026-10-06: storefront discovery, the relevance rule, the local index with the as-you-type dropdown, and Google Shopping as the cost-capped miss path. Reviewed and cleaned up on 2026-10-08 (below). [ADR-0016](adr/0016-catalogue-discovery-through-storefront-search.md) and [ADR-0017](adr/0017-local-search-index.md) stay proposed and merge to `main` as proposed, as ADR-0012 and ADR-0013 did. Rafi decided ADR-0016 items 1 to 3 and ADR-0017 items 1 to 3 and 10 on 2026-10-06; the rest of each record is Claude's.
+**Updated:** 2026-10-08. **Phase:** 1, working database and backend layer. **Step:** catalogue discovery and the local search index, going to a pull request from branch `p1/catalog-discovery-adr`. Built on 2026-10-06: storefront discovery, the relevance rule, the local index with the as-you-type dropdown, and Google Shopping as the cost-capped miss path. Reviewed and cleaned up on 2026-10-08 (below). Rafi accepted [ADR-0016](adr/0016-catalogue-discovery-through-storefront-search.md) and [ADR-0017](adr/0017-local-search-index.md) on 2026-10-08, Claude's proposed items included; he had decided ADR-0016 items 1 to 3 and ADR-0017 items 1 to 3 and 10 on 2026-10-06.
 
 ## What exists
 
-- On `main`: the docs, the schema with migrations `0000` to `0003`, the Next.js scaffold, the conventions of ADR-0011, the price-fetch spike (pull request #3), the usage ledger and status dashboard (pull request #4, [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md)), the public build log (pull request #5, [ADR-0015](adr/0015-public-build-log.md)) and the pre-commit registry hook (pull request #6). Thirteen accepted ADRs. [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) and [ADR-0013](adr/0013-llm-extraction-boundaries.md) are proposed. ADR-0016 and ADR-0017 are proposed on this branch, with migrations `0004` and `0005`.
+- On `main`: the docs, the schema with migrations `0000` to `0003`, the Next.js scaffold, the conventions of ADR-0011, the price-fetch spike (pull request #3), the usage ledger and status dashboard (pull request #4, [ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md)), the public build log (pull request #5, [ADR-0015](adr/0015-public-build-log.md)) and the pre-commit registry hook (pull request #6). Thirteen accepted ADRs. [ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) and [ADR-0013](adr/0013-llm-extraction-boundaries.md) are proposed. ADR-0016 and ADR-0017 are accepted on this branch, with migrations `0004` and `0005`; `main` will have fifteen accepted ADRs once it merges.
 - The spike: `src/sources`, the `quotes` service with the live-price ladder (ARCHITECTURE.md section 3.1), one tracked variant in `src/services/tracked-products.ts`, the lab at `/lab`. API keys live in the macOS Keychain (SETUP.md section 2).
 - The usage ledger and status dashboard, per ADR-0014: table `api_usage`, append-only, migrations `0002_api-usage` and `0003_api-usage-triggers`, `src/db/sql/api-usage-triggers.sql`, query helpers in `src/db/queries/`, the PGlite harness `src/db/test-db.ts`; an injected `meter` in every source; `usage`, `status`, `usage-ledger` and `default-db` services; `/lab/status`, served only when `NODE_ENV` is `development`. J-014 and J-015 stay planned.
 - The public build log: the `site/` project, a static Next.js export generated from the ADRs, [BUILD_MAP.md](BUILD_MAP.md) (32 components), [PUBLIC.md](PUBLIC.md) (17 ADRs, 17 sessions, 18 journeys, the blocklist), the journey registry and the commit history. CI: a `build-log` job and a `metrics` job. Runs locally with `npm --prefix site run dev` on port 3100. Not deployed. `.githooks/pre-commit` runs the registry checks before every commit.
@@ -26,8 +26,8 @@ Where DealZ is right now. Rewritten at the end of every session and read at the 
 |---|---|
 | db | Table `catalogue_candidate`, the staging table of ADR-0010 brought forward. Migrations `0004_catalogue-candidate` (generated) and `0005_catalogue-candidate-search` (custom: `pg_trgm`, a trigram GIN index on `title`, the `updated_at` trigger; its pair is `src/db/sql/catalogue-candidate-search.sql`). `pg_trgm` in the PGlite harness. Query helpers in `src/db/queries/catalogue-candidates.ts`: `upsertCatalogueCandidates` (an identifier once read is never erased), `searchCatalogueCandidates` (trigram similarity, ILIKE with wildcards escaped, exact identifier; limit capped at 200), `countCatalogueCandidates`, `deleteUnseenListingRows`, `databaseNow` (the database clock, the one that stamps `last_seen_at`). Ten new invariant tests |
 | sources | `storefront_listing`: one Shopify collection, 250 products a page, 500 ms between pages, metered as operation `listing`. The model code from the title, else from a SKU that is one. `seededCollections` in `tracked-products.ts`: Powerland's `televisions` only |
-| services | `catalogue-index`: `remember`, `rememberInspect`, `refreshIndex` (pulls the seeded collections, then drops the `listing` rows the store no longer lists, cut off by the database clock; a collection that returns no products is a failed outcome and drops nothing), `searchIndex` (routes the query, judges relevance, drops unrelated rows, groups one product per GTIN, model code or title with every store's offer and the cheapest), `indexStatus` |
-| app | A combobox at the top of `/lab`: a listbox of up to eight products as you type, debounced 150 ms, the latest request wins, arrow keys, Enter and Escape. An index status line and a "Refresh index" button. The page renders with "Index unavailable" when the database is down. `index-loaders.ts` is a thin adapter over the calls, with failures redacted by `safeFailureReason` in the `status` service; its unit test file was removed, and its UI mapping is left to J-017 and J-018 |
+| services | `catalogue-index`: `remember`, `rememberInspect`, `refreshIndex` (pulls the seeded collections, then drops the `listing` rows the store no longer lists, cut off by the database clock; once per store after all of its collections; a collection that fails or returns no products drops nothing of its store), `searchIndex` (routes the query, judges relevance, drops unrelated rows, groups one product per GTIN, model code or title with every store's offer and the cheapest), `indexStatus` |
+| app | A combobox at the top of `/lab`: a listbox of up to eight products as you type, debounced 150 ms, the latest request wins, arrow keys, Enter and Escape. An index status line and a "Refresh index" button. The page renders with "Index unavailable" when the database is down. `index-loaders.ts` is a thin adapter over the calls, with failures unwrapped by `rootCause` in `src/lib/errors` and redacted by `safeFailureMessage` in the `status` service; its unit test file was removed, and its UI mapping is left to J-017 and J-018 |
 
 - Google Shopping as the miss path, per ADR-0017 items 10 to 12, on this branch, all with tests:
 
@@ -38,8 +38,8 @@ Where DealZ is right now. Rewritten at the end of every session and read at the 
 | db | `countOkCallsByOperation` in `src/db/queries/api-usage.ts` |
 | app | Enter and the dropdown's last row render grouped product cards with expandable offers; a count line saying whether the answer came from the index or the fan-out; a Google line when skipped or failed; a status line "SerpApi: N of 20 today". `.env.example` and SETUP.md carry the cap |
 
-- Cleanups of 2026-10-08, all with tests, after a full-branch reviewer run found no merge blocker: the empty-collection guard and the database-clock cut-off in `refreshIndex`; `indexStatus`'s `ValidationError` tested; `MAX_QUERY_LENGTH` defined once in `catalogue-index`; `matchTrackedVariant` validated with Zod and tested in `tracked-products.test.ts`; the relevance rules out of the adapter; `src/app/lab/index-loaders.test.ts` deleted under the placement rule.
-- The gate was green on 2026-10-08: typecheck, lint, 1234 tests in 46 files, about 98.8 percent lines and 94.3 percent branches, `db:check`, the e2e coverage check and the build log check. Verified live in the browser on 2026-10-06 at 16:53 Sydney against the local database: the index held 162 products from 2 stores and 12 Google Shopping sellers after one SerpApi search earlier that afternoon, the status line reading "SerpApi: 1 of 20 today"; Enter on "Xbox Series X" answered from the index with 48 offers across 46 products (consoles from xbox.com, JB Hi-Fi with two sellers grouped, EB Games, Cash Converters, Kogan and eBay, then the accessories) without a second paid call.
+- Cleanups of 2026-10-08, all with tests, after a full-branch reviewer run found no merge blocker: the empty-collection guard and the database-clock cut-off in `refreshIndex`; `indexStatus`'s `ValidationError` tested; `MAX_QUERY_LENGTH` defined once in `catalogue-index`; `matchTrackedVariant` validated with Zod and tested in `tracked-products.test.ts`; the relevance rules out of the adapter; `src/app/lab/index-loaders.test.ts` deleted under the placement rule. Then: `refreshIndex` drops a store's unseen rows once, after all of that store's collections succeed, with the seeded collections injectable for tests; `discoverProducts` reads the budget, makes the Google Shopping call and writes its ledger row one search at a time in the process, so two searches at the cap minus one cannot both spend; the pure `rootCause` in `src/lib/errors` replaced `safeFailureReason`; `catalog-search-panel.tsx` renamed `catalogue-search-panel.tsx`.
+- The gate was green on 2026-10-08: typecheck, lint, 1246 tests in 47 files, about 98.7 percent statements and 94.4 percent branches, `db:check`, the e2e coverage check and the build log check. Verified live in the browser on 2026-10-06 at 16:53 Sydney against the local database: the index held 162 products from 2 stores and 12 Google Shopping sellers after one SerpApi search earlier that afternoon, the status line reading "SerpApi: 1 of 20 today"; Enter on "Xbox Series X" answered from the index with 48 offers across 46 products (consoles from xbox.com, JB Hi-Fi with two sellers grouped, EB Games, Cash Converters, Kogan and eBay, then the accessories) without a second paid call.
 
 ## What does not exist yet
 
@@ -60,26 +60,22 @@ Where DealZ is right now. Rewritten at the end of every session and read at the 
 
 One per session unless small:
 
-1. Rafi accepts or amends ADR-0016 and ADR-0017. Both carry his items 1 to 3; ADR-0017 also carries his item 10.
-2. Rafi's actions: the Commission Factory publisher application; eBay developer keys.
-3. Step (b) of ADR-0016: the `catalog` and `retailers` services with `searchCatalog` over real rows and the index, seeding the tracked TV, and "Add to catalogue" from a product card with the candidate's fields editable (ADR-0016 item 8).
-4. The remaining invariant matrix rows in TESTING.md, for `product`, `variant` and `identifier`.
-5. `listings`, and the listing row on add; then `/lab` reading rows with the tracked table deleted.
-6. The eBay Browse engine, the free second engine of ADR-0017 item 12.
-7. Rafi reads and approves the public summaries in PUBLIC.md, which are Claude's drafts. Check that the first `metrics` run created the `build-log-data` branch.
-8. Rafi reviews the lab, ADR-0012 and ADR-0013, and the earlier decisions under Open.
-9. Services `observations` and `deals`, so quotes and model-read candidates become rows, staged below the threshold per ADR-0010.
-10. The dashboard's data insights section. The build log: redesign of the pages, then lint, the J-016 spec and the Vercel deploy.
+1. Rafi's actions: the Commission Factory publisher application; eBay developer keys.
+2. Step (b) of ADR-0016: the `catalog` and `retailers` services with `searchCatalog` over real rows and the index, seeding the tracked TV, and "Add to catalogue" from a product card with the candidate's fields editable (ADR-0016 item 8).
+3. The remaining invariant matrix rows in TESTING.md, for `product`, `variant` and `identifier`.
+4. `listings`, and the listing row on add; then `/lab` reading rows with the tracked table deleted.
+5. The eBay Browse engine, the free second engine of ADR-0017 item 12.
+6. Rafi reads and approves the public summaries in PUBLIC.md, which are Claude's drafts. Check that the first `metrics` run created the `build-log-data` branch.
+7. Rafi reviews the lab, ADR-0012 and ADR-0013, and the earlier decisions under Open.
+8. Services `observations` and `deals`, so quotes and model-read candidates become rows, staged below the threshold per ADR-0010.
+9. The dashboard's data insights section. The build log: redesign of the pages, then lint, the J-016 spec and the Vercel deploy.
 
 ## Open
 
 From the catalogue discovery work, for Rafi:
 
-- The refresh deletes per store but pulls per collection. Safe while each store has one seeded collection (Powerland's `televisions` today); a second collection for the same store would let the first collection's delete drop rows the second has not re-pulled. Fix before seeding a second collection: delete once per store, after all its collections are written.
-- `safeFailureReason` sits in the `status` service with no Zod parse; it takes `unknown` and needs no database, so it could move to `src/lib` beside `redactSecrets`. When a cause is not an Error, the reason shown is the failed SQL text, which is noise but not a secret.
+- The daily cap is enforced within one Node process: searches take turns over the budget read and the paid call. Two instances of the app could each pass at cap minus one. Revisit before discovery runs anywhere but the local dev server.
 - Migration `0005` runs `CREATE EXTENSION pg_trgm` with no schema. On Supabase it lands in `public`, which the security advisor flags. Choose a schema before the first production migration ([RUNBOOK.md](RUNBOOK.md), Migrate production).
-- Two concurrent Enter searches at the cap minus one can both pass the budget check, so the day can end one paid call over the cap. Known, not fixed.
-- `catalog-search-panel.tsx` keeps its American spelling in the file name.
 - Google Shopping rows carry no GTIN, so they merge with store rows only by model code or identical title. A console listed by Google and by a storefront under different titles shows as two products.
 - The price panel's gap fill counts against the daily cap but is not gated by it (SETUP.md settings table). Only Google Shopping discovery is skipped at the cap.
 - The ledger write is best effort, so a paid call whose record fails is not counted against the cap. The error is towards one extra call, never fewer.
@@ -88,7 +84,6 @@ From the catalogue discovery work, for Rafi:
 - A price in the index is the price last seen, from a listing pull, a search, an identifier read or a Google result. The dropdown and the cards show it without saying how old it is beyond `last_seen_at`; a refresh or a live search updates it.
 - The model-code rule's false positives flow into the index as `mpn` and into grouping. On add they would become a stored MPN unless confirmed, so the add form of ADR-0016 item 8 must show the model code editable.
 - The `search` and `listing` operations are priced free by provider (`retailer`, in `src/lib/api-prices.ts`), the same as `page`. No view tells the three apart.
-- ADR-0016 items 4 to 12 and ADR-0017 items 4 to 9, 11 and 12 are Claude's proposal, for Rafi to accept, amend or reject.
 - The JB Hi-Fi search index matches a GTIN but not a model code; the local index matches both. A second page through predictive search is not available: ten per store per query. The store's `product_type` as a category filter is unverified.
 - The gate figures above are from the last local run on 2026-10-08; CI runs on the pull request.
 

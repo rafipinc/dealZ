@@ -97,7 +97,7 @@ Keys in use:
 | Name | Service | Needed for | Where to get it |
 |---|---|---|---|
 | `GEMINI_API_KEY` | Google Gemini | Extraction now, in the lab's model panel and as the page fallback; matching in phase 4 ([ADR-0013](adr/0013-llm-extraction-boundaries.md), proposed) | aistudio.google.com |
-| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8), and product discovery on an index miss ([ADR-0017](adr/0017-local-search-index.md) items 10 and 11, proposed) | serpapi.com. The Free Plan is 250 searches a month, as the account endpoint reported on 2026-10-01; a price search is two calls as a rule, a discovery search one |
+| `SERPAPI_API_KEY` | SerpApi | The lab's Google Shopping panel, the gap fill in the live prices panel ([ADR-0012](adr/0012-sources-layer-live-fetch-spike.md) item 8), and product discovery on an index miss ([ADR-0017](adr/0017-local-search-index.md) items 10 and 11) | serpapi.com. The Free Plan is 250 searches a month, as the account endpoint reported on 2026-10-01; a price search is two calls as a rule, a discovery search one |
 
 Settings beside the keys. These are not secrets: they go in `.env.local`, and `.env.example` lists them with their defaults.
 

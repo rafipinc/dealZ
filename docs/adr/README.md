@@ -19,8 +19,8 @@ One file per non-trivial decision, numbered and dated. Two paragraphs is enough:
 | [0013](0013-llm-extraction-boundaries.md) | A language model reads pages without structured data, returns evidence, never sets a price on its own | Proposed | 2026-09-28 |
 | [0014](0014-usage-ledger-and-status-dashboard.md) | A usage ledger in local Postgres and a local-only status dashboard, with no budget cap | Accepted | 2026-10-01 |
 | [0015](0015-public-build-log.md) | A public build log generated from the repository, as a separate project with a default-deny allowlist | Accepted | 2026-10-01 |
-| [0016](0016-catalogue-discovery-through-storefront-search.md) | Catalogue discovery through retailer storefront search, with a developer dashboard that adds products by confirmation | Proposed | 2026-10-06 |
-| [0017](0017-local-search-index.md) | A local search index of storefront products, seeded cheaply and learned from use, behind an as-you-type search | Proposed | 2026-10-06 |
+| [0016](0016-catalogue-discovery-through-storefront-search.md) | Catalogue discovery through retailer storefront search, with a developer dashboard that adds products by confirmation | Accepted | 2026-10-06 |
+| [0017](0017-local-search-index.md) | A local search index of storefront products, seeded cheaply and learned from use, behind an as-you-type search | Accepted | 2026-10-06 |
 
 ## Template
 

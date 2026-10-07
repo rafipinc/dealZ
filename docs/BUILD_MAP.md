@@ -49,7 +49,7 @@ One row per component. A row is added when the component is designed, before it 
 | C-026 | Status dashboard | Adapters | `src/app/lab/status/` | 1 | built | 0014 | no |
 | C-027 | `discovery` service | Services | `src/services/discovery.ts` | 1 | spike | 0016, 0017 | yes |
 | C-028 | Storefront search source | Sources | `src/sources/storefront-search.ts` | 1 | spike | 0012, 0016 | yes |
-| C-029 | Catalogue dashboard (folded into the lab page per ADR-0017) | Adapters | `src/app/lab/catalog-search-panel.tsx` | 1 | spike | 0016, 0017 | no |
+| C-029 | Catalogue dashboard (folded into the lab page per ADR-0017) | Adapters | `src/app/lab/catalogue-search-panel.tsx` | 1 | spike | 0016, 0017 | no |
 | C-030 | `catalogue-index` service | Services | `src/services/catalogue-index.ts` | 1 | spike | 0017 | yes |
 | C-031 | Storefront listing source | Sources | `src/sources/storefront-listing.ts` | 1 | spike | 0017 | yes |
 | C-032 | Catalogue candidate table and search index | Database | `src/db/queries/catalogue-candidates.ts` | 1 | spike | 0010, 0017 | yes |

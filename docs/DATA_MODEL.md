@@ -1,6 +1,6 @@
 # DealZ Data Model
 
-**Status:** accepted 2026-09-17, updated 2026-10-06 (`catalogue_candidate`, ADR-0017 proposed).
+**Status:** accepted 2026-09-17, updated 2026-10-06 (`catalogue_candidate`, ADR-0017, accepted 2026-10-08).
 **Source of truth:** [`src/db/schema.ts`](../src/db/schema.ts), [`src/db/sql/triggers.sql`](../src/db/sql/triggers.sql), for `api_usage` [`src/db/sql/api-usage-triggers.sql`](../src/db/sql/api-usage-triggers.sql) and for `catalogue_candidate` [`src/db/sql/catalogue-candidate-search.sql`](../src/db/sql/catalogue-candidate-search.sql). This document explains the shape; the code defines it.
 
 ## Principles
@@ -53,7 +53,7 @@ An editorial call: this observation is worth telling people about. References th
 The usage ledger: one row per outbound call to an external service ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), proposed). It sits outside the catalogue shape above and has no foreign keys. `provider` is an open set (`serpapi`, `gemini`, `wayback`, `retailer`), so it is text with a slug check. `outcome` is `ok` or `failed`; a failed row carries the source's `error_kind`. `cost_micros` is the estimated cost in millionths of a US dollar, computed by the service at write time from the price in force when the call started. A stored zero does not say whether a call was free or unpriced; that is decided at read time from the price table, so no column holds it. It is the one exception to integer cents, because a single Gemini call costs a fraction of a cent. `retailer_slug` and `variant_slug` are text, not foreign keys: the tracked products are not rows yet. Append-only. It never holds an API key or a request URL.
 
 ### catalogue_candidate
-The local search index: one row per product a retailer storefront has shown DealZ, from a listing pull or a live search ([ADR-0017](adr/0017-local-search-index.md), proposed). It is the staging table [ADR-0010](adr/0010-listing-match-audit-and-staging.md) deferred to phase 4, brought forward. A row is a snapshot of what the store said, never price history: no row here is a `price_observation`, and nothing references the table. The upsert key is `retailer_slug` and `handle`; a repeat sighting replaces the row in place, keeps `first_seen_at` and moves `last_seen_at`, and an identifier once read (`gtin`, `mpn`, `retailer_sku`) is never erased by a sighting that lacks it. `retailer_slug` is text with a slug check, not a foreign key, for the same reason as on `api_usage`. `source` (`listing`, `search`, `inspect`) is text with a check rather than an enum, so a fourth source needs no enum migration. Title search runs on a `pg_trgm` GIN index; the extension and that index live in the hand-written SQL file, since the index cannot precede the extension inside a generated migration. Columns are in [`src/db/schema.ts`](../src/db/schema.ts).
+The local search index: one row per product a retailer storefront has shown DealZ, from a listing pull or a live search ([ADR-0017](adr/0017-local-search-index.md)). It is the staging table [ADR-0010](adr/0010-listing-match-audit-and-staging.md) deferred to phase 4, brought forward. A row is a snapshot of what the store said, never price history: no row here is a `price_observation`, and nothing references the table. The upsert key is `retailer_slug` and `handle`; a repeat sighting replaces the row in place, keeps `first_seen_at` and moves `last_seen_at`, and an identifier once read (`gtin`, `mpn`, `retailer_sku`) is never erased by a sighting that lacks it. `retailer_slug` is text with a slug check, not a foreign key, for the same reason as on `api_usage`. `source` (`listing`, `search`, `inspect`) is text with a check rather than an enum, so a fourth source needs no enum migration. Title search runs on a `pg_trgm` GIN index; the extension and that index live in the hand-written SQL file, since the index cannot precede the extension inside a generated migration. Columns are in [`src/db/schema.ts`](../src/db/schema.ts).
 
 ## Invariants and where they live
 
@@ -96,7 +96,7 @@ Ingestion resolves a page to a variant through `identifier`, in trust order:
 | 3 | Normalised title match | No: staged for review | `title`, once confirmed |
 | 4 | LLM-assisted structured match with a confidence score | No: staged for review | `llm`, once confirmed |
 
-In v1 every listing is entered by hand and recorded as `manual` with confidence 1. Pages the storefronts show that are not yet listings sit in `catalogue_candidate` (ADR-0017, proposed), which is the staging table ADR-0010 deferred.
+In v1 every listing is entered by hand and recorded as `manual` with confidence 1. Pages the storefronts show that are not yet listings sit in `catalogue_candidate` (ADR-0017), which is the staging table ADR-0010 deferred.
 
 ## Corrections
 
@@ -143,5 +143,5 @@ When these get slow, the answer is a materialised summary per variant, not a cha
 - Users and auth. `deal.created_by` is free text until phase 2.
 - Currency conversion. Everything is AUD in v1; the column exists so history is never ambiguous.
 - Stock and availability. A second append-only observation table, added later without changing anything here.
-- Staging table for unmatched pages: no longer omitted. It exists as `catalogue_candidate` ([ADR-0017](adr/0017-local-search-index.md), proposed), brought forward from phase 4 as the local search index.
+- Staging table for unmatched pages: no longer omitted. It exists as `catalogue_candidate` ([ADR-0017](adr/0017-local-search-index.md)), brought forward from phase 4 as the local search index.
 - Variant-level images. Product-level hero image only, until a category with colour variants arrives.

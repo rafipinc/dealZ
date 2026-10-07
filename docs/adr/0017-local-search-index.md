@@ -1,8 +1,8 @@
 # ADR-0017: A local search index of storefront products, seeded cheaply and learned from use, behind an as-you-type search
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-08)
 **Date:** 2026-10-06, amended the same day for Google Shopping discovery
-**Decider:** Rafi (proposed by Claude). Rafi decided items 1 to 3 and item 10 in chat on 2026-10-06. Items 4 to 9, 11 and 12 are Claude's proposal and await his acceptance.
+**Decider:** Rafi (proposed by Claude). Rafi decided items 1 to 3 and item 10 in chat on 2026-10-06. Items 4 to 9, 11 and 12 were proposed by Claude. Rafi accepted the record, Claude's proposed items included, on 2026-10-08.
 
 ## Context
 
