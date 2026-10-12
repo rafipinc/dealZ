@@ -110,14 +110,6 @@ export const seededCollections: readonly SeededCollection[] = [
     category: "soundbar",
     note: "Added 2026-10-08 after the review session: Powerland lists 151 collections; a collection pull is one request per 250 products. 92 products listed on 2026-10-08.",
   },
-  {
-    retailerSlug: "powerland",
-    retailerName: "Powerland",
-    origin: "https://powerland.com.au",
-    collection: "vacuums",
-    category: "vacuum",
-    note: "Added 2026-10-08 after the review session: Powerland lists 151 collections; a collection pull is one request per 250 products. 172 products listed on 2026-10-08; the first collection outside the consumer-tech wedge of ADR-0002, kept small so the category mapper is exercised on a second type.",
-  },
 ];
 
 export const trackedVariants: readonly TrackedVariant[] = [

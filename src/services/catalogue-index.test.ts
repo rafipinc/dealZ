@@ -534,8 +534,8 @@ describe("refreshIndex", () => {
 
     // The database's clock, the one last_seen_at is stamped by, not the application's.
     expect(report.refreshedAt).toEqual(DB_NOW);
-    // Three Powerland collections are seeded; the fake answers each with the televisions page.
-    expect(seededCollections).toHaveLength(3);
+    // Two Powerland collections are seeded; the fake answers each with the televisions page.
+    expect(seededCollections).toHaveLength(2);
     expect(report.collections).toEqual(
       seededCollections.map((seed) => ({
         retailerSlug: seed.retailerSlug,
@@ -547,7 +547,7 @@ describe("refreshIndex", () => {
         removed: 0,
       })),
     );
-    expect(report.usage).toEqual({ calls: 3, recorded: 3 });
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
     expect(written[0]).toMatchObject({
       provider: "retailer",
       operation: "listing",
@@ -558,10 +558,9 @@ describe("refreshIndex", () => {
     expect(calls).toEqual([
       `${POWERLAND_ORIGIN}/collections/televisions/products.json?limit=250&page=1`,
       `${POWERLAND_ORIGIN}/collections/hifi-soundbars/products.json?limit=250&page=1`,
-      `${POWERLAND_ORIGIN}/collections/vacuums/products.json?limit=250&page=1`,
     ]);
     // One write per collection; the helper reads the last of them.
-    expect(upsert).toHaveBeenCalledTimes(3);
+    expect(upsert).toHaveBeenCalledTimes(2);
     const rows = writtenRows();
     expect(rows).toHaveLength(6);
     expect(rows.every((r) => r.source === "listing" && r.retailerSlug === "powerland")).toBe(true);
@@ -586,11 +585,10 @@ describe("refreshIndex", () => {
       db,
     });
     // One write per seeded collection, in the seeded order; the fixture lists TVs for each.
-    expect(seededCollections.map((seed) => seed.category)).toEqual(["tv", "soundbar", "vacuum"]);
+    expect(seededCollections.map((seed) => seed.category)).toEqual(["tv", "soundbar"]);
     expect(upsert.mock.calls.map((call) => new Set(call[1].map((r) => r.category)))).toEqual([
       new Set(["tv"]),
       new Set(["soundbar"]),
-      new Set(["vacuum"]),
     ]);
   });
 
@@ -913,7 +911,6 @@ describe("refreshIndex", () => {
     expect(report.collections.map((c) => [c.retailerSlug, c.collection])).toEqual([
       ["powerland", "televisions"],
       ["powerland", "hifi-soundbars"],
-      ["powerland", "vacuums"],
     ]);
   });
 
