@@ -98,13 +98,12 @@ describe("matchTrackedVariant", () => {
 });
 
 describe("seededCollections", () => {
-  it("seeds Powerland's televisions, soundbars and vacuums, each with its DealZ category", () => {
+  it("seeds Powerland's televisions and soundbars, each with its DealZ category", () => {
     expect(
       seededCollections.map((seed) => [seed.retailerSlug, seed.collection, seed.category]),
     ).toEqual([
       ["powerland", "televisions", "tv"],
       ["powerland", "hifi-soundbars", "soundbar"],
-      ["powerland", "vacuums", "vacuum"],
     ]);
   });
 

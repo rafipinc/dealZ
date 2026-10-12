@@ -20,14 +20,14 @@ Collections of interest, with the store's `products_count`:
 | `tvs-audio` | 918 | Overlaps `televisions`. Not seeded |
 | `televisions` | 900 | Seeded since 2026-10-06 (ADR-0017 item 2). 128 returned |
 | `hifi-soundbars` | 92 | Seeded 2026-10-08, category `soundbar` |
-| `vacuums` | 172 | Seeded 2026-10-08, category `vacuum` |
+| `vacuums` | 172 | Seeded 2026-10-08, dropped 2026-10-12 by Rafi (outside the wedge). Not seeded |
 | `coffee-machines` | 104 | Not seeded |
 | `air-conditioners` | 160 | Not seeded |
 | `dyson` | 35 | A brand collection. Not seeded |
 
 ## Conclusions
 
-- A second and a third collection are one request each. `hifi-soundbars` and `vacuums` are seeded (ADR-0019 item 6).
+- A second collection is one request. `hifi-soundbars` is seeded (ADR-0019 item 6). `vacuums` was seeded on 2026-10-08 and dropped on 2026-10-12.
 - `tvs-audio` overlaps `televisions` and is not seeded; a product in both would be one row either way, since the upsert key is the handle, but the pull would cost a request for little.
 - The counts overstate what a pull returns. 900 listed against 128 returned is not pagination: the page came back shorter than the limit, so there is no second page. The count includes products not published to the online store. The walk of 2026-10-06 was right, and that note's open question is closed. The 129 of 2026-10-06 against the 128 of 2026-10-08 is one product unpublished between the two probes.
 
