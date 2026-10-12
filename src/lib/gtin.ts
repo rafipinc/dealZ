@@ -1,8 +1,15 @@
 // GTIN normalisation. A GTIN enters in any form (8, 12, 13 or 14 digits,
 // with optional whitespace or hyphens) and leaves as 14 digits with a valid
-// GS1 mod-10 check digit, or as null.
+// GS1 mod-10 check digit, or as null. A placeholder, one digit repeated
+// through every place, leaves as null too: stores print "00000000000000"
+// when they have no barcode, and zeros (fives as well) satisfy the check
+// digit, so the check alone would let them through. The database refuses
+// the same values with a check constraint.
 
 const ACCEPTED_LENGTHS: ReadonlySet<number> = new Set([8, 12, 13, 14]);
+
+/** One digit repeated through all 14 places: a placeholder, never a barcode. */
+const PLACEHOLDER_RE = /^(\d)\1{13}$/;
 
 /** GS1 check digit for the first 13 digits of a 14-digit GTIN. */
 function checkDigit(first13: string): number {
@@ -16,13 +23,15 @@ function checkDigit(first13: string): number {
 
 /**
  * Returns the 14-digit form of a GTIN, or null when the input is not a
- * well-formed GTIN-8, GTIN-12, GTIN-13 or GTIN-14 with a valid check digit.
+ * well-formed GTIN-8, GTIN-12, GTIN-13 or GTIN-14 with a valid check digit,
+ * or is a placeholder of one repeated digit.
  */
 export function normaliseGtin(input: string): string | null {
   const digits = input.replace(/[\s-]/g, "");
   if (!/^[0-9]+$/.test(digits)) return null;
   if (!ACCEPTED_LENGTHS.has(digits.length)) return null;
   const padded = digits.padStart(14, "0");
+  if (PLACEHOLDER_RE.test(padded)) return null;
   const expected = checkDigit(padded.slice(0, 13));
   return Number(padded.charAt(13)) === expected ? padded : null;
 }

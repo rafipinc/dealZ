@@ -29,7 +29,7 @@ import {
 } from "./catalogue-index";
 import { defaultDb } from "./default-db";
 import { NotFoundError, ValidationError } from "./errors";
-import type { SeededCollection } from "./tracked-products";
+import { seededCollections, type SeededCollection } from "./tracked-products";
 
 // The helpers reach a database; here they record what they were asked.
 vi.mock("@/db/queries/catalogue-candidates", () => ({
@@ -114,6 +114,7 @@ function row(overrides: Partial<CatalogueCandidateRow> = {}): CatalogueCandidate
   return {
     id: "00000000-0000-0000-0000-000000000001",
     retailerSlug: "powerland",
+    retailerName: null,
     handle: "samsung-65-qn80h",
     canonicalUrl: `${POWERLAND_ORIGIN}/products/samsung-65-qn80h`,
     title: 'Samsung 65" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY',
@@ -133,6 +134,10 @@ function row(overrides: Partial<CatalogueCandidateRow> = {}): CatalogueCandidate
     lastSeenAt: FIXED_NOW,
     createdAt: FIXED_NOW,
     updatedAt: FIXED_NOW,
+    // Columns added by the review-refinements migration; the tests here never read them.
+    category: null,
+    via: "storefront",
+    inspectedAt: null,
     ...overrides,
   };
 }
@@ -171,11 +176,14 @@ describe("remember", () => {
     const [first, out, unknown] = writtenRows();
     expect(first).toEqual({
       retailerSlug: "powerland",
+      retailerName: "Powerland",
       handle: "samsung-65-qn80h",
       canonicalUrl: `${POWERLAND_ORIGIN}/products/samsung-65-qn80h`,
       title: 'Samsung 65" QN80H 4K Vision AI UHD Neo QLED Smart TV QA65QN80HAWXXY',
       brand: "Samsung",
       storeType: "4K QLED UHD",
+      // The store's type names the category (lib/category).
+      category: "tv",
       mpn: "QA65QN80HAWXXY",
       gtin: null,
       retailerSku: "QA65QN80HAWXXY",
@@ -185,10 +193,102 @@ describe("remember", () => {
       available: true,
       imageUrl: "https://cdn.example/qn80h.jpg",
       source: "search",
+      via: "storefront",
       raw: { id: 1 },
     });
     expect(out).toMatchObject({ handle: "out", available: false, compareAtCents: null });
     expect(unknown).toMatchObject({ handle: "unknown", available: null, priceCents: null });
+  });
+
+  it("stores a Google Shopping candidate via google_shopping with the seller's name, and a storefront one via storefront", async () => {
+    await remember({
+      candidates: [
+        candidate({
+          retailerSlug: "the-good-guys",
+          retailerName: "The Good Guys",
+          method: "google_shopping",
+          handle: "1202807262352129590",
+          url: "https://www.thegoodguys.com.au/samsung-65-s85h",
+          raw: { position: 4, source: "The Good Guys", product_id: "1202807262352129590" },
+        }),
+        candidate({ method: "storefront_listing", retailerName: null }),
+        // A storefront search whose raw happens to look like Google's is still a storefront row.
+        candidate({
+          method: "storefront_search",
+          handle: "other",
+          raw: { source: "The Good Guys", product_id: "x" },
+        }),
+      ],
+      source: "search",
+      db,
+    });
+    expect(writtenRows().map((r) => [r.handle, r.via, r.retailerName])).toEqual([
+      ["1202807262352129590", "google_shopping", "The Good Guys"],
+      ["samsung-65-qn80h", "storefront", null],
+      ["other", "storefront", "Powerland"],
+    ]);
+  });
+
+  it("applies the caller's category to every candidate, ahead of what the store says", async () => {
+    await remember({
+      candidates: [
+        candidate(),
+        candidate({ handle: "soundbar", title: "Samsung Q990F Soundbar", storeType: "Soundbars" }),
+      ],
+      source: "listing",
+      category: "vacuum",
+      db,
+    });
+    expect(writtenRows().map((r) => r.category)).toEqual(["vacuum", "vacuum"]);
+  });
+
+  it("gives a candidate without a hint the category its store type, tags or title names, else none", async () => {
+    await remember({
+      candidates: [
+        candidate({ handle: "by-type", storeType: "Soundbars", title: "Samsung Q990F" }),
+        candidate({
+          handle: "by-tags-array",
+          storeType: null,
+          title: "Samsung 65 inch QN80H",
+          raw: { tags: ["CLEARANCE", "televisions"] },
+        }),
+        candidate({
+          handle: "by-tags-string",
+          storeType: null,
+          title: "Samsung 65 inch QN80H",
+          raw: { tags: "Brand:Samsung, Televisions" },
+        }),
+        candidate({ handle: "by-title", storeType: "VISUAL", title: "Sonos Beam Soundbar" }),
+        candidate({
+          handle: "none",
+          storeType: "VISUAL",
+          title: "HDMI cable 2m",
+          raw: { tags: 7 },
+        }),
+      ],
+      source: "search",
+      category: null,
+      db,
+    });
+    expect(writtenRows().map((r) => [r.handle, r.category])).toEqual([
+      ["by-type", "soundbar"],
+      ["by-tags-array", "tv"],
+      ["by-tags-string", "tv"],
+      ["by-title", "soundbar"],
+      ["none", null],
+    ]);
+  });
+
+  it("throws ValidationError for a category that is not a known slug", async () => {
+    await expect(
+      remember({
+        candidates: [candidate()],
+        source: "listing",
+        category: "fridge" as "tv",
+        db,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("stores a GTIN in its 14-digit form and drops one that is not a GTIN", async () => {
@@ -259,16 +359,22 @@ describe("remember", () => {
 });
 
 describe("rememberInspect", () => {
-  it("writes the quote's GTIN, SKU and price with the handle, vendor and type the product JSON carries", async () => {
-    expect(await rememberInspect({ quote: quote(), db })).toEqual({ written: 1 });
+  it("writes the quote's GTIN, SKU and price with the handle, vendor and type the product JSON carries, stamped inspected", async () => {
+    expect(await rememberInspect({ quote: quote(), now: () => FIXED_NOW, db })).toEqual({
+      written: 1,
+    });
     expect(writtenRows()).toEqual([
       {
         retailerSlug: "jb-hi-fi",
+        // The tracked tables name the store; an identifier read is always of a storefront.
+        retailerName: "JB Hi-Fi",
         handle: "from-raw",
         canonicalUrl: "https://www.jbhifi.com.au/products/samsung-65-s85h-oled-4k-smart-ai-tv-2026",
         title: 'Samsung 65" OLED S85H 4K Smart AI TV [2026]',
         brand: "SAMSUNG",
         storeType: "VISUAL",
+        // An identifier read classifies nothing; the upsert keeps the stored category.
+        category: null,
         mpn: null,
         gtin: "08806097962670",
         retailerSku: "902825",
@@ -278,9 +384,49 @@ describe("rememberInspect", () => {
         available: true,
         imageUrl: null,
         source: "inspect",
+        via: "storefront",
         raw: { vendor: "SAMSUNG", product_type: "VISUAL", handle: "from-raw" },
+        inspectedAt: FIXED_NOW,
       },
     ]);
+  });
+
+  it("stamps inspected_at from the current time when no clock is given", async () => {
+    const before = Date.now();
+    await rememberInspect({ quote: quote(), db });
+    const { inspectedAt } = writtenRows()[0];
+    expect(inspectedAt).toBeInstanceOf(Date);
+    if (!(inspectedAt instanceof Date)) throw new Error("unreachable");
+    expect(inspectedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(inspectedAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("names the store from the candidate, else the tracked tables, else not at all", async () => {
+    await rememberInspect({
+      quote: quote({ retailerSlug: "other-store", raw: {} }),
+      db,
+    });
+    await rememberInspect({
+      quote: quote({ retailerSlug: "other-store", raw: {} }),
+      candidate: candidate({ retailerSlug: "other-store", retailerName: "Other Store" }),
+      db,
+    });
+    expect(upsert.mock.calls.map((call) => call[1][0].retailerName)).toEqual([null, "Other Store"]);
+  });
+
+  it("writes category null whatever the store type, tags or title say, so the stored category survives the read", async () => {
+    // Each of these would name a category through lib/category on a listing or search row.
+    await rememberInspect({
+      quote: quote({ raw: { product_type: "Soundbars", tags: "Soundbars" } }),
+      db,
+    });
+    await rememberInspect({
+      quote: quote({ raw: {} }),
+      candidate: candidate({ retailerSlug: "jb-hi-fi", storeType: "4K QLED UHD" }),
+      db,
+    });
+    await rememberInspect({ quote: quote({ title: "LG 65 inch OLED TV", raw: {} }), db });
+    expect(upsert.mock.calls.map((call) => call[1][0].category)).toEqual([null, null, null]);
   });
 
   it("takes the handle from the page URL when the product JSON names none", async () => {
@@ -355,6 +501,10 @@ describe("rememberInspect", () => {
 describe("refreshIndex", () => {
   const televisions = fixture("powerland-collection-televisions.json");
   const bingLee = fixture("binglee-challenge.html");
+  /** The seeded list cut to one collection, for the tests about the refresh's plumbing rather than the seeded table. */
+  const televisionsOnly: SeededCollection[] = seededCollections.filter(
+    (seed) => seed.collection === "televisions",
+  );
 
   function fakeFetch(body: string, type: string, calls: string[] = []): FetchLike {
     return async (url) => {
@@ -384,18 +534,20 @@ describe("refreshIndex", () => {
 
     // The database's clock, the one last_seen_at is stamped by, not the application's.
     expect(report.refreshedAt).toEqual(DB_NOW);
-    expect(report.collections).toEqual([
-      {
-        retailerSlug: "powerland",
-        retailerName: "Powerland",
-        collection: "televisions",
+    // Three Powerland collections are seeded; the fake answers each with the televisions page.
+    expect(seededCollections).toHaveLength(3);
+    expect(report.collections).toEqual(
+      seededCollections.map((seed) => ({
+        retailerSlug: seed.retailerSlug,
+        retailerName: seed.retailerName,
+        collection: seed.collection,
         status: "ok",
         found: 6,
         written: 6,
         removed: 0,
-      },
-    ]);
-    expect(report.usage).toEqual({ calls: 1, recorded: 1 });
+      })),
+    );
+    expect(report.usage).toEqual({ calls: 3, recorded: 3 });
     expect(written[0]).toMatchObject({
       provider: "retailer",
       operation: "listing",
@@ -405,7 +557,11 @@ describe("refreshIndex", () => {
     });
     expect(calls).toEqual([
       `${POWERLAND_ORIGIN}/collections/televisions/products.json?limit=250&page=1`,
+      `${POWERLAND_ORIGIN}/collections/hifi-soundbars/products.json?limit=250&page=1`,
+      `${POWERLAND_ORIGIN}/collections/vacuums/products.json?limit=250&page=1`,
     ]);
+    // One write per collection; the helper reads the last of them.
+    expect(upsert).toHaveBeenCalledTimes(3);
     const rows = writtenRows();
     expect(rows).toHaveLength(6);
     expect(rows.every((r) => r.source === "listing" && r.retailerSlug === "powerland")).toBe(true);
@@ -416,7 +572,26 @@ describe("refreshIndex", () => {
       compareAtCents: 219900,
       available: true,
       gtin: null,
+      via: "storefront",
+      retailerName: "Powerland",
     });
+  });
+
+  it("stores each collection's seeded category on every row it lists, ahead of what the store says", async () => {
+    await refreshIndex({
+      fetch: fakeFetch(televisions, "application/json"),
+      now: () => FIXED_NOW,
+      recordUsage: async () => undefined,
+      deleteUnseen: fakeDelete(0),
+      db,
+    });
+    // One write per seeded collection, in the seeded order; the fixture lists TVs for each.
+    expect(seededCollections.map((seed) => seed.category)).toEqual(["tv", "soundbar", "vacuum"]);
+    expect(upsert.mock.calls.map((call) => new Set(call[1].map((r) => r.category)))).toEqual([
+      new Set(["tv"]),
+      new Set(["soundbar"]),
+      new Set(["vacuum"]),
+    ]);
   });
 
   it("drops the store's listing rows last seen before the refresh began, once the pull is remembered", async () => {
@@ -427,6 +602,7 @@ describe("refreshIndex", () => {
     });
     const deleteUnseen = fakeDelete(2, events);
     const report = await refreshIndex({
+      seededCollections: televisionsOnly,
       fetch: fakeFetch(televisions, "application/json"),
       now: () => FIXED_NOW,
       recordUsage: async () => undefined,
@@ -453,6 +629,7 @@ describe("refreshIndex", () => {
     });
     const deleteUnseen = fakeDelete(0);
     const report = await refreshIndex({
+      seededCollections: televisionsOnly,
       fetch: async (url) => {
         events.push("fetch");
         return fakeFetch(televisions, "application/json")(url);
@@ -489,6 +666,7 @@ describe("refreshIndex", () => {
   it("removes nothing when a collection lists no products, and reports it as failed", async () => {
     const deleteUnseen = fakeDelete(9);
     const report = await refreshIndex({
+      seededCollections: televisionsOnly,
       fetch: fakeFetch(JSON.stringify({ products: [] }), "application/json"),
       recordUsage: async () => undefined,
       deleteUnseen,
@@ -515,6 +693,7 @@ describe("refreshIndex", () => {
       retailerSlug: "powerland",
       retailerName: "Powerland",
       origin: POWERLAND_ORIGIN,
+      category: null,
       note: null,
     };
     const twoCollections: SeededCollection[] = [
@@ -617,6 +796,7 @@ describe("refreshIndex", () => {
             retailerName: "Other Store",
             origin: "https://other.example",
             collection: "tvs",
+            category: null,
             note: null,
           },
         ],
@@ -703,6 +883,7 @@ describe("refreshIndex", () => {
 
   it("reports a store that cannot be read as a failed outcome, writing nothing", async () => {
     const report = await refreshIndex({
+      seededCollections: televisionsOnly,
       fetch: fakeFetch(bingLee, "text/html"),
       now: () => FIXED_NOW,
       recordUsage: async () => undefined,
@@ -722,14 +903,18 @@ describe("refreshIndex", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("pulls one seeded store when asked by slug", async () => {
+  it("pulls every collection of one seeded store when asked by slug", async () => {
     const report = await refreshIndex({
       retailerSlug: "powerland",
       fetch: fakeFetch(televisions, "application/json"),
       recordUsage: async () => undefined,
       db,
     });
-    expect(report.collections.map((c) => c.retailerSlug)).toEqual(["powerland"]);
+    expect(report.collections.map((c) => [c.retailerSlug, c.collection])).toEqual([
+      ["powerland", "televisions"],
+      ["powerland", "hifi-soundbars"],
+      ["powerland", "vacuums"],
+    ]);
   });
 
   it("throws NotFoundError, naming the retailer, for one that is not seeded, before any request", async () => {
@@ -841,7 +1026,7 @@ describe("searchIndex", () => {
     ]);
   });
 
-  it("names a Google Shopping row's seller as Google printed it and marks the offer via Google Shopping", async () => {
+  it("reports each offer's via and the seller's stored name, the tracked tables' name first, else the slug", async () => {
     const googleRaw = {
       position: 4,
       title: "OLED S85H 4K Samsung AI Smart TV",
@@ -855,6 +1040,7 @@ describe("searchIndex", () => {
       row({
         id: "50",
         retailerSlug: "the-good-guys",
+        retailerName: "The Good Guys",
         handle: "1202807262352129590",
         canonicalUrl: "https://www.thegoodguys.com.au/samsung-65-s85h",
         title: "Samsung 65 S85H OLED TV QA65S85HAEXXY",
@@ -863,30 +1049,36 @@ describe("searchIndex", () => {
         retailerSku: null,
         priceCents: 279500,
         source: "search",
+        via: "google_shopping",
         raw: googleRaw,
       }),
       // A tracked store listed by Google keeps the tracked tables' name.
       row({
         id: "51",
         retailerSlug: "jb-hi-fi",
+        retailerName: "JB HI-FI (Google)",
         handle: "1202807262352129590",
         canonicalUrl: "https://www.jbhifi.com.au/products/samsung-65-s85h-oled-4k-smart-ai-tv-2026",
         title: "Samsung 65 S85H OLED TV QA65S85HAEXXY",
         mpn: "QA65S85HAEXXY",
         priceCents: 279900,
         source: "search",
-        raw: { ...googleRaw, source: "JB Hi-Fi" },
+        via: "google_shopping",
+        raw: { ...googleRaw, source: "JB HI-FI (Google)" },
       }),
-      // A storefront row whose raw names neither a product id nor a link is a storefront offer.
+      // The columns say where a row came from, never its raw: a storefront row
+      // with a Google-looking raw and no stored name is shown under its slug.
       row({
         id: "52",
         retailerSlug: "other-store",
+        retailerName: null,
         handle: "x",
         title: "Samsung 65 S85H OLED TV QA65S85HAEXXY",
         mpn: "QA65S85HAEXXY",
         priceCents: 289900,
         source: "search",
-        raw: { source: "not google", title: "x" },
+        via: "storefront",
+        raw: googleRaw,
       }),
     ]);
     const report = await searchIndex({ query: "S85H", db });
@@ -896,6 +1088,33 @@ describe("searchIndex", () => {
       ["JB Hi-Fi", "google_shopping"],
       ["other-store", "storefront"],
     ]);
+  });
+
+  it("reports the group's category from the first of its rows that carries a known one, best row first", async () => {
+    search.mockResolvedValueOnce([
+      row({ category: null }),
+      row({ id: "60", handle: "jb", retailerSlug: "jb-hi-fi", category: "tv" }),
+      row({ id: "61", handle: "other", retailerSlug: "other-store", category: "soundbar" }),
+      // A row whose stored slug the list no longer holds names nothing.
+      row({
+        id: "62",
+        handle: "stale",
+        title: "Samsung 65 QN80H Stand",
+        mpn: null,
+        retailerSku: null,
+        category: "furniture",
+      }),
+    ]);
+    const report = await searchIndex({ query: "samsung 65 qn80h", db });
+    expect(report.products.map((p) => [p.key, p.category])).toEqual([
+      ["mpn:QA65QN80HAWXXY", "tv"],
+      ["title:samsung 65 qn80h stand", null],
+    ]);
+  });
+
+  it("refuses a row whose via the table should never hold, rather than guess", async () => {
+    search.mockResolvedValueOnce([row({ via: "carrier_pigeon" })]);
+    await expect(searchIndex({ query: "samsung", db })).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("groups rows sharing a GTIN, then a model code, then a title, with every store's offer", async () => {
@@ -979,6 +1198,31 @@ describe("searchIndex", () => {
       ["mpn:AAA111", 2],
       ["mpn:BBB222", 1],
     ]);
+  });
+
+  it("groups a model code printed with a hyphen with the same code printed without", async () => {
+    search.mockResolvedValueOnce([
+      row({
+        id: "30",
+        retailerSlug: "jb-hi-fi",
+        handle: "sony-65-a95l",
+        canonicalUrl: "https://www.jbhifi.com.au/products/sony-65-a95l",
+        title: 'Sony 65" A95L BRAVIA XR OLED TV',
+        mpn: "XR-65A95L",
+        gtin: null,
+        retailerSku: null,
+      }),
+      row({
+        id: "31",
+        handle: "sony-65-a95l-oled",
+        title: 'Sony 65" BRAVIA XR A95L OLED TV XR65A95L',
+        mpn: "XR65A95L",
+        gtin: null,
+        retailerSku: null,
+      }),
+    ]);
+    const report = await searchIndex({ query: "sony a95l", db });
+    expect(report.products.map((p) => [p.key, p.offers.length])).toEqual([["mpn:XR65A95L", 2]]);
   });
 
   it("matches a GTIN query exactly, in 14-digit form, and takes the index's match as a match", async () => {

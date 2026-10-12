@@ -3,8 +3,10 @@
 // strings and style sign. No Dates cross the boundary: timestamps are ISO
 // strings and chart coordinates are ISO dates and integer cents.
 
+import { CATEGORIES, type CategorySlug } from "@/lib/category";
 import { SYDNEY } from "@/lib/day-ranges";
 import { formatAud, formatVsCheapest, formatVsRrp } from "@/lib/money";
+import { relativeAge } from "@/lib/relative-age";
 import { isHiddenByDefault } from "@/lib/relevance";
 import type {
   IndexSearchReport,
@@ -16,6 +18,7 @@ import type {
 } from "@/services/catalogue-index";
 import type {
   DiscoverReport,
+  EnrichIndexReport,
   InspectReport,
   MatchedBy,
   QueryKind,
@@ -1098,6 +1101,10 @@ export interface SuggestRowView {
   heldLabel: string;
   /** The cheapest offer's product page, else the first offer's. */
   url: string;
+  /** "seen 3d ago", from the most recent sighting among the product's offers. */
+  seenLabel: string;
+  /** The category's name (lib/category), "TVs", or "" when no row named one. */
+  categoryLabel: string;
 }
 
 export interface SuggestView {
@@ -1120,7 +1127,21 @@ function priceLineOf(product: IndexedProduct): string {
   return product.offers.length > 1 ? `from ${at}` : at;
 }
 
-function toSuggestRowView(product: IndexedProduct): SuggestRowView {
+/** The category's name as lib/category lists it, or "" for none. */
+function categoryLabelOf(category: CategorySlug | null): string {
+  return CATEGORIES.find((entry) => entry.slug === category)?.name ?? "";
+}
+
+/** "seen 3d ago" from the most recent sighting among the offers; "" when there is none. */
+function seenLabelOf(offers: IndexedOffer[], now: Date): string {
+  const latest = offers.reduce<Date | null>(
+    (best, offer) => (best === null || offer.lastSeenAt > best ? offer.lastSeenAt : best),
+    null,
+  );
+  return latest === null ? "" : `seen ${relativeAge(latest, now)}`;
+}
+
+function toSuggestRowView(product: IndexedProduct, now: Date): SuggestRowView {
   const cheapest = product.offers.find((o) => o.retailerSlug === product.cheapest?.retailerSlug);
   return {
     key: product.key,
@@ -1135,6 +1156,8 @@ function toSuggestRowView(product: IndexedProduct): SuggestRowView {
     trackedVariantSlug: product.trackedVariantSlug,
     heldLabel: heldLabelOf(product.trackedVariantSlug),
     url: cheapest?.canonicalUrl ?? product.offers[0]?.canonicalUrl ?? "",
+    seenLabel: seenLabelOf(product.offers, now),
+    categoryLabel: categoryLabelOf(product.category),
   };
 }
 
@@ -1142,8 +1165,9 @@ function toSuggestRowView(product: IndexedProduct): SuggestRowView {
 const LIVE_SEARCH_BELOW_ROWS = 3;
 const LIVE_SEARCH_MIN_LENGTH = 3;
 
-export function toSuggestView(report: IndexSearchReport): SuggestView {
-  const rows = report.products.map(toSuggestRowView);
+/** `now` is the clock the seen labels count from; injectable so a test can pin it. */
+export function toSuggestView(report: IndexSearchReport, now: Date = new Date()): SuggestView {
+  const rows = report.products.map((product) => toSuggestRowView(product, now));
   return {
     ok: true,
     query: report.query,
@@ -1225,6 +1249,60 @@ export function toRefreshView(report: RefreshIndexReport): RefreshView {
   };
 }
 
+/** One row the enrich pass could not read, for the short list under its line. */
+export interface EnrichFailureView {
+  /** Unique within one pass. */
+  key: string;
+  /** The store's name. */
+  store: string;
+  url: string;
+  /** "http: https://... answered 404". */
+  reason: string;
+}
+
+export interface EnrichView {
+  ok: true;
+  fetchedAt: string;
+  fetchedAtLabel: string;
+  /**
+   * "Read 25 products: 21 with a GTIN, 4 without, 0 failed", or
+   * "Nothing to read: every storefront row has a GTIN or was already read" for an empty pass.
+   */
+  line: string;
+  failures: EnrichFailureView[];
+  /** "25 requests, 25 recorded". */
+  usageLine: string;
+}
+
+export type EnrichViewResult = EnrichView | ViewError;
+
+export function toEnrichView(report: EnrichIndexReport): EnrichView {
+  const failed = report.attempted - report.read;
+  const line =
+    report.attempted === 0
+      ? "Nothing to read: every storefront row has a GTIN or was already read"
+      : `Read ${plural(report.attempted, "product", "products")}: ${report.withGtin} with a GTIN, ${report.read - report.withGtin} without, ${failed} failed`;
+  return {
+    ok: true,
+    fetchedAt: report.fetchedAt.toISOString(),
+    fetchedAtLabel: formatRefreshedAt(report.fetchedAt),
+    line,
+    failures: report.rows.flatMap((row, index) =>
+      row.outcome.status === "failed"
+        ? [
+            {
+              key: `${index}:${row.url}`,
+              store: row.retailerName,
+              url: row.url,
+              reason: `${row.outcome.kind}: ${row.outcome.message}`,
+            },
+          ]
+        : [],
+    ),
+    usageLine: `${plural(report.usage.calls, "request", "requests")}, ${report.usage.recorded} recorded`,
+  };
+}
+
 // ---------- SerpApi budget: the day's paid searches against the cap ----------
 
 /** The line under the search box. `ok` false when the ledger could not be read. */
@@ -1295,6 +1373,8 @@ export interface DiscoverProductView {
   gtin: string;
   /** "Samsung · QA65QN80HAWXXY", one of them, or "". */
   subtitle: string;
+  /** The category's name (lib/category), "TVs", or "" when no row named one. */
+  categoryLabel: string;
   imageUrl: string | null;
   /** "from $1,819.00 at Powerland" across sellers, "$1,819.00 at Powerland" for one, or "no price". */
   fromLine: string;
@@ -1384,6 +1464,7 @@ function toDiscoverProductView(product: IndexedProduct): DiscoverProductView {
     modelCode: product.mpn ?? "",
     gtin: product.gtin ?? "",
     subtitle: subtitleOf(product.brand, product.mpn),
+    categoryLabel: categoryLabelOf(product.category),
     imageUrl: product.imageUrl,
     fromLine: priceLineOf(product),
     sellerCount: product.offers.length,
@@ -1429,6 +1510,8 @@ function googleLineOf(report: DiscoverReport): string | null {
       switch (google.reason) {
         case "index_sufficient":
           return null;
+        case "storefronts_sufficient":
+          return `${GOOGLE_SHOPPING_LABEL} skipped: the storefronts answered enough, so nothing was spent.`;
         case "cap_reached":
           // The cap was read, or Google could not have been judged against it.
           return `${GOOGLE_SHOPPING_LABEL} skipped: daily cap${report.budget === null ? "" : ` of ${report.budget.cap}`} reached.`;

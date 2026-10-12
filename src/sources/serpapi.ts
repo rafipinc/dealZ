@@ -6,7 +6,9 @@
 //    entities, not sellers: each result is one entity Google matched to the
 //    query, fronted by one seller, and for a model-code query most of them
 //    are the wrong series or the wrong size. `mustMatch` and the model-code
-//    check pick the candidates, in position order, at most MAX_CANDIDATES.
+//    rule of lib/model-code (the general rule of ADR-0016 item 11, codes
+//    compared with hyphens and case ignored) pick the candidates, in
+//    position order, at most MAX_CANDIDATES.
 // 2. engine google_immersive_product with a candidate's page token and
 //    more_stores=true. This lists every store selling that entity. The entity
 //    is accepted when at least half of its store titles carry one of
@@ -23,7 +25,7 @@
 // cap is the discovery service's.
 
 import { z } from "zod";
-import { readModelCode as readTitleModelCode } from "../lib/model-code";
+import { normaliseModelCode, readModelCode } from "../lib/model-code";
 import { parseCents } from "../lib/money";
 import { slugify } from "../lib/slug";
 import { canonicaliseUrl } from "../lib/url";
@@ -135,9 +137,6 @@ const immersiveResponseSchema = z.looseObject({
 /** Keys dropped from a store's `raw`: bulky and never needed to replay a parse. */
 const OMITTED_STORE_KEYS: ReadonlySet<string> = new Set(["logo"]);
 
-/** Samsung-style model codes such as QA65S85HAEXXY, as they appear in titles. */
-const MODEL_CODE_RE = /\b[A-Z]{2}\d{2}[A-Z0-9]{5,}\b/;
-
 /** The request URL with the key replaced, safe to log or put in an error. */
 export function redactApiKey(url: string): string {
   return url.replace(/([?&]api_key=)[^&#]*/g, "$1REDACTED");
@@ -216,37 +215,45 @@ export function readShippingCents(store: {
   return parseCents(store.shipping);
 }
 
-/** The Samsung-style code of the price search. The discovery function uses the general rule of lib/model-code. */
-function readSamsungModelCode(title: string): string | null {
-  const match = MODEL_CODE_RE.exec(title);
-  return match === null ? null : match[0];
+/** Lower-cased with hyphens and spaces dropped, so a code is one string however a seller prints it. */
+function compact(text: string): string {
+  return text.toLowerCase().replace(/[-\s]/g, "");
 }
 
+/**
+ * True when `text` carries `token`, hyphens and spaces ignored on both
+ * sides: a store title printing "XR-65A95L" verifies the token "XR65A95L",
+ * and "65 inch" is found in "65inch".
+ */
 function containsToken(text: string, token: string): boolean {
-  return text.toLowerCase().includes(token.toLowerCase());
+  return compact(text).includes(compact(token));
 }
 
 /**
  * A hop-1 result is a candidate for the entity when its title carries every
  * `mustMatch` token and no model code other than one in `verifyTokens`. The
  * second rule drops a sibling variant Google matched on the series alone,
- * such as a 48-inch European model returned for a 65-inch Australian query.
+ * such as a 48-inch European model returned for a 65-inch Australian query,
+ * or the C5 returned for the C4. The code is read by the general rule of
+ * lib/model-code and compared with hyphens and case ignored, so a verify
+ * token "XR65A95L" matches a title printing "XR-65A95L".
  */
 export function isCandidate(
   title: string,
   input: Pick<SearchSourceInput, "mustMatch" | "verifyTokens">,
 ): boolean {
   if (!input.mustMatch.every((token) => containsToken(title, token))) return false;
-  const modelCode = readSamsungModelCode(title);
+  const modelCode = normaliseModelCode(readModelCode(title));
   if (modelCode === null) return true;
-  return input.verifyTokens.some((token) => token.toLowerCase() === modelCode.toLowerCase());
+  return input.verifyTokens.some((token) => normaliseModelCode(token) === modelCode);
 }
 
 /** True when at least half of the stores name the variant in their title or store name. */
 export function storesVerify(stores: Store[], verifyTokens: string[]): boolean {
   if (stores.length === 0) return false;
+  // Joined on a character the comparison keeps, so a token cannot match across the title and the name.
   const matching = stores.filter((store) =>
-    verifyTokens.some((token) => containsToken(`${store.title ?? ""} ${store.name}`, token)),
+    verifyTokens.some((token) => containsToken(`${store.title ?? ""}|${store.name}`, token)),
   ).length;
   return matching * 2 >= stores.length;
 }
@@ -292,7 +299,7 @@ function quoteFromStore(
     condition: readSearchCondition({ title: title ?? "", tag: store.tag }),
     identifiers: {
       gtin: null,
-      mpn: title === null ? null : readSamsungModelCode(title),
+      mpn: title === null ? null : readModelCode(title),
       retailerSku: null,
     },
     provenance: { kind: "search", via: entity.product_link ?? null },
@@ -324,7 +331,7 @@ function quoteFromItem(item: ShoppingItem, region: string, fetchedAt: Date): Pri
     shippingCents: item.delivery !== undefined && /free/i.test(item.delivery) ? 0 : null,
     availability: "unknown",
     condition: readSearchCondition(item),
-    identifiers: { gtin: null, mpn: readSamsungModelCode(item.title), retailerSku: null },
+    identifiers: { gtin: null, mpn: readModelCode(item.title), retailerSku: null },
     provenance: { kind: "search", via: item.product_link ?? null },
     confidence: FALLBACK_CONFIDENCE,
     evidence: item.title,
@@ -519,7 +526,7 @@ function candidateFromItem(item: ShoppingItem, region: string, fetchedAt: Date):
         : strikethroughAbove(priceCents, parseCents(item.extracted_old_price ?? item.old_price)),
     availability: "unknown",
     imageUrl: item.thumbnail ?? null,
-    identifiers: { gtin: null, mpn: readTitleModelCode(item.title), retailerSku: null },
+    identifiers: { gtin: null, mpn: readModelCode(item.title), retailerSku: null },
     provenance: { kind: "search", via: item.product_link ?? null },
     raw: discoveryRawItemSchema.parse(item),
   };

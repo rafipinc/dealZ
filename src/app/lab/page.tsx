@@ -149,9 +149,10 @@ export default async function LabPage() {
         <h2 className="text-xl font-semibold tracking-tight">Find a product</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Type to search the local index by title, model code or GTIN. Enter answers from the index
-          when it holds enough; otherwise it asks Google Shopping (one SerpApi search, under a daily
-          cap) and the storefronts that answer scripted requests, and remembers what they return. No
-          price is saved; each request is logged to the usage ledger.
+          when it holds enough; otherwise it asks the storefronts that answer scripted requests,
+          remembers what they return, and only when the index is still short asks Google Shopping
+          (one SerpApi search, under a daily cap). No price is saved; each request is logged to the
+          usage ledger.
         </p>
         <CatalogueSearchPanel
           maxQueryLength={MAX_QUERY_LENGTH}

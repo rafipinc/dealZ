@@ -1,6 +1,6 @@
 # DealZ Data Model
 
-**Status:** accepted 2026-09-17, updated 2026-10-06 (`catalogue_candidate`, ADR-0017, accepted 2026-10-08).
+**Status:** accepted 2026-09-17, updated 2026-10-08 (`catalogue_candidate`, ADR-0017, accepted 2026-10-08; placeholder GTINs, case-insensitive product families and the `catalogue_candidate` enrich columns, [ADR-0019](adr/0019-free-sources-first-index-learns-category.md), proposed 2026-10-08).
 **Source of truth:** [`src/db/schema.ts`](../src/db/schema.ts), [`src/db/sql/triggers.sql`](../src/db/sql/triggers.sql), for `api_usage` [`src/db/sql/api-usage-triggers.sql`](../src/db/sql/api-usage-triggers.sql) and for `catalogue_candidate` [`src/db/sql/catalogue-candidate-search.sql`](../src/db/sql/catalogue-candidate-search.sql). This document explains the shape; the code defines it.
 
 ## Principles
@@ -30,13 +30,13 @@ product ──< variant ──────┘                     │
 One row per shop. `slug` and `domain` are unique. `platform` (shopify, magento, custom) is a hint for choosing a scraper strategy later.
 
 ### product
-A product family: Samsung, S90H, tv, 2026. Never carries a price. `slug` is its public URL segment. Unique on brand, series and release year, with nulls treated as equal so two "S90H, unknown year" rows cannot coexist. `image_url` is the family hero image.
+A product family: Samsung, S90H, tv, 2026. Never carries a price. `slug` is its public URL segment. Unique on brand and series ignoring case, and on release year with null counted as one value, so `SAMSUNG` and `Samsung` are one family and two "S90H, unknown year" rows cannot coexist (ADR-0019 item 3). `category` is a DealZ category slug from `src/lib/category.ts`, never a store's label. `image_url` is the family hero image.
 
 ### variant
 One physical SKU within a family: the 65-inch AU S90H. `slug` is unique within the product. `region` (ISO 3166-1 alpha-2) is part of identity because AU and US units have different GTINs. `rrp_cents` is the manufacturer's recommended price when known, the first reference point for "is this a good price". `attributes` (jsonb) holds anything category-specific without schema churn.
 
 ### identifier
-Maps external identifiers to a variant. `type` is `gtin`, `mpn` (manufacturer model code, e.g. QA65S90HAWXXY) or `retailer_sku`. `retailer_id` is required for `retailer_sku` and must be null otherwise. Unique on type, value and retailer with nulls treated as equal, which is what makes a GTIN or MPN map to at most one variant. GTINs are stored as 14 digits; the service normalises shorter forms and validates the check digit before insert.
+Maps external identifiers to a variant. `type` is `gtin`, `mpn` (manufacturer model code, e.g. QA65S90HAWXXY) or `retailer_sku`. `retailer_id` is required for `retailer_sku` and must be null otherwise. Unique on type, value and retailer with nulls treated as equal, which is what makes a GTIN or MPN map to at most one variant. GTINs are stored as 14 digits; the service normalises shorter forms and validates the check digit before insert. A value of one repeated digit, such as all zeros, passes the check digit but is the placeholder a store prints when it has no barcode; the database rejects it, since one placeholder shared by many products would merge them (ADR-0019 item 2).
 
 ### listing
 One retailer page for one variant. A row here means the match is confirmed. `canonical_url` has tracking parameters stripped and is unique per retailer. `condition` defaults to `unknown`, and `unknown` is excluded from "best price" until confirmed. `match_method`, `match_confidence` and `matched_at` record how the page was linked to its variant (ADR-0010). `first_seen_at`, `last_seen_at` and `is_active` track whether the page still exists.
@@ -50,10 +50,10 @@ One price seen on one listing at one time. `price_cents` integer, `currency` ISO
 An editorial call: this observation is worth telling people about. References the `price_observation` only; listing, variant and product are reached through it, so a deal can never disagree with its observation about which listing it is on. Has its own lifecycle (`draft`, `published`, `expired`, `retracted`) and its own text. Retracting a deal never touches price history.
 
 ### api_usage
-The usage ledger: one row per outbound call to an external service ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), proposed). It sits outside the catalogue shape above and has no foreign keys. `provider` is an open set (`serpapi`, `gemini`, `wayback`, `retailer`), so it is text with a slug check. `outcome` is `ok` or `failed`; a failed row carries the source's `error_kind`. `cost_micros` is the estimated cost in millionths of a US dollar, computed by the service at write time from the price in force when the call started. A stored zero does not say whether a call was free or unpriced; that is decided at read time from the price table, so no column holds it. It is the one exception to integer cents, because a single Gemini call costs a fraction of a cent. `retailer_slug` and `variant_slug` are text, not foreign keys: the tracked products are not rows yet. Append-only. It never holds an API key or a request URL.
+The usage ledger: one row per outbound call to an external service ([ADR-0014](adr/0014-usage-ledger-and-status-dashboard.md), accepted 2026-10-02). It sits outside the catalogue shape above and has no foreign keys. `provider` is an open set (`serpapi`, `gemini`, `wayback`, `retailer`), so it is text with a slug check. `outcome` is `ok` or `failed`; a failed row carries the source's `error_kind`. `cost_micros` is the estimated cost in millionths of a US dollar, computed by the service at write time from the price in force when the call started. A stored zero does not say whether a call was free or unpriced; that is decided at read time from the price table, so no column holds it. It is the one exception to integer cents, because a single Gemini call costs a fraction of a cent. `retailer_slug` and `variant_slug` are text, not foreign keys: the tracked products are not rows yet. Append-only. It never holds an API key or a request URL.
 
 ### catalogue_candidate
-The local search index: one row per product a retailer storefront has shown DealZ, from a listing pull or a live search ([ADR-0017](adr/0017-local-search-index.md)). It is the staging table [ADR-0010](adr/0010-listing-match-audit-and-staging.md) deferred to phase 4, brought forward. A row is a snapshot of what the store said, never price history: no row here is a `price_observation`, and nothing references the table. The upsert key is `retailer_slug` and `handle`; a repeat sighting replaces the row in place, keeps `first_seen_at` and moves `last_seen_at`, and an identifier once read (`gtin`, `mpn`, `retailer_sku`) is never erased by a sighting that lacks it. `retailer_slug` is text with a slug check, not a foreign key, for the same reason as on `api_usage`. `source` (`listing`, `search`, `inspect`) is text with a check rather than an enum, so a fourth source needs no enum migration. Title search runs on a `pg_trgm` GIN index; the extension and that index live in the hand-written SQL file, since the index cannot precede the extension inside a generated migration. Columns are in [`src/db/schema.ts`](../src/db/schema.ts).
+The local search index: one row per product a retailer storefront has shown DealZ, from a listing pull or a live search ([ADR-0017](adr/0017-local-search-index.md)). It is the staging table [ADR-0010](adr/0010-listing-match-audit-and-staging.md) deferred to phase 4, brought forward. A row is a snapshot of what the store said, never price history: no row here is a `price_observation`, and nothing references the table. The upsert key is `retailer_slug` and `handle`; a repeat sighting replaces the row in place, keeps `first_seen_at` and moves `last_seen_at`, and an identifier once read (`gtin`, `mpn`, `retailer_sku`) is never erased by a sighting that lacks it. `retailer_slug` is text with a slug check, not a foreign key, for the same reason as on `api_usage`. `source` (`listing`, `search`, `inspect`) is text with a check rather than an enum, so a fourth source needs no enum migration. Title search runs on a `pg_trgm` GIN index; the extension and that index live in the hand-written SQL file, since the index cannot precede the extension inside a generated migration. Four columns serve the enrich pass and the Google Shopping rows (ADR-0019 items 4 and 5). `category` is DealZ's category slug for the row, mapped by `src/lib/category.ts`; the store's own label stays in `store_type`. `via` (`storefront`, `google_shopping`) says where the row was read, as a fact of the row rather than something parsed out of `raw`. `retailer_name` is the seller's name as Google Shopping printed it, or the store's name; null when unknown. `inspected_at` is set when the row's product JSON was read; a row inspected once and still without a GTIN has none in its JSON, so an enrich pass never re-reads it. A placeholder GTIN of one repeated digit is rejected here as on `identifier`, since the index groups rows by GTIN and a placeholder would group unrelated products silently. Columns are in [`src/db/schema.ts`](../src/db/schema.ts).
 
 ## Invariants and where they live
 
@@ -63,9 +63,11 @@ The local search index: one row per product a retailer storefront has shown Deal
 | A correction supersedes an observation on the same listing | foreign key, plus trigger `price_observation_supersedes_same_listing` |
 | A GTIN or MPN belongs to at most one variant | unique `identifier_type_value_retailer_uq` (NULLS NOT DISTINCT) |
 | GTINs are 14 digits | check `identifier_gtin_is_14_digits`; check digit validated in `lib/gtin` |
+| A GTIN is never a placeholder of one repeated digit | check `identifier_gtin_not_placeholder` |
 | Retailer SKUs carry a retailer, global identifiers do not | check `identifier_retailer_only_for_sku` |
 | One listing per retailer page | unique `listing_retailer_url_uq` |
-| Product families are unique by brand, series, year | unique `product_brand_series_year_uq` (NULLS NOT DISTINCT) |
+| Product families are unique by brand, series, year, ignoring case | unique index `product_brand_series_year_ci_uq` on `lower(brand)`, `lower(series)`, `coalesce(release_year, 0)` |
+| A product's category is a slug | check `product_category_format` |
 | Variant slugs are unique within a product | unique `variant_product_slug_uq` |
 | Slugs are URL-safe; regions and currencies are ISO codes | check constraints on each column |
 | Confidence values lie in 0..1; prices and RRPs are non-negative | check constraints |
@@ -80,10 +82,13 @@ The local search index: one row per product a retailer storefront has shown Deal
 | One candidate per product per store | unique `catalogue_candidate_retailer_handle_uq` |
 | A candidate's retailer is a slug | check `catalogue_candidate_retailer_slug_format` |
 | A candidate's GTIN, when present, is 14 digits | check `catalogue_candidate_gtin_is_14_digits` |
+| A candidate's GTIN is never a placeholder of one repeated digit | check `catalogue_candidate_gtin_not_placeholder` |
 | Candidate prices are non-negative | checks `catalogue_candidate_price_non_negative`, `catalogue_candidate_compare_at_non_negative` |
 | A candidate's currency is an ISO 4217 code | check `catalogue_candidate_currency_iso4217` |
 | A candidate's source is `listing`, `search` or `inspect` | check `catalogue_candidate_source_known` |
-| A repeat sighting keeps `first_seen_at` and a stored identifier | `upsertCatalogueCandidates` (ON CONFLICT DO UPDATE with coalesce); not a constraint, tested as one |
+| A candidate's category, when present, is a slug | check `catalogue_candidate_category_format` |
+| A candidate was read via `storefront` or `google_shopping` | check `catalogue_candidate_via_known` |
+| A repeat sighting keeps `first_seen_at`, a stored identifier, category, retailer name and `inspected_at` | `upsertCatalogueCandidates` (ON CONFLICT DO UPDATE with coalesce); not a constraint, tested as one |
 
 ## Matching
 
@@ -92,7 +97,7 @@ Ingestion resolves a page to a variant through `identifier`, in trust order:
 | Tier | Method | Auto-merge? | Recorded as |
 |---|---|---|---|
 | 1 | GTIN exact | Yes | `match_method = gtin` |
-| 2 | Model code via per-brand deterministic parser | Yes | `mpn` |
+| 2 | Model code by the one general rule in `lib/model-code`, which reads a hyphenated code in one narrow form, compared through `normaliseModelCode` (ADR-0019 item 7) | Yes | `mpn` |
 | 3 | Normalised title match | No: staged for review | `title`, once confirmed |
 | 4 | LLM-assisted structured match with a confidence score | No: staged for review | `llm`, once confirmed |
 
@@ -132,6 +137,7 @@ The original stays in the table for audit. Chains are allowed: a correction can 
 | Write a storefront's products (`upsertCatalogueCandidates`) | catalogue_candidate by retailer and handle | `catalogue_candidate_retailer_handle_uq` |
 | Drop what a store no longer lists (`deleteUnseenListingRows`) | catalogue_candidate `listing` rows of one retailer with `last_seen_at` before the refresh began, an instant read from the database's clock by `databaseNow` so it is the clock that stamped the rows | `catalogue_candidate_retailer_handle_uq` (leading column) |
 | How big the index is, per retailer (`countCatalogueCandidates`) | catalogue_candidate grouped by `retailer_slug` | sequential; the table is small |
+| The rows an enrich pass reads product JSON for (`listCandidatesWithoutGtin`) | catalogue_candidate `storefront` rows of the named retailers with no `gtin` and no `inspected_at`, newest sighting first, at most 100 | `catalogue_candidate_gtin_idx` (`IS NULL` is a btree lookup); the rest is filtered on those rows, and the table is small |
 
 Only the `%` operator and LIKE/ILIKE can use a trigram GIN index. If the table grows enough for the similarity scan to show, the upgrade is the `%` operator with `set_limit()` in place of the explicit floor, which keeps the same ranking and lets the index serve both arms.
 

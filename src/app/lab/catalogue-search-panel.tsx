@@ -9,8 +9,11 @@
 // every seller's offer; Enter on a row opens its product page. The flat
 // table of what the sources returned stays under a details, and each
 // storefront row there can ask for its identifiers, which the InspectView
-// then fills in. No business rule lives here: relevance, grouping, routing
-// and the daily cap are the service's.
+// then fills in. Beside the index status line, "Refresh index" pulls the
+// seeded collections and "Enrich identifiers" reads the product JSON of a
+// bounded batch of rows without a GTIN. No business rule lives here:
+// relevance, grouping, routing, the daily cap and the batch size are the
+// service's.
 
 import {
   useActionState,
@@ -24,6 +27,7 @@ import {
 import { useFormStatus } from "react-dom";
 import {
   discoverProductsAction,
+  enrichIndexAction,
   inspectCandidateAction,
   refreshIndexAction,
   suggestProductsAction,
@@ -34,6 +38,7 @@ import type {
   DiscoverView,
   DiscoverViewResult,
   DiscoveryRowView,
+  EnrichViewResult,
   IndexStatusView,
   InspectOutcomeViewOk,
   InspectViewResult,
@@ -82,6 +87,27 @@ function RefreshButton() {
     <button type="submit" disabled={pending} className={smallButtonClass}>
       {pending ? "Refreshing…" : "Refresh index"}
     </button>
+  );
+}
+
+function EnrichButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className={smallButtonClass}>
+      {pending ? "Enriching…" : "Enrich identifiers"}
+    </button>
+  );
+}
+
+/** The category as a small badge; nothing when no row named one. */
+function CategoryBadge({ label }: { label: string }) {
+  if (label === "") return null;
+  return (
+    <span
+      className={`${badgeClass} border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400`}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -334,6 +360,7 @@ function ProductCard({ product }: { product: DiscoverProductView }) {
           ) : null}
           <div className="text-sm">{product.fromLine}</div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            <CategoryBadge label={product.categoryLabel} />
             <span className={mutedClass}>{product.sellersLabel}</span>
             {product.trackedVariantSlug !== null ? (
               <span className={`${badgeClass} border-blue-300 text-blue-700 dark:text-blue-400`}>
@@ -457,8 +484,11 @@ function SuggestRow({ row }: { row: SuggestRowView }) {
         />
       )}
       <div className="min-w-0 flex-1">
-        <div className="truncate font-medium" title={row.title}>
-          {row.title}
+        <div className="flex min-w-0 items-center gap-2">
+          <CategoryBadge label={row.categoryLabel} />
+          <span className="truncate font-medium" title={row.title}>
+            {row.title}
+          </span>
         </div>
         {row.subtitle ? <div className={`text-xs ${mutedClass}`}>{row.subtitle}</div> : null}
         {row.trackedVariantSlug !== null ? (
@@ -474,7 +504,10 @@ function SuggestRow({ row }: { row: SuggestRowView }) {
       </div>
       <div className="shrink-0 text-right">
         <div className="text-sm whitespace-nowrap">{row.priceLine}</div>
-        <div className={`text-xs ${mutedClass}`}>{row.storesLabel}</div>
+        <div className={`text-xs ${mutedClass}`}>
+          {row.storesLabel}
+          {row.seenLabel ? ` · ${row.seenLabel}` : ""}
+        </div>
       </div>
     </>
   );
@@ -694,11 +727,12 @@ function IndexStatusLine({
   status: IndexStatusView;
   budget: SerpApiBudgetView;
 }) {
-  // The action takes no payload: the form is the button, nothing else.
+  // The actions take no payload: each form is its button, nothing else.
   const [refresh, refreshAction] = useActionState<RefreshViewResult | null>(
     refreshIndexAction,
     null,
   );
+  const [enrich, enrichAction] = useActionState<EnrichViewResult | null>(enrichIndexAction, null);
   return (
     <div className="flex flex-col gap-2 text-xs">
       <div className="flex flex-wrap items-center gap-3">
@@ -707,6 +741,9 @@ function IndexStatusLine({
         </p>
         <form action={refreshAction}>
           <RefreshButton />
+        </form>
+        <form action={enrichAction}>
+          <EnrichButton />
         </form>
       </div>
       <p
@@ -728,6 +765,30 @@ function IndexStatusLine({
       ) : (
         <p role="alert" className="text-red-700 dark:text-red-400">
           {refresh.error}
+        </p>
+      )}
+      {enrich === null ? null : enrich.ok ? (
+        <div className={`flex flex-col gap-1 ${mutedClass}`}>
+          <p role="status">
+            {enrich.line}. {enrich.usageLine}, at {enrich.fetchedAtLabel}.
+          </p>
+          {enrich.failures.length > 0 ? (
+            <ul className="list-disc pl-4">
+              {enrich.failures.map((failure) => (
+                <li key={failure.key}>
+                  {failure.store}:{" "}
+                  <a href={failure.url} target="_blank" rel="noreferrer" className={linkClass}>
+                    {failure.url}
+                  </a>{" "}
+                  ({failure.reason})
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : (
+        <p role="alert" className="text-red-700 dark:text-red-400">
+          {enrich.error}
         </p>
       )}
     </div>

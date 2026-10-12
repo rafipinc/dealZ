@@ -8,18 +8,25 @@
 
 import { rootCause } from "@/lib/errors";
 import { indexStatus, refreshIndex, searchIndex } from "@/services/catalogue-index";
-import { discoverProducts, serpApiBudget, type DiscoverProductsInput } from "@/services/discovery";
+import {
+  discoverProducts,
+  enrichIndex,
+  serpApiBudget,
+  type DiscoverProductsInput,
+} from "@/services/discovery";
 import { NotFoundError, ValidationError } from "@/services/errors";
 import { safeFailureMessage } from "@/services/status";
 import {
   indexUnavailableView,
   serpApiBudgetUnavailableView,
   toDiscoverView,
+  toEnrichView,
   toIndexStatusView,
   toRefreshView,
   toSerpApiBudgetView,
   toSuggestView,
   type DiscoverViewResult,
+  type EnrichViewResult,
   type IndexStatusView,
   type RefreshViewResult,
   type SerpApiBudgetView,
@@ -66,6 +73,21 @@ export async function runRefreshIndex(deps: RefreshDeps = {}): Promise<RefreshVi
       return { ok: false, error: error.message };
     }
     return { ok: false, error: `Refresh failed: ${safeFailureMessage(rootCause(error))}` };
+  }
+}
+
+/** The enrich pass's injectables: the database, the listing, the fetch, the clock and the pause a test replaces. */
+export type EnrichDeps = NonNullable<Parameters<typeof enrichIndex>[0]>;
+
+/** The identifier pass: reads the product JSON of the index rows without a GTIN, bounded (ADR-0016 item 6). */
+export async function runEnrich(deps: EnrichDeps = {}): Promise<EnrichViewResult> {
+  try {
+    return toEnrichView(await enrichIndex(deps));
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ValidationError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: `Enrich failed: ${safeFailureMessage(rootCause(error))}` };
   }
 }
 

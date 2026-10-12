@@ -165,7 +165,7 @@ npx drizzle-kit migrate
 npx drizzle-kit studio                            # optional: browse the tables
 ```
 
-Done on 2026-09-22: `0000_init.sql` and `0001_triggers.sql` are in `drizzle/migrations/` and applied locally. `generate` needs `DIRECT_URL` set to any value to read the config; only `migrate` connects. The Drizzle migrator records applied migrations in `drizzle.__drizzle_migrations`.
+Done on 2026-09-22: `0000_init.sql` and `0001_triggers.sql` are in `drizzle/migrations/` and applied locally. `generate` needs `DIRECT_URL` set to any value to read the config; only `migrate` connects. The Drizzle migrator records applied migrations in `drizzle.__drizzle_migrations`. Seven migrations exist on 2026-10-08, `0000` to `0006`. Three are the custom pairs in the table below; the rest are generated from `schema.ts`. `0006_review-refinements` is generated, with one backfill statement for `catalogue_candidate.via` appended by hand, and has no pair ([ADR-0019](adr/0019-free-sources-first-index-learns-category.md)).
 
 Rules: migrations are reviewed as SQL before they are applied and never edited afterwards.
 
@@ -196,7 +196,7 @@ Each of these must fail with the named error. They become the PGlite test suite 
 | Insert a `gtin` identifier with 13 digits | check `identifier_gtin_is_14_digits` |
 | Insert two `gtin` identifiers with the same value | unique `identifier_type_value_retailer_uq` |
 | Insert two listings with the same `canonical_url` at one retailer | unique `listing_retailer_url_uq` |
-| Insert two products with the same brand and series and a null year | unique `product_brand_series_year_uq` |
+| Insert two products with the same brand and series, in any casing, and a null year | unique index `product_brand_series_year_ci_uq` on the lower-cased brand and series. Replaced the constraint `product_brand_series_year_uq` in migration `0006`, 2026-10-08 |
 | Set a deal to `published` with no `published_at` | check `deal_published_has_timestamp` |
 | `UPDATE` a product's name, then read `updated_at` | it moved |
 

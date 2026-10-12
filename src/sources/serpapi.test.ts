@@ -224,12 +224,33 @@ describe("isCandidate", () => {
     expect(isCandidate("Anything", { mustMatch: [], verifyTokens: [] })).toBe(true);
   });
 
+  it("finds a mustMatch token however the title prints it, hyphens and spaces ignored", () => {
+    const sony = { mustMatch: ["XR65A95L"], verifyTokens: ["XR65A95L"] };
+    expect(isCandidate('Sony 65" A95L BRAVIA XR OLED Google TV XR-65A95L', sony)).toBe(true);
+    expect(isCandidate("Sony 65 inch A95L", { mustMatch: ["65inch"], verifyTokens: [] })).toBe(
+      true,
+    );
+  });
+
   it("rejects a title carrying a model code that is not one of the verify tokens", () => {
     expect(isCandidate("Samsung QE48S85HAEXZT TV 121.9 cm 4K", input)).toBe(false);
     expect(isCandidate("Samsung QA65S85HAEXXY 65 S85H", input)).toBe(true);
     expect(
       isCandidate("Samsung qa65s85haexxy S85H", { ...input, verifyTokens: ["QA65S85HAEXXY"] }),
     ).toBe(true);
+  });
+
+  it("applies the general model-code rule, so an LG sibling is dropped and the variant kept", () => {
+    const title = 'LG 65" C4 4K OLED evo AI Smart TV OLED65C4PSA';
+    expect(isCandidate(title, { mustMatch: [], verifyTokens: ["OLED65C5PSA"] })).toBe(false);
+    expect(isCandidate(title, { mustMatch: [], verifyTokens: ["65", "OLED65C4PSA"] })).toBe(true);
+  });
+
+  it("compares codes with hyphens and case ignored, so a Sony title matches an unhyphenated token", () => {
+    const title = 'Sony 65" A95L BRAVIA XR OLED Google TV XR-65A95L';
+    expect(isCandidate(title, { mustMatch: [], verifyTokens: ["XR65A95L"] })).toBe(true);
+    expect(isCandidate(title, { mustMatch: [], verifyTokens: ["xr-65a95l"] })).toBe(true);
+    expect(isCandidate(title, { mustMatch: [], verifyTokens: ["XR-55A95L"] })).toBe(false);
   });
 });
 
@@ -241,6 +262,18 @@ describe("storesVerify", () => {
     expect(storesVerify([{ name: "Samsung 65 outlet" }], ["65"])).toBe(true);
     expect(storesVerify([], ["65"])).toBe(false);
     expect(storesVerify([store("65")], [])).toBe(false);
+  });
+
+  it("verifies a token however the store prints it: hyphens and spaces ignored on both sides", () => {
+    const store = (title: string) => ({ name: "S", title });
+    expect(storesVerify([store('Sony 65" A95L BRAVIA XR OLED TV XR-65A95L')], ["XR65A95L"])).toBe(
+      true,
+    );
+    expect(storesVerify([store("Sony XR65A95L")], ["XR-65A95L"])).toBe(true);
+    expect(storesVerify([{ name: "Sony XR 65A95L outlet" }], ["XR-65A95L"])).toBe(true);
+    expect(storesVerify([store("Sony XR-55A95L")], ["XR65A95L"])).toBe(false);
+    // A token never matches across the title and the store name.
+    expect(storesVerify([{ name: "5 Star Store", title: "Samsung TV 6" }], ["65"])).toBe(false);
   });
 });
 
@@ -566,6 +599,40 @@ describe("searchGoogleShopping", () => {
       extracted_old_price: 3295,
       delivery: "Free delivery",
     });
+  });
+
+  it("reads a Sony code with its hyphen into mpn, from a store title and from a hop-1 title", async () => {
+    const sonyTitle = 'Sony 65" A95L BRAVIA XR OLED Google TV XR-65A95L';
+    const sony: Partial<SearchSourceInput> = {
+      query: "Sony XR-65A95L",
+      mustMatch: ["A95L"],
+      verifyTokens: ["65", "XR65A95L"],
+    };
+    const { fetch: verified } = fakeFetch({
+      shopping: () =>
+        jsonResponse({
+          shopping_results: [result(1, { title: sonyTitle, immersive_product_page_token: "SONY" })],
+        }),
+      immersive: {
+        SONY: () =>
+          jsonResponse({
+            product_results: {
+              stores: [
+                { name: "Store A", title: sonyTitle, extracted_price: 4000 },
+                { name: "Store B", title: 'Sony 65" A95L OLED TV', extracted_price: 4100 },
+              ],
+            },
+          }),
+      },
+    });
+    const fromStores = await searchGoogleShopping(inputWith(verified, sony));
+    expect(fromStores.map((q) => q.identifiers.mpn)).toEqual(["XR-65A95L", null]);
+
+    const { fetch: unverified } = fakeFetch({
+      shopping: () => jsonResponse({ shopping_results: [result(1, { title: sonyTitle })] }),
+    });
+    const [fallback] = await searchGoogleShopping(inputWith(unverified, sony));
+    expect(fallback.identifiers.mpn).toBe("XR-65A95L");
   });
 
   it("reads the price string when extracted_price is absent and ignores an old price at or under the price", async () => {

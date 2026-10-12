@@ -2,7 +2,7 @@
 // product a retailer storefront has shown DealZ (ADR-0017). Rows are
 // replaced in place on every sighting, so there is an upsert and no insert.
 
-import { and, count, desc, eq, lt, max, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, lt, max, or, sql } from "drizzle-orm";
 import { catalogueCandidate } from "../schema";
 import type { QueryDb } from "./db";
 
@@ -31,11 +31,20 @@ export interface UnseenListingRows {
   seenSince: Date;
 }
 
+export interface EnrichCandidates {
+  /** The storefronts DealZ can read product JSON from. */
+  retailerSlugs: string[];
+  limit: number;
+}
+
 /** The most rows one search returns, whatever the caller asks for. */
 export const MAX_SEARCH_LIMIT = 200;
 
 /** The rows a search returns when the caller's limit is not a usable number. */
 export const DEFAULT_SEARCH_LIMIT = 50;
+
+/** The most rows one enrich pass reads, whatever the caller asks for. */
+export const MAX_ENRICH_LIMIT = 100;
 
 // A limit that is not a finite non-negative integer is a caller bug, not a
 // request for zero rows; it falls back to the default rather than to nothing.
@@ -47,16 +56,19 @@ const SIMILARITY_FLOOR = 0.1;
 
 // The row proposed for insert, inside ON CONFLICT DO UPDATE.
 const excluded = (column: string) => sql.raw(`excluded."${column}"`);
-// The new value when the parser read one, else what is stored: an identifier
-// once read is kept.
+// The new value when the parser read one, else what is stored: a value once
+// read is kept.
 const keepIfNull = (column: string) =>
   sql`coalesce(${excluded(column)}, ${sql.raw(`"catalogue_candidate"."${column}"`)})`;
 
 /**
  * Writes every row, inserting a new product and replacing a known one in
  * place by (retailer_slug, handle). `first_seen_at` survives; `last_seen_at`
- * moves to now. `gtin`, `mpn`, `retailer_sku` and `image_url` are only
- * overwritten by a value, never by null. Returns the number of rows written.
+ * moves to now. `gtin`, `mpn`, `retailer_sku`, `image_url`, `category` and
+ * `retailer_name` are only overwritten by a value, never by null: an
+ * identifier, a category or a name once known is kept. `inspected_at`
+ * survives later sightings the same way, so a row read once is not read
+ * again. `via` takes the new row's value. Returns the number of rows written.
  */
 export async function upsertCatalogueCandidates(
   db: QueryDb,
@@ -69,10 +81,12 @@ export async function upsertCatalogueCandidates(
     .onConflictDoUpdate({
       target: [catalogueCandidate.retailerSlug, catalogueCandidate.handle],
       set: {
+        retailerName: keepIfNull("retailer_name"),
         canonicalUrl: excluded("canonical_url"),
         title: excluded("title"),
         brand: excluded("brand"),
         storeType: excluded("store_type"),
+        category: keepIfNull("category"),
         mpn: keepIfNull("mpn"),
         gtin: keepIfNull("gtin"),
         retailerSku: keepIfNull("retailer_sku"),
@@ -82,8 +96,10 @@ export async function upsertCatalogueCandidates(
         available: excluded("available"),
         imageUrl: keepIfNull("image_url"),
         source: excluded("source"),
+        via: excluded("via"),
         raw: excluded("raw"),
         lastSeenAt: sql`now()`,
+        inspectedAt: keepIfNull("inspected_at"),
       },
     })
     .returning({ id: catalogueCandidate.id });
@@ -160,6 +176,33 @@ export async function deleteUnseenListingRows(
     )
     .returning({ id: catalogueCandidate.id });
   return deleted.length;
+}
+
+/**
+ * The rows an enrich pass reads product JSON for: `storefront` rows with no
+ * `gtin` that have never been inspected, newest sighting first, only on the
+ * storefronts DealZ can read (`retailerSlugs`). A row inspected once and
+ * still without a GTIN has none in its JSON, so it is never listed again. The
+ * limit is capped at MAX_ENRICH_LIMIT. Empty when no retailer is named.
+ */
+export async function listCandidatesWithoutGtin(
+  db: QueryDb,
+  { retailerSlugs, limit }: EnrichCandidates,
+): Promise<CatalogueCandidateRow[]> {
+  if (retailerSlugs.length === 0) return [];
+  return db
+    .select()
+    .from(catalogueCandidate)
+    .where(
+      and(
+        isNull(catalogueCandidate.gtin),
+        isNull(catalogueCandidate.inspectedAt),
+        eq(catalogueCandidate.via, "storefront"),
+        inArray(catalogueCandidate.retailerSlug, retailerSlugs),
+      ),
+    )
+    .orderBy(desc(catalogueCandidate.lastSeenAt), desc(catalogueCandidate.id))
+    .limit(Math.min(limit, MAX_ENRICH_LIMIT));
 }
 
 /** How many rows the index holds, overall and per retailer, for the status line. */

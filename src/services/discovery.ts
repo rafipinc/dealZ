@@ -27,19 +27,36 @@
 // answers when the index cannot be written.
 //
 // `discoverProducts` is the Enter path of the lab search (ADR-0017 item 6,
-// miss path decided by Rafi on 2026-10-06): the index first, and only when
-// it holds too little, the storefronts and Google Shopping together. The
-// paid call is a development tool and must not run up a bill, so it has
-// three hard gates: a key must be set, the day's budget must be readable,
-// and the day's successful SerpApi searches, read from the usage ledger,
-// must be under SERPAPI_DAILY_CAP (20 by default). The budget is read only
-// once the index has answered and only when it holds too little, so a
-// ledger that cannot be read never stops the free path: Google is skipped
-// and the report says why. The budget read, the paid call and its ledger
-// write run one search at a time, so two searches cannot both take the last
-// search under the cap. What both sources return is remembered in the
-// index and the index is searched again, so a Google row and a storefront
-// row for one product come back as one product with two offers.
+// miss path decided by Rafi on 2026-10-06): a ladder, cheapest first. The
+// index is searched; when it holds too little, the storefronts (free) are
+// asked, what they return is remembered, and the index is searched again;
+// only when it still holds too little is Google Shopping (paid) asked, its
+// answer remembered, and the index searched once more. The paid call runs
+// only when the free sources leave the index short: a product the
+// storefronts stock never costs a search, and a new category with an empty
+// index pays once per query, not once per store it is missing from. The
+// paid call is a development tool and must not run up a bill, so it also
+// has three hard gates: a key must be set, the day's budget must be
+// readable, and the day's successful SerpApi searches, read from the usage
+// ledger, must be under SERPAPI_DAILY_CAP (20 by default). The budget is
+// read only once the free rungs have answered and only when they left the
+// index short, so a ledger that cannot be read never stops the free path:
+// Google is skipped and the report says why. The budget read, the paid call
+// and its ledger write run one search at a time, so two searches cannot
+// both take the last search under the cap. Each search of the index after
+// a source was remembered is what groups the sources, so a Google row and a
+// storefront row for one product come back as one product with two offers.
+//
+// `enrichIndex` is the bounded identifier pass. An index row learned from a
+// search or a listing has no barcode (ADR-0016 item 6, ADR-0017 item 5):
+// a predictive search answer and a collection page carry none, only the
+// product JSON does. This reads it once per row, newest rows first, at most
+// `limit` rows a pass with a politeness pause between reads, so products
+// group across stores by GTIN. A row whose JSON carries no barcode is
+// marked inspected and never re-read; a row whose JSON names no product is
+// written nothing, reported as failed, and listed again next pass. Only a
+// searchable storefront's own `/products/` pages are read, the same guard
+// as `inspectCandidate`.
 
 import { z } from "zod";
 import {
@@ -47,6 +64,11 @@ import {
   type OkCallsByOperation,
   type ProviderPeriod,
 } from "@/db/queries/api-usage";
+import {
+  listCandidatesWithoutGtin,
+  MAX_ENRICH_LIMIT,
+  type CatalogueCandidateRow,
+} from "@/db/queries/catalogue-candidates";
 import type { QueryDb } from "@/db/queries/db";
 import { SERPAPI_SEARCH_OPERATIONS } from "@/lib/api-prices";
 import { dayRangeIn, SYDNEY } from "@/lib/day-ranges";
@@ -474,7 +496,7 @@ export async function serpApiBudget(input: SerpApiBudgetInput = {}): Promise<Ser
   return { cap, capSource, usedToday, remaining, allowed: remaining > 0 };
 }
 
-// ---------- Discover: the index first, then the stores and Google Shopping together ----------
+// ---------- Discover: the index, then the storefronts, then Google Shopping ----------
 
 /** A text query is answered by the index when it holds this many matching products. */
 export const INDEX_SUFFICIENT_MATCHES = 3;
@@ -500,12 +522,13 @@ export interface DiscoverProductsInput {
 }
 
 /**
- * Why Google Shopping was not asked: the index answered alone, no key is
- * set, the day's cap is reached, or the budget could not be read from the
- * ledger, in which case nothing is spent blind.
+ * Why Google Shopping was not asked: the index answered alone, the
+ * storefronts' answers left the index sufficient so the paid rung was never
+ * reached, no key is set, the day's cap is reached, or the budget could not
+ * be read from the ledger, in which case nothing is spent blind.
  */
 export type GoogleShoppingSkipReason =
-  "index_sufficient" | "no_key" | "cap_reached" | "budget_unknown";
+  "index_sufficient" | "storefronts_sufficient" | "no_key" | "cap_reached" | "budget_unknown";
 
 export type GoogleShoppingOutcome =
   | {
@@ -552,18 +575,20 @@ export interface DiscoverReport {
   storefronts: StoreOutcome[] | null;
   /**
    * The day's SerpApi searches after this one, against the cap. Null when
-   * the budget was not read: the index answered on its own, or the ledger
-   * could not be read (Google Shopping skipped, `budget_unknown`).
+   * the budget was not read: the index answered on its own, the storefronts
+   * left it sufficient (Google Shopping skipped, `storefronts_sufficient`),
+   * or the ledger could not be read (skipped, `budget_unknown`).
    */
   budget: DiscoverBudget | null;
+  /** Every request the rungs that ran made, storefront and Google alike. */
   usage: UsageRecording;
   /**
-   * Every candidate the sources returned, storefront and Google alike, in one
-   * list ranked by lib/relevance: tier, then score, then title, then the
-   * store's name. Empty when the index answered on its own.
+   * Every candidate the sources that ran returned, storefront and Google
+   * alike, in one list ranked by lib/relevance: tier, then score, then
+   * title, then the store's name. Empty when the index answered on its own.
    */
   candidates: RankedCandidate[];
-  /** Candidates the sources returned, both of them. */
+  /** Candidates the sources that ran returned, storefront and Google alike. */
   found: number;
   /** Of `found`, how many the index confirmed writing in time. */
   remembered: number;
@@ -730,15 +755,18 @@ function askGoogleShoppingWithinBudget(
 }
 
 /**
- * The lab search's Enter path. The index is searched first and answers on
- * its own when it suffices. Otherwise the storefronts (free) and Google
+ * The lab search's Enter path: a ladder, cheapest rung first. The index is
+ * searched and answers on its own when it suffices. Otherwise the
+ * storefronts (free) are asked, what they return is remembered, and the
+ * index is searched again; when it now suffices, Google Shopping is skipped
+ * and nothing is paid. Only when the index is still short is Google
  * Shopping (paid, only with a key, a readable budget and room under the
- * daily cap) are asked together, everything they return is remembered,
- * and the index is searched again so the products come back grouped
- * across every source. Nothing becomes a catalogue row (ADR-0016 item 8).
- * An index that cannot be read propagates: the index is the answer here,
- * not a side effect. A ledger that cannot be read does not: it only means
- * Google Shopping is skipped.
+ * daily cap) asked, its answer remembered, and the index searched once
+ * more. Each search after a source was remembered is what groups that
+ * source's rows with the rest. Nothing becomes a catalogue row (ADR-0016
+ * item 8). An index that cannot be read propagates: the index is the
+ * answer here, not a side effect. A ledger that cannot be read does not:
+ * it only means Google Shopping is skipped.
  */
 export async function discoverProducts(input: DiscoverProductsInput): Promise<DiscoverReport> {
   const parsed = discoverProductsInputSchema.safeParse(input);
@@ -750,9 +778,16 @@ export async function discoverProducts(input: DiscoverProductsInput): Promise<Di
   const rememberCandidates = parsed.data.rememberCandidates ?? remember;
   const search = parsed.data.searchIndex ?? searchIndex;
   const { queryKind, gtin } = routeQuery(query);
+  const searchIndexNow = () => search({ query, limit: MAX_SEARCH_LIMIT, db });
+  /** Best effort and bounded; nothing to write is nothing remembered, without a call. */
+  const rememberFound = (candidates: ProductCandidate[]) =>
+    candidates.length === 0
+      ? Promise.resolve(0)
+      : rememberBestEffort(() => rememberCandidates({ candidates, source: "search", db }));
 
+  // Rung 1: the index alone.
   const fetchedAt = now();
-  const first = await search({ query, limit: MAX_SEARCH_LIMIT, db });
+  const first = await searchIndexNow();
   const base = { query, queryKind, gtin, fetchedAt };
   if (indexSuffices(queryKind, first.products)) {
     return {
@@ -770,38 +805,56 @@ export async function discoverProducts(input: DiscoverProductsInput): Promise<Di
     };
   }
 
+  // Rung 2: the storefronts, free. Remembered, then the index is searched again.
   const ledger = usageLedger(parsed.data.recordUsage);
   const ask: Ask = { query, queryKind, fetch, now, meter: ledger.meter };
+  const storefronts = await askStorefronts(ask, limit);
+  const fromStorefronts = candidatesOf(storefronts);
+  // Both best effort and both bounded, side by side: neither delays the report by more than the bound.
+  const [storefrontsRemembered, storefrontUsage] = await Promise.all([
+    rememberFound(fromStorefronts),
+    // A search is for no one tracked variant.
+    ledger.flush(null),
+  ]);
+  const second = await searchIndexNow();
+  if (indexSuffices(queryKind, second.products)) {
+    // The budget was never read: the free sources answered and nothing was paid.
+    const googleShopping: GoogleShoppingOutcome = {
+      status: "skipped",
+      reason: "storefronts_sufficient",
+    };
+    return {
+      ...base,
+      source: "fanout",
+      products: second.products,
+      total: second.total,
+      googleShopping,
+      storefronts,
+      budget: null,
+      usage: storefrontUsage,
+      candidates: rankCandidates(storefronts, googleShopping),
+      found: fromStorefronts.length,
+      remembered: storefrontsRemembered,
+    };
+  }
+
+  // Rung 3: Google Shopping, paid, only now that the free rungs left the index short.
   // The key goes to the source and nowhere else; no report includes it.
   const apiKey = serpApiKeyOf(parsed.data.serpApiKey);
   const budgetInput: SerpApiBudgetInput = { now, countOkCalls, db };
   // The budget is read only now, after the index: the free path never waits on the ledger.
-  const [storefronts, google] = await Promise.all([
-    askStorefronts(ask, limit),
-    askGoogleShoppingWithinBudget(ask, apiKey, budgetInput, parsed.data.recordUsage),
-  ]);
+  const google = await askGoogleShoppingWithinBudget(
+    ask,
+    apiKey,
+    budgetInput,
+    parsed.data.recordUsage,
+  );
   const googleShopping = google.outcome;
-
-  const found = [
-    ...candidatesOf(storefronts),
-    ...(googleShopping.status === "ok"
-      ? googleShopping.candidates.map((entry) => entry.candidate)
-      : []),
-  ];
-  // Both best effort and both bounded, side by side: neither delays the report by more than the bound.
-  const [remembered, storefrontUsage] = await Promise.all([
-    found.length === 0
-      ? Promise.resolve(0)
-      : rememberBestEffort(() => rememberCandidates({ candidates: found, source: "search", db })),
-    // A search is for no one tracked variant.
-    ledger.flush(null),
-  ]);
-  const usage: UsageRecording = {
-    calls: storefrontUsage.calls + google.usage.calls,
-    recorded: storefrontUsage.recorded + google.usage.recorded,
-  };
-  // Only once the sources are in: the second search is what groups them.
-  const second = await search({ query, limit: MAX_SEARCH_LIMIT, db });
+  const fromGoogle =
+    googleShopping.status === "ok" ? googleShopping.candidates.map((entry) => entry.candidate) : [];
+  const googleRemembered = await rememberFound(fromGoogle);
+  // Only a Google answer can have changed the index since the second search.
+  const third = fromGoogle.length === 0 ? second : await searchIndexNow();
   // Re-read after the ledger was written, so the report counts this search
   // when it was made; if the re-read fails, the earlier reading stands.
   const spent =
@@ -812,15 +865,18 @@ export async function discoverProducts(input: DiscoverProductsInput): Promise<Di
   return {
     ...base,
     source: "fanout",
-    products: second.products,
-    total: second.total,
+    products: third.products,
+    total: third.total,
     googleShopping,
     storefronts,
     budget: budgetOf(spent),
-    usage,
+    usage: {
+      calls: storefrontUsage.calls + google.usage.calls,
+      recorded: storefrontUsage.recorded + google.usage.recorded,
+    },
     candidates: rankCandidates(storefronts, googleShopping),
-    found: found.length,
-    remembered,
+    found: fromStorefronts.length + fromGoogle.length,
+    remembered: storefrontsRemembered + googleRemembered,
   };
 }
 
@@ -878,6 +934,36 @@ const inspectCandidateInputSchema = z.object({
 /** Where a Shopify storefront keeps its product pages; the only path this service will read. */
 const PRODUCT_PATH_PREFIX = "/products/";
 
+type ProductPageCheck = { ok: true; url: string } | { ok: false; message: string };
+
+/**
+ * The URL as a product page on the store, canonicalised, or why it is not
+ * one: not an absolute http(s) URL, not on the store's origin, or not under
+ * its products path. Shared by inspectCandidate, which refuses with a
+ * ValidationError, and enrichIndex, which skips the row with a failed
+ * outcome, so neither ever reads an arbitrary host or another path of the
+ * store.
+ */
+function checkProductPage(store: SearchableStorefront, input: string): ProductPageCheck {
+  let url: string;
+  try {
+    url = canonicaliseUrl(input);
+  } catch {
+    return { ok: false, message: `${input} is not an absolute http or https URL` };
+  }
+  const { origin, pathname } = new URL(url);
+  if (origin !== store.origin) {
+    return { ok: false, message: `${url} is not on ${store.retailerName} (${store.origin})` };
+  }
+  if (!pathname.startsWith(PRODUCT_PATH_PREFIX)) {
+    return {
+      ok: false,
+      message: `${url} is not a product page (expected ${PRODUCT_PATH_PREFIX}...)`,
+    };
+  }
+  return { ok: true, url };
+}
+
 /**
  * Reads one candidate's product JSON and reports the identifiers it carries.
  * The store must be a searchable storefront and the URL must be a product
@@ -897,15 +983,9 @@ export async function inspectCandidate(input: InspectCandidateInput): Promise<In
   if (store === undefined) {
     throw new NotFoundError(`No searchable storefront with slug "${retailerSlug}"`);
   }
-  // The schema accepted it, so canonicalisation cannot throw here.
-  const url = canonicaliseUrl(parsed.data.url);
-  const { origin, pathname } = new URL(url);
-  if (origin !== store.origin) {
-    throw new ValidationError(`${url} is not on ${store.retailerName} (${store.origin})`);
-  }
-  if (!pathname.startsWith(PRODUCT_PATH_PREFIX)) {
-    throw new ValidationError(`${url} is not a product page (expected ${PRODUCT_PATH_PREFIX}...)`);
-  }
+  const page = checkProductPage(store, parsed.data.url);
+  if (!page.ok) throw new ValidationError(page.message);
+  const { url } = page;
 
   const ledger = usageLedger(parsed.data.recordUsage);
   const fetchedAt = now();
@@ -932,4 +1012,206 @@ export async function inspectCandidate(input: InspectCandidateInput): Promise<In
   ]);
 
   return { retailerSlug: store.retailerSlug, url, fetchedAt, outcome, usage, remembered };
+}
+
+// ---------- Enrich: read the product JSON of rows without a GTIN, bounded (ADR-0016 item 6) ----------
+
+/** Rows an enrich pass reads when the caller names no limit. */
+export const DEFAULT_ENRICH_LIMIT = 25;
+/** The politeness pause between two reads of one pass. */
+export const DEFAULT_ENRICH_DELAY_MS = 500;
+
+/** Lists the index rows without a GTIN. db/queries/catalogue-candidates.listCandidatesWithoutGtin is the real one. */
+export type ListWithoutGtin = typeof listCandidatesWithoutGtin;
+
+export interface EnrichIndexInput {
+  /** One searchable storefront, or every one when absent. */
+  retailerSlug?: string;
+  /** Rows read in this pass. Defaults to 25, at most MAX_ENRICH_LIMIT. */
+  limit?: number;
+  /** Politeness pause between reads, in milliseconds. Defaults to 500; tests pass 0. */
+  delayMs?: number;
+  /** How the pause is waited; injected so a test asserts the wait without a clock. */
+  sleep?: (ms: number) => Promise<void>;
+  fetch?: FetchLike;
+  now?: () => Date;
+  recordUsage?: UsageRecorder;
+  /** Injected so tests need no database. Defaults to catalogue-index.rememberInspect. */
+  rememberInspected?: RememberInspected;
+  /** Injected so tests need no database. Defaults to the query helper. */
+  listWithoutGtin?: ListWithoutGtin;
+  db?: QueryDb;
+}
+
+/**
+ * Why a row was not read: a source failure, a URL the service will not
+ * read because it is off the store or not one of its product pages, or a
+ * product JSON that named no product (`unparseable`), so the index wrote
+ * nothing and the row was not marked inspected.
+ */
+export type EnrichFailureKind = SourceErrorKind | "not_product_page";
+
+export type EnrichRowOutcome =
+  { status: "ok" } | { status: "failed"; kind: EnrichFailureKind; message: string };
+
+export interface EnrichRow {
+  retailerSlug: string;
+  retailerName: string;
+  /** The row's product page as the index holds it. */
+  url: string;
+  outcome: EnrichRowOutcome;
+  /** The 14-digit GTIN the product JSON carried; null when it carried none or the outcome is failed. */
+  gtin: string | null;
+}
+
+export interface EnrichIndexReport {
+  fetchedAt: Date;
+  /** Rows listed for the pass, each attempted in turn. */
+  attempted: number;
+  /** Rows whose product JSON was read and written back, marked inspected. */
+  read: number;
+  /** Of `read`, how many carried a GTIN. */
+  withGtin: number;
+  /** Same order as the rows were listed: newest sighting first. */
+  rows: EnrichRow[];
+  /** Rows written to the index: every read, since the write is the point. */
+  remembered: number;
+  usage: UsageRecording;
+}
+
+const sleepSchema = z
+  .custom<(ms: number) => Promise<void>>((value) => typeof value === "function")
+  .optional();
+const listWithoutGtinSchema = z
+  .custom<ListWithoutGtin>((value) => typeof value === "function")
+  .optional();
+
+const enrichIndexInputSchema = z.object({
+  retailerSlug: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(MAX_ENRICH_LIMIT).default(DEFAULT_ENRICH_LIMIT),
+  delayMs: z.number().int().min(0).default(DEFAULT_ENRICH_DELAY_MS),
+  sleep: sleepSchema,
+  fetch: fetchSchema,
+  now: nowSchema,
+  recordUsage: recordUsageSchema,
+  rememberInspected: rememberInspectedSchema,
+  listWithoutGtin: listWithoutGtinSchema,
+  db: dbSchema,
+});
+
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/** A product JSON that named no product: the index wrote no row, so nothing was stamped and the row is listed again. */
+const UNNAMED_PRODUCT: { kind: SourceErrorKind; message: string } = {
+  kind: "unparseable",
+  message: "the product JSON named no product; not marked inspected",
+};
+
+function enrichRowBase(store: SearchableStorefront, row: CatalogueCandidateRow) {
+  return {
+    retailerSlug: store.retailerSlug,
+    retailerName: store.retailerName,
+    url: row.canonicalUrl,
+  };
+}
+
+/**
+ * Reads the product JSON of the index rows that have no GTIN and were never
+ * inspected, on the searchable storefronts (all of them, or the one named),
+ * newest sighting first and at most `limit` rows, and writes each read back
+ * with its identifiers and `inspected_at` (catalogue-index.rememberInspect).
+ * A row whose URL is off its store or not a product page is skipped with a
+ * failed outcome, never read. A page that cannot be read is a failed outcome
+ * too, never a throw. So is a page whose product JSON names no product: the
+ * index writes nothing for it, so it is not marked inspected, not counted as
+ * read, and is listed again next pass. Every row counted as read was written
+ * back. A politeness pause separates one read from the next. Every request
+ * is metered as a page. The write is the point of the pass, so a database
+ * failure propagates, as it does from refreshIndex; a listing that cannot be
+ * read does the same, before any request.
+ */
+export async function enrichIndex(input: EnrichIndexInput = {}): Promise<EnrichIndexReport> {
+  const parsed = enrichIndexInputSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ValidationError("Invalid enrichIndex input", parsed.error.issues);
+  }
+  const { retailerSlug, limit, delayMs, fetch } = parsed.data;
+  const now = parsed.data.now ?? (() => new Date());
+  const sleep = parsed.data.sleep ?? defaultSleep;
+  const rememberInspected = parsed.data.rememberInspected ?? rememberInspect;
+  const listWithoutGtin = parsed.data.listWithoutGtin ?? listCandidatesWithoutGtin;
+
+  const stores =
+    retailerSlug === undefined
+      ? searchableStorefronts
+      : searchableStorefronts.filter((store) => store.retailerSlug === retailerSlug);
+  if (stores.length === 0) {
+    throw new NotFoundError(`No searchable storefront with slug "${retailerSlug}"`);
+  }
+  const storesBySlug = new Map(stores.map((store) => [store.retailerSlug, store]));
+
+  const db = parsed.data.db ?? (await defaultDb());
+  const fetchedAt = now();
+  const listed = await listWithoutGtin(db, {
+    retailerSlugs: stores.map((store) => store.retailerSlug),
+    limit,
+  });
+
+  const ledger = usageLedger(parsed.data.recordUsage);
+  const rows: EnrichRow[] = [];
+  let read = 0;
+  let withGtin = 0;
+  let remembered = 0;
+  let requests = 0;
+  for (const row of listed) {
+    // The query listed only these stores' rows; the lookup narrows the type.
+    const store = storesBySlug.get(row.retailerSlug);
+    if (store === undefined) continue;
+    const base = enrichRowBase(store, row);
+    const page = checkProductPage(store, row.canonicalUrl);
+    if (!page.ok) {
+      rows.push({
+        ...base,
+        outcome: { status: "failed", kind: "not_product_page", message: page.message },
+        gtin: null,
+      });
+      continue;
+    }
+
+    // The pause is for the store, so it follows a request whether or not it answered.
+    if (requests > 0 && delayMs > 0) await sleep(delayMs);
+    requests += 1;
+    let quote: PriceQuote;
+    try {
+      quote = await fetchCandidateIdentifiers({
+        retailerSlug: store.retailerSlug,
+        retailerName: store.retailerName,
+        url: page.url,
+        fetch,
+        now,
+        meter: ledger.meter,
+      });
+    } catch (reason) {
+      rows.push({ ...base, outcome: { status: "failed", ...failureOf(reason) }, gtin: null });
+      continue;
+    }
+
+    // The write is the point: a database failure propagates.
+    const { written } = await rememberInspected({ quote, now, db });
+    if (written === 0) {
+      // No row, no inspected_at stamp: the row comes back next pass, so say so.
+      rows.push({ ...base, outcome: { status: "failed", ...UNNAMED_PRODUCT }, gtin: null });
+      continue;
+    }
+    remembered += written;
+    read += 1;
+    const gtin = quote.identifiers.gtin;
+    if (gtin !== null) withGtin += 1;
+    rows.push({ ...base, outcome: { status: "ok" }, gtin });
+  }
+
+  // A pass is for no one tracked variant.
+  const usage = await ledger.flush(null);
+  return { fetchedAt, attempted: listed.length, read, withGtin, rows, remembered, usage };
 }

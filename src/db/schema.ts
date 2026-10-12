@@ -26,6 +26,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -87,7 +88,7 @@ export const product = pgTable(
     slug: text("slug").notNull().unique(), // public URL segment: /p/{slug}
     brand: text("brand").notNull(),
     series: text("series").notNull(),
-    category: text("category").notNull(), // tv, laptop, ... one category in v1
+    category: text("category").notNull(), // a DealZ category slug from lib/category: tv, laptop, ...
     releaseYear: integer("release_year"),
     displayName: text("display_name").notNull(),
     imageUrl: text("image_url"), // family hero image
@@ -95,9 +96,19 @@ export const product = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    // NULLS NOT DISTINCT: two rows with a null year are still duplicates.
-    unique("product_brand_series_year_uq").on(t.brand, t.series, t.releaseYear).nullsNotDistinct(),
+    // Case-insensitive: Shopify vendors arrive as SAMSUNG or Samsung and the
+    // family must be one row either way. coalesce(release_year, 0) keeps the
+    // old rule that two unknown-year rows are duplicates. A unique constraint
+    // cannot hold an expression, so this is a unique index.
+    uniqueIndex("product_brand_series_year_ci_uq").on(
+      sql`lower(${t.brand})`,
+      sql`lower(${t.series})`,
+      sql`coalesce(${t.releaseYear}, 0)`,
+    ),
     check("product_slug_format", sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    // category is a DealZ category slug from lib/category, never the store's
+    // label. The database enforces the shape; lib/category owns the set.
+    check("product_category_format", sql`${t.category} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
   ],
 );
 
@@ -153,6 +164,15 @@ export const identifier = pgTable(
       sql`(${t.type} = 'retailer_sku') = (${t.retailerId} IS NOT NULL)`,
     ),
     check("identifier_gtin_is_14_digits", sql`${t.type} <> 'gtin' OR ${t.value} ~ '^[0-9]{14}$'`),
+    // A 14-digit value of one repeated digit (all zeros is what a store prints
+    // when it has no barcode) passes the GS1 check digit, so lib/gtin alone
+    // would let it through, and one placeholder shared by many products would
+    // merge them. Postgres regexes support the back reference; PGlite is the
+    // same engine.
+    check(
+      "identifier_gtin_not_placeholder",
+      sql`${t.type} <> 'gtin' OR ${t.value} !~ '^([0-9])\\1{13}$'`,
+    ),
   ],
 );
 
@@ -324,11 +344,17 @@ export const catalogueCandidate = pgTable(
     // Text, not a foreign key: the tracked retailers are not rows yet, same
     // reasoning as api_usage.retailer_slug (ADR-0014 item 7).
     retailerSlug: text("retailer_slug").notNull(),
+    // The seller's name as Google Shopping printed it, or the store's name;
+    // null when unknown.
+    retailerName: text("retailer_name"),
     handle: text("handle").notNull(), // the store's product handle
     canonicalUrl: text("canonical_url").notNull(), // tracking stripped; see lib/url
     title: text("title").notNull(),
     brand: text("brand"), // as the store names it
     storeType: text("store_type"), // the store's product type label
+    // DealZ's category for the row, a slug mapped by lib/category; the store's
+    // own label stays in store_type.
+    category: text("category"),
     mpn: text("mpn"), // model code read from the title or SKU; see lib/model-code
     gtin: text("gtin"), // 14 digits when present, as in identifier
     retailerSku: text("retailer_sku"),
@@ -340,9 +366,16 @@ export const catalogueCandidate = pgTable(
     // How the row arrived. Text with a check, not an enum, so a fourth source
     // needs no enum migration.
     source: text("source").notNull(), // listing, search, inspect
+    // Where the row was read: a retailer storefront or Google Shopping. A fact
+    // of the row, filterable and indexable, rather than something parsed out
+    // of raw.
+    via: text("via").notNull().default("storefront"), // storefront, google_shopping
     raw: jsonb("raw").notNull().default({}), // what the parser read
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the row's product JSON was read. A row inspected once and still
+    // without a GTIN has none in its JSON, so an enrich pass never re-reads it.
+    inspectedAt: timestamp("inspected_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -360,6 +393,12 @@ export const catalogueCandidate = pgTable(
       "catalogue_candidate_gtin_is_14_digits",
       sql`${t.gtin} IS NULL OR ${t.gtin} ~ '^[0-9]{14}$'`,
     ),
+    // The index groups rows by GTIN; a placeholder of one repeated digit would
+    // group unrelated products silently. Same rule as on identifier.
+    check(
+      "catalogue_candidate_gtin_not_placeholder",
+      sql`${t.gtin} IS NULL OR ${t.gtin} !~ '^([0-9])\\1{13}$'`,
+    ),
     check(
       "catalogue_candidate_price_non_negative",
       sql`${t.priceCents} IS NULL OR ${t.priceCents} >= 0`,
@@ -370,5 +409,10 @@ export const catalogueCandidate = pgTable(
     ),
     check("catalogue_candidate_currency_iso4217", sql`${t.currency} ~ '^[A-Z]{3}$'`),
     check("catalogue_candidate_source_known", sql`${t.source} IN ('listing', 'search', 'inspect')`),
+    check(
+      "catalogue_candidate_category_format",
+      sql`${t.category} IS NULL OR ${t.category} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`,
+    ),
+    check("catalogue_candidate_via_known", sql`${t.via} IN ('storefront', 'google_shopping')`),
   ],
 );

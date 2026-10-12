@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isModelCode, readModelCode } from "./model-code";
+import { isModelCode, normaliseModelCode, readModelCode } from "./model-code";
 
 describe("isModelCode", () => {
   it.each(["QA65S85HAEXXY", "OLED65B6PSA", "65QNED70BSA", "65C7L", "AB12CD"])(
@@ -43,8 +43,60 @@ describe("isModelCode", () => {
     expect(isModelCode("BT52X")).toBe(true);
   });
 
-  it("rejects a hyphenated code such as XR-65A95L, a known false negative", () => {
-    expect(isModelCode("XR-65A95L")).toBe(false);
+  it.each(["XR-65A95L", "KD-55X80L", "KDL-55W800C", "HW-Q990H"])(
+    "accepts the hyphenated form %s: a short letter prefix, then a code on its own",
+    (token) => {
+      expect(isModelCode(token)).toBe(true);
+    },
+  );
+
+  it("accepts a brand or spec prefix joined to a code, such as LG-OLED65C4, a known false positive", () => {
+    expect(isModelCode("LG-OLED65C4")).toBe(true);
+    expect(isModelCode("QD-OLED65")).toBe(true);
+    expect(isModelCode("USB-C32GEN2")).toBe(true);
+    // The joined token no longer matches the plain code another store prints.
+    expect(normaliseModelCode("LG-OLED65C4")).not.toBe(normaliseModelCode("OLED65C4"));
+  });
+
+  it.each([
+    ["a prefix of one letter", "X-65A95L"],
+    ["a prefix of five letters", "BRAVO-65A95L"],
+    ["a prefix with a digit", "4K-65A95L"],
+    ["a left part that is a code, not a prefix", "QA65S85HAEXXY-BLACK"],
+    ["a right part that is not a code", "WI-FI"],
+    ["a right part that is a year", "XR-2026"],
+    ["a date range", "2026-10"],
+    ["a spec pair", "4K-UHD"],
+    ["two hyphens", "XR-65A95L-AU"],
+    ["a lower-case prefix", "xr-65A95L"],
+    ["a spec token split by a hyphen", "HDR-10PLUS"],
+  ])("rejects a hyphenated token with %s", (_label, token) => {
+    expect(isModelCode(token)).toBe(false);
+  });
+});
+
+describe("normaliseModelCode", () => {
+  it.each([
+    ["a hyphenated Sony code", "XR-65A95L", "XR65A95L"],
+    ["a code without hyphens", "XR65A95L", "XR65A95L"],
+    ["a lower-case code with surrounding space", "  xr-65a95l ", "XR65A95L"],
+    ["a code with inner spaces", "QA65 S85H AEXXY", "QA65S85HAEXXY"],
+    ["a Samsung soundbar code with its region suffix", "HW-Q990H/XY", "HWQ990H/XY"],
+  ])("normalises %s", (_label, input, expected) => {
+    expect(normaliseModelCode(input)).toBe(expected);
+  });
+
+  it.each([
+    ["null", null],
+    ["an empty string", ""],
+    ["whitespace only", "   "],
+    ["hyphens only", "--"],
+  ])("returns null for %s", (_label, input) => {
+    expect(normaliseModelCode(input)).toBeNull();
+  });
+
+  it("gives one answer for the two ways stores print a code", () => {
+    expect(normaliseModelCode("XR-65A95L")).toBe(normaliseModelCode("XR65A95L"));
   });
 });
 
@@ -87,7 +139,24 @@ describe("readModelCode", () => {
     expect(readModelCode("LG 65 65QNED70BSA QNED70B")).toBe("QNED70B");
   });
 
-  it("returns null for a title whose only candidate is a hyphenated code, a known false negative", () => {
-    expect(readModelCode("Sony 65 inch A95L BRAVIA XR OLED TV XR-65A95L")).toBeNull();
+  it.each([
+    ["Sony 65 inch A95L BRAVIA XR OLED TV XR-65A95L", "XR-65A95L"],
+    ['Sony 55" X80L BRAVIA 4K HDR Google TV KD-55X80L', "KD-55X80L"],
+    ["Samsung 11.1.4 Channel Q-Series Soundbar & Wireless Subwoofer HW-Q990H/XY", "HW-Q990H"],
+  ])("reads a hyphenated code as printed from %s", (title, expected) => {
+    expect(readModelCode(title)).toBe(expected);
+  });
+
+  it("reads the code out of a hyphenated token whose left part is too long to be a prefix", () => {
+    expect(readModelCode("Samsung 65 S85H QA65S85HAEXXY-BLACK")).toBe("QA65S85HAEXXY");
+    expect(readModelCode("Samsung 65 S85H BLACK-QA65S85HAEXXY")).toBe("QA65S85HAEXXY");
+  });
+
+  it("does not read a hyphenated token that is not a code", () => {
+    expect(readModelCode("Sony 65 TV 2026-10 WI-FI 4K-UHD QD-Mini 65-inch")).toBeNull();
+  });
+
+  it("reads a hyphenated code that follows a plain one", () => {
+    expect(readModelCode("Was OLED65B6PSA now XR-65A95L")).toBe("XR-65A95L");
   });
 });
