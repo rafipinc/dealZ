@@ -13,6 +13,15 @@
 // or title, with every store's price. "Held" is answered by the tracked
 // table, as discovery does.
 //
+// Each row says where it was read (`via`: a storefront DealZ asked itself,
+// or a seller Google Shopping listed), the seller's name as that source
+// printed it (`retailer_name`), DealZ's category for it (`category`,
+// lib/category: a seeded collection's category when the row came from one,
+// else what the store's type, tags or title say; an identifier read writes
+// none) and when its product JSON was last read (`inspected_at`). The
+// upsert keeps a category, a name and an inspection once set, as it keeps
+// an identifier (ADR-0019 item 4).
+//
 // A database failure propagates from every function here, as it does from
 // usage.record. A caller for whom the index is a side effect (discovery)
 // catches it; a caller for whom it is the point (the refresh) reports it.
@@ -30,13 +39,15 @@ import {
 } from "@/db/queries/catalogue-candidates";
 import type { QueryDb } from "@/db/queries/db";
 import { catalogueCandidate } from "@/db/schema";
+import { categoryOf, isCategorySlug, type CategorySlug } from "@/lib/category";
 import { normaliseGtin } from "@/lib/gtin";
-import { isModelCode, readModelCode } from "@/lib/model-code";
+import { isModelCode, normaliseModelCode, readModelCode } from "@/lib/model-code";
 import { routeQuery, type QueryKind } from "@/lib/query-routing";
 import { compareByRelevance, judgeRelevance, tokenise, type Relevance } from "@/lib/relevance";
 import { listingSources, SourceError } from "@/sources";
 import type {
   Availability,
+  DiscoveryMethod,
   FetchLike,
   PriceQuote,
   ProductCandidate,
@@ -58,6 +69,17 @@ export type { UsageRecorder, UsageRecording } from "./usage-ledger";
 /** How a row arrived: a collection pull, a live search, or one product's JSON read. */
 export const INDEX_SOURCES = ["listing", "search", "inspect"] as const;
 export type IndexSource = (typeof INDEX_SOURCES)[number];
+
+/** Where an offer was seen: a storefront DealZ asked itself, or a seller Google Shopping listed. */
+export const OFFER_VIAS = ["storefront", "google_shopping"] as const;
+export type OfferVia = (typeof OFFER_VIAS)[number];
+
+/** The discovery sources a candidate can come from, as the sources layer names them. */
+const DISCOVERY_METHODS = [
+  "storefront_search",
+  "storefront_listing",
+  "google_shopping",
+] as const satisfies readonly DiscoveryMethod[];
 
 export const MAX_QUERY_LENGTH = 200;
 export const DEFAULT_SEARCH_LIMIT = 8;
@@ -81,6 +103,12 @@ const recordUsageSchema = z
 
 const cents = z.int().nonnegative().nullable().optional();
 
+/** One of DealZ's category slugs, or null for a product that has none. */
+const categorySlugSchema = z.custom<CategorySlug | null>(
+  (value) => value === null || (typeof value === "string" && isCategorySlug(value)),
+  "Expected a known category slug or null",
+);
+
 // The row shape comes from the table, so a column is defined once. The
 // overrides repeat the table's checks so a bad row is a ValidationError
 // here, before the database has to refuse it.
@@ -88,6 +116,7 @@ const rowSchema = createInsertSchema(catalogueCandidate, {
   retailerSlug: (column) => column.regex(SLUG_RE, "Expected a kebab-case slug"),
   handle: (column) => column.min(1),
   gtin: z.string().regex(GTIN_RE, "Expected 14 digits").nullable().optional(),
+  category: z.string().regex(SLUG_RE, "Expected a kebab-case slug").nullable().optional(),
   priceCents: cents,
   compareAtCents: cents,
   currency: z
@@ -95,6 +124,7 @@ const rowSchema = createInsertSchema(catalogueCandidate, {
     .regex(/^[A-Z]{3}$/)
     .optional(),
   source: z.enum(INDEX_SOURCES),
+  via: z.enum(OFFER_VIAS).optional(),
 });
 
 const availabilitySchema = z.enum(["in_stock", "out_of_stock", "unknown"]);
@@ -108,6 +138,8 @@ const identifiersSchema = z.object({
 /** The part of a ProductCandidate the index keeps. */
 const candidateSchema = z.object({
   retailerSlug: z.string().min(1),
+  retailerName: z.string().nullable(),
+  method: z.enum(DISCOVERY_METHODS),
   title: z.string(),
   brand: z.string().nullable(),
   storeType: z.string().nullable(),
@@ -144,6 +176,20 @@ const rawProductSchema = z.looseObject({
   product_type: z.string().nullable().catch(null),
 });
 
+/**
+ * A store's tags as its JSON carries them: an array in a collection or
+ * search answer, one comma-separated string in a product JSON. Anything
+ * else is no tags.
+ */
+const rawTagsSchema = z
+  .looseObject({
+    tags: z
+      .union([z.string(), z.array(z.string())])
+      .nullable()
+      .catch(null),
+  })
+  .catch({ tags: null });
+
 // ---------- Rows ----------
 
 async function dbOf(db: QueryDb | undefined): Promise<QueryDb> {
@@ -168,16 +214,45 @@ function mpnOf(title: string, sku: string | null): string | null {
   return sku !== null && isModelCode(sku) ? sku : null;
 }
 
-function toRow(candidate: Candidate, source: IndexSource): CatalogueCandidateInsert | null {
+/** The store's tags, lower-cased, from whatever shape its JSON carried them in. */
+function tagsOf(raw: unknown): string[] {
+  const { tags } = rawTagsSchema.parse(raw);
+  if (tags === null) return [];
+  const list = typeof tags === "string" ? tags.split(",") : tags;
+  return list.map((tag) => tag.trim().toLowerCase()).filter((tag) => tag !== "");
+}
+
+/** Where a candidate was read, from the source that found it. */
+function viaOfMethod(method: DiscoveryMethod): OfferVia {
+  return method === "google_shopping" ? "google_shopping" : "storefront";
+}
+
+/**
+ * One candidate as a row. `hint` is a category decided ahead of the
+ * product, a seeded collection's; without one the store's type, tags and
+ * the title decide (lib/category).
+ */
+function toRow(
+  candidate: Candidate,
+  source: IndexSource,
+  hint: CategorySlug | null,
+): CatalogueCandidateInsert | null {
   // A product without a handle has no row key; it is skipped, never a failure.
   if (candidate.handle === null || candidate.handle === "") return null;
   return {
     retailerSlug: candidate.retailerSlug,
+    retailerName: candidate.retailerName,
     handle: candidate.handle,
     canonicalUrl: candidate.url,
     title: candidate.title,
     brand: candidate.brand,
     storeType: candidate.storeType,
+    category: categoryOf({
+      title: candidate.title,
+      storeType: candidate.storeType,
+      tags: tagsOf(candidate.raw),
+      hint,
+    }),
     mpn: candidate.identifiers.mpn,
     gtin: gtinOf(candidate.identifiers.gtin),
     retailerSku: candidate.identifiers.retailerSku,
@@ -187,6 +262,7 @@ function toRow(candidate: Candidate, source: IndexSource): CatalogueCandidateIns
     available: availableOf(candidate.availability),
     imageUrl: candidate.imageUrl,
     source,
+    via: viaOfMethod(candidate.method),
     raw: candidate.raw ?? {},
   };
 }
@@ -213,11 +289,17 @@ function handleOfUrl(url: string): string | null {
 /**
  * One inspected product as a row: the quote's identifiers and price, with
  * the candidate's store fields when the caller has them, else what the
- * product JSON in `raw` carries. Null when nothing names the product.
+ * product JSON in `raw` carries. The read happened whatever it found, so
+ * `inspectedAt` is stamped from the clock. `category` is null: an
+ * identifier read adds identifiers, never a classification, so the upsert
+ * keeps what the row holds, a seeded collection's category first (ADR-0019
+ * item 4). A row first seen by a read has none until a listing or a search
+ * gives it one. Null when nothing names the product.
  */
 function toInspectedRow(
   quote: z.infer<typeof quoteSchema>,
   candidate: Candidate | undefined,
+  inspectedAt: Date,
 ): CatalogueCandidateInsert | null {
   const raw = rawProductSchema.safeParse(quote.raw);
   const fromRaw = raw.success ? raw.data : { handle: null, vendor: null, product_type: null };
@@ -225,13 +307,18 @@ function toInspectedRow(
   const title = quote.title ?? candidate?.title ?? null;
   if (handle === null || handle === "" || title === null) return null;
   const sku = quote.identifiers.retailerSku;
+  const storeType = candidate?.storeType ?? fromRaw.product_type;
   return {
     retailerSlug: quote.retailerSlug,
+    // An identifier read is always of a storefront, so the tracked tables name the store.
+    retailerName: candidate?.retailerName ?? knownRetailerNameOf(quote.retailerSlug),
     handle,
     canonicalUrl: quote.url,
     title,
     brand: candidate?.brand ?? fromRaw.vendor,
-    storeType: candidate?.storeType ?? fromRaw.product_type,
+    storeType,
+    // Never a guess from the page: the stored category, seeded or learned, survives the read.
+    category: null,
     mpn: quote.identifiers.mpn ?? candidate?.identifiers.mpn ?? mpnOf(title, sku),
     gtin: gtinOf(quote.identifiers.gtin),
     retailerSku: sku,
@@ -241,7 +328,9 @@ function toInspectedRow(
     available: availableOf(quote.availability),
     imageUrl: candidate?.imageUrl ?? null,
     source: "inspect",
+    via: "storefront",
     raw: quote.raw ?? {},
+    inspectedAt,
   };
 }
 
@@ -268,6 +357,12 @@ function checkRows(rows: (CatalogueCandidateInsert | null)[]): CatalogueCandidat
 export interface RememberInput {
   candidates: ProductCandidate[];
   source: IndexSource;
+  /**
+   * A category decided ahead of the products, applied to every candidate: a
+   * seeded collection's. Absent or null, each candidate's store type, tags
+   * and title decide (lib/category).
+   */
+  category?: CategorySlug | null;
   /** Injected so tests run against PGlite. Defaults to the application database. */
   db?: QueryDb;
 }
@@ -280,6 +375,7 @@ export interface Remembered {
 const rememberInputSchema = z.object({
   candidates: z.array(candidateSchema),
   source: z.enum(INDEX_SOURCES),
+  category: categorySlugSchema.optional(),
   db: dbSchema,
 });
 
@@ -294,7 +390,8 @@ export async function remember(input: RememberInput): Promise<Remembered> {
     throw new ValidationError("Invalid remember input", parsed.error.issues);
   }
   const { candidates, source } = parsed.data;
-  const rows = checkRows(candidates.map((candidate) => toRow(candidate, source)));
+  const hint = parsed.data.category ?? null;
+  const rows = checkRows(candidates.map((candidate) => toRow(candidate, source, hint)));
   const written = await upsertCatalogueCandidates(await dbOf(parsed.data.db), rows);
   return { written };
 }
@@ -308,25 +405,31 @@ export interface RememberInspectInput {
    * in the quote's `raw` is read for the handle, vendor and type.
    */
   candidate?: ProductCandidate;
+  /** Injected clock for `inspected_at`. Defaults to () => new Date(). */
+  now?: () => Date;
   db?: QueryDb;
 }
 
 const rememberInspectInputSchema = z.object({
   quote: quoteSchema,
   candidate: candidateSchema.optional(),
+  now: nowSchema,
   db: dbSchema,
 });
 
 /**
  * Writes one inspected product with the GTIN, SKU and price its product JSON
- * carried, source `inspect`. Written 0 when nothing names the product.
+ * carried, source `inspect`, stamped `inspected_at` from the clock so an
+ * enrich pass never reads it again. Writes no category, so the row's stored
+ * one survives (ADR-0019 item 4). Written 0 when nothing names the product.
  */
 export async function rememberInspect(input: RememberInspectInput): Promise<Remembered> {
   const parsed = rememberInspectInputSchema.safeParse(input);
   if (!parsed.success) {
     throw new ValidationError("Invalid rememberInspect input", parsed.error.issues);
   }
-  const rows = checkRows([toInspectedRow(parsed.data.quote, parsed.data.candidate)]);
+  const now = parsed.data.now ?? (() => new Date());
+  const rows = checkRows([toInspectedRow(parsed.data.quote, parsed.data.candidate, now())]);
   const written = await upsertCatalogueCandidates(await dbOf(parsed.data.db), rows);
   return { written };
 }
@@ -405,6 +508,8 @@ const seededCollectionSchema = z.object({
   retailerName: z.string().min(1),
   origin: z.url({ protocol: /^https?$/ }),
   collection: z.string().min(1),
+  // Stored on every row the collection lists, ahead of what the store says.
+  category: categorySlugSchema,
   note: z.string().nullable(),
 });
 
@@ -503,7 +608,13 @@ export async function refreshIndex(input: RefreshIndexInput = {}): Promise<Refre
       collections.push({ ...base, status: "failed", ...EMPTY_COLLECTION });
       continue;
     }
-    const { written } = await remember({ candidates, source: "listing", db });
+    // The collection's category, decided when it was seeded, goes on every row it lists.
+    const { written } = await remember({
+      candidates,
+      source: "listing",
+      category: target.category,
+      db,
+    });
     collections.push({ ...base, status: "ok", found: candidates.length, written, removed: 0 });
   }
 
@@ -531,9 +642,6 @@ export interface SearchIndexInput {
   db?: QueryDb;
 }
 
-/** Where an offer was seen: a storefront DealZ asked itself, or a seller Google Shopping listed. */
-export type OfferVia = "storefront" | "google_shopping";
-
 export interface IndexedOffer {
   retailerSlug: string;
   /** The tracked tables' name for the store, else the seller as Google printed it, else the slug. */
@@ -556,6 +664,8 @@ export interface IndexedProduct {
   mpn: string | null;
   gtin: string | null;
   imageUrl: string | null;
+  /** DealZ's category (lib/category): the first the group's rows carry, best row first; null when none does. */
+  category: CategorySlug | null;
   /** Cheapest first; rows without a price last. */
   offers: IndexedOffer[];
   cheapest: { retailerSlug: string; priceCents: number } | null;
@@ -610,26 +720,6 @@ function retailerNameOf(retailerSlug: string): string {
   return knownRetailerNameOf(retailerSlug) ?? retailerSlug;
 }
 
-/**
- * What a Google Shopping row's `raw` carries that no storefront row does
- * (sources/serpapi, discoverGoogleShopping): the seller as Google prints it
- * and Google's product id or link. The table has no column for a row's
- * method or retailer name, so the raw read is what says which it was.
- */
-const googleShoppingRawSchema = z
-  .looseObject({
-    source: z.string().min(1),
-    product_id: z.string().optional(),
-    product_link: z.string().optional(),
-  })
-  .refine((raw) => raw.product_id !== undefined || raw.product_link !== undefined);
-
-/** The seller name Google printed, or null for a row a storefront gave. */
-function googleSellerOf(raw: unknown): string | null {
-  const parsed = googleShoppingRawSchema.safeParse(raw);
-  return parsed.success ? parsed.data.source : null;
-}
-
 function isIndexSource(value: string): value is IndexSource {
   return (INDEX_SOURCES as readonly string[]).includes(value);
 }
@@ -640,10 +730,19 @@ function sourceOf(value: string): IndexSource {
   throw new ValidationError(`Unknown index source "${value}"`);
 }
 
-function normaliseCode(value: string | null): string | null {
-  if (value === null) return null;
-  const code = value.trim().toUpperCase();
-  return code === "" ? null : code;
+function isOfferVia(value: string): value is OfferVia {
+  return (OFFER_VIAS as readonly string[]).includes(value);
+}
+
+/** The row's `via` as the union. The table's check keeps it one of the two; a stray value is refused, not guessed. */
+function viaOf(value: string): OfferVia {
+  if (isOfferVia(value)) return value;
+  throw new ValidationError(`Unknown offer via "${value}"`);
+}
+
+/** The row's category as the union, or null for none or for a slug the list no longer holds. */
+function categoryOfRow(row: CatalogueCandidateRow): CategorySlug | null {
+  return row.category !== null && isCategorySlug(row.category) ? row.category : null;
 }
 
 /** Lower-case words joined, so punctuation and spacing never split one product in two. */
@@ -695,7 +794,7 @@ function groupRows(judged: JudgedRow[]): Group[] {
   const groups: Group[] = [];
   for (const entry of judged) {
     const gtin = entry.row.gtin;
-    const mpn = normaliseCode(entry.row.mpn);
+    const mpn = normaliseModelCode(entry.row.mpn);
     const title = normaliseTitle(entry.row.title);
     const byGtin = gtin === null ? undefined : groups.find((g) => g.gtins.has(gtin));
     const byMpn = mpn === null ? undefined : groups.find((g) => g.mpns.has(mpn));
@@ -725,17 +824,16 @@ function groupRows(judged: JudgedRow[]): Group[] {
 }
 
 function toOffer(row: CatalogueCandidateRow): IndexedOffer {
-  const seller = googleSellerOf(row.raw);
   return {
     retailerSlug: row.retailerSlug,
-    retailerName: knownRetailerNameOf(row.retailerSlug) ?? seller ?? row.retailerSlug,
+    retailerName: knownRetailerNameOf(row.retailerSlug) ?? row.retailerName ?? row.retailerSlug,
     priceCents: row.priceCents,
     compareAtCents: row.compareAtCents,
     available: row.available,
     canonicalUrl: row.canonicalUrl,
     lastSeenAt: row.lastSeenAt,
     source: sourceOf(row.source),
-    via: seller === null ? "storefront" : "google_shopping",
+    via: viaOf(row.via),
   };
 }
 
@@ -798,6 +896,7 @@ function toProduct(group: Group): IndexedProduct {
     mpn: firstValue(rows, (row) => row.mpn),
     gtin: firstValue(rows, (row) => row.gtin),
     imageUrl: firstValue(rows, (row) => row.imageUrl),
+    category: firstValue(rows, categoryOfRow),
     offers,
     cheapest:
       cheapestOffer === undefined || cheapestOffer.priceCents === null

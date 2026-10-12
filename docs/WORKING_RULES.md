@@ -19,7 +19,8 @@ DealZ is a portfolio-grade web app for consumer tech price history and curated d
 ## Where the truth lives
 
 - **Repo `docs/`:** durable artefacts. [Architecture](ARCHITECTURE.md), [data model](DATA_MODEL.md), [setup](SETUP.md), [testing](TESTING.md), [runbook](RUNBOOK.md), [decision records](adr/README.md), [research](research/). The [documentation map](README.md) lists every document, its audience and when it changes.
-- **[STATUS.md](STATUS.md):** where the project is and what is next. Rewritten at the end of every session, read at the start of the next.
+- **[GitHub board](https://github.com/users/rafipinc/projects/1):** what to do next, as epics and tasks. Rafi writes the cards. Claude moves them. See [ADR-0018](adr/0018-github-board-as-task-list.md).
+- **[STATUS.md](STATUS.md):** where the project is: phase, what exists, what does not, parked notes. It no longer holds the task list. Rewritten at the end of every session, read at the start of the next.
 - **Root [CLAUDE.md](../CLAUDE.md) and `.claude/agents/`:** these rules applied inside Claude Code: layer rules, which subagent does which work, the definition of done, the session protocol. Changed only with an ADR.
 - **Project knowledge:** the mission statement, this file, and the current versions of the key docs.
 - **Claude memory:** decisions and status only, in Rafi's words, with pointers to the repo for detail. Never drafts or unaccepted proposals.

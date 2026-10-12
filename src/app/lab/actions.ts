@@ -9,7 +9,7 @@ import { isLocalDevelopment } from "@/lib/local-only";
 import { inspectCandidate } from "@/services/discovery";
 import { NotFoundError, ValidationError } from "@/services/errors";
 import { extractQuote, fetchHistory, fetchQuotes, searchQuotes } from "@/services/quotes";
-import { loadSuggestions, runDiscover, runRefreshIndex } from "./index-loaders";
+import { loadSuggestions, runDiscover, runEnrich, runRefreshIndex } from "./index-loaders";
 import {
   toExtractView,
   toHistoryView,
@@ -17,6 +17,7 @@ import {
   toQuoteView,
   toSearchView,
   type DiscoverViewResult,
+  type EnrichViewResult,
   type ExtractViewResult,
   type HistoryViewResult,
   type InspectViewResult,
@@ -183,6 +184,19 @@ export async function refreshIndexAction(): Promise<RefreshViewResult> {
   if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
   const view = await runRefreshIndex();
   // The status line under the search box is rendered by the page; re-render it with the new counts.
+  revalidatePath("/lab");
+  return view;
+}
+
+/**
+ * Reads the product JSON of the index rows without a GTIN, a bounded batch
+ * (ADR-0016 item 6), so products group across stores by barcode. Each read
+ * is logged to the usage ledger.
+ */
+export async function enrichIndexAction(): Promise<EnrichViewResult> {
+  if (!isLocalDevelopment(process.env.NODE_ENV)) return NOT_LOCAL_ERROR;
+  const view = await runEnrich();
+  // The status line under the search box is rendered by the page; the pass changed the rows it counts.
   revalidatePath("/lab");
   return view;
 }

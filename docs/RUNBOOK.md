@@ -17,6 +17,7 @@ Operating procedures for DealZ: environments, secrets, deploying, migrating, rol
 | `DATABASE_URL` | The app, through the transaction pooler with `prepare: false` | `.env.local` locally; Vercel project settings |
 | `DIRECT_URL` | drizzle-kit migrations | Same |
 | Supabase service role key | Nothing in v1 | Supabase dashboard only |
+| Supabase anon key | Nothing in v1. The Data API it unlocks is closed before the first deploy; see "Migrate production" | Supabase dashboard only |
 
 Nothing is committed. `.env.local` is gitignored. If a value leaks: rotate it in Supabase, update Vercel, redeploy.
 
@@ -37,6 +38,8 @@ DIRECT_URL=<production direct connection> npx drizzle-kit migrate
 - Read the SQL in `drizzle/migrations/` first. An applied migration is never edited.
 - Migrations run from a developer machine in v1. A CI step gated on `main` is a phase 2 improvement and gets an ADR when done.
 - Open, for Rafi, before the first production migration: migration `0005_catalogue-candidate-search` runs `CREATE EXTENSION IF NOT EXISTS pg_trgm` with no schema. On Supabase that installs the extension into `public`, which Supabase's security advisor flags. Decide the schema first, for example `extensions`, and confirm the trigram index's operator class still resolves from there. The local stack and PGlite are unaffected. The fix is a new migration or a statement before 0005 runs; an applied migration is never edited.
+- Before applying `0006_review-refinements` to any database that holds data: it adds `product_brand_series_year_ci_uq`, a case-insensitive unique index on brand, series and year. It fails if two families differ only by case (for example `Samsung` and `SAMSUNG` for the same series and year), which the old constraint allowed. Check first with a query that groups `product` by `lower(brand), series, year` and has `count(*) > 1`, and merge any duplicates by hand. No production database exists yet, so this has not bitten.
+- Open, for Rafi, before the first production deploy: Supabase's Data API (PostgREST) exposes every table in `public` to anyone holding the anon key, and no DealZ table has row level security. The append-only triggers block update and delete, not insert. Before the first deploy, either enable RLS on every table with no policies, which denies the `anon` and `authenticated` roles while the app keeps using its direct Postgres connection, or remove `public` from the API's exposed schemas in the project's API settings. Found in the review of 2026-10-08; no Supabase project exists yet.
 
 ## Roll back
 

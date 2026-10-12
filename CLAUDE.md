@@ -4,7 +4,7 @@ Price history and curated deals for consumer tech in Australia, built by Rafi Pi
 
 ## Start of every session
 
-1. Read [docs/STATUS.md](docs/STATUS.md): current phase, what exists, what is next, what is open.
+1. Read [docs/STATUS.md](docs/STATUS.md): current phase, what exists, what does not, parked notes. Then read the [task board](https://github.com/users/rafipinc/projects/1) with `gh issue list` or `gh project item-list 1 --owner rafipinc`. The task in Doing, or the top of Next, is the session's one thing (ADR-0018).
 2. Read [docs/WORKING_RULES.md](docs/WORKING_RULES.md). Short form: Rafi decides, Claude proposes. One thing per session. Every non-trivial decision becomes an ADR. Every proposal is labelled Claude's until Rafi accepts it.
 3. Read the document for the layer being touched (table under Documentation).
 
@@ -96,11 +96,11 @@ House style for every document: short sentences, tables for parallel facts, Brit
 - Commit and push only when Rafi asks in that turn. Claude prepares the change and proposes the message.
 - Subject: imperative, under 72 characters, prefixed with the area: `db:`, `services:`, `app:`, `lib:`, `test:`, `e2e:`, `docs:`, `ci:`.
 - When Claude wrote the code, the message ends with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`, so the history shows who did what.
-- One branch per session, named `<phase>/<thing>`, for example `p1/services-catalog`. Pull requests use the template in `.github/`.
+- One branch per session, named `<phase>/<thing>`, for example `p1/services-catalog`. Pull requests use the template in `.github/`. A pull request body names its issue with `Closes #N`.
 
 ## End of every session
 
 1. Run `reviewer` if `src/`, `e2e/` or `drizzle/` changed.
 2. Recap in chat: what was decided, what Rafi learned, what is next.
-3. Update STATUS.md and add the AI_USAGE_LOG.md row. Write or update an ADR if a decision was made. Add the session's row to docs/PUBLIC.md, and a row for any new ADR, and move any component whose stage changed in docs/BUILD_MAP.md (ADR-0015). The pre-commit hook in `.githooks/` checks these rows and the journey registry; it never writes them.
+3. Update STATUS.md and add the AI_USAGE_LOG.md row. Write or update an ADR if a decision was made. Add the session's row to docs/PUBLIC.md, and a row for any new ADR, and move any component whose stage changed in docs/BUILD_MAP.md (ADR-0015). Move the task's card on the board; the issue closes when the pull request merges. The pre-commit hook in `.githooks/` checks these rows and the journey registry; it never writes them.
 4. Write to Claude memory only after Rafi confirms the recap, and only decisions and status, in Rafi's words.

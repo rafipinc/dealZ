@@ -26,6 +26,24 @@ describe("normaliseGtin", () => {
   ])("returns null for %s", (_label, input) => {
     expect(normaliseGtin(input)).toBeNull();
   });
+
+  // Stores print an all-zero barcode when they have none. Zeros and fives
+  // satisfy the check digit; ones do not, and are refused by it already.
+  it.each([
+    ["an all-zero placeholder of 14 digits", "00000000000000"],
+    ["an all-zero placeholder of 13 digits", "0000000000000"],
+    ["an all-zero placeholder of 8 digits", "00000000"],
+    ["a placeholder of one repeated digit that passes the check digit", "55555555555555"],
+    ["a placeholder of one repeated digit", "11111111111111"],
+  ])("returns null for %s", (_label, input) => {
+    expect(normaliseGtin(input)).toBeNull();
+  });
+
+  it("still accepts a real GTIN with many zeros, in 13 and 14 digits", () => {
+    expect(normaliseGtin("08806097962670")).toBe("08806097962670");
+    expect(normaliseGtin("8806097962670")).toBe("08806097962670");
+    expect(normaliseGtin("00000096385074")).toBe("00000096385074");
+  });
 });
 
 describe("isValidGtin", () => {

@@ -3,9 +3,15 @@
 // model code, then page URL (ADR-0004).
 
 import { describe, expect, it } from "vitest";
+import { isCategorySlug } from "@/lib/category";
 import { canonicaliseUrl } from "@/lib/url";
 import { ValidationError } from "./errors";
-import { matchTrackedVariant, trackedVariants, type Identified } from "./tracked-products";
+import {
+  matchTrackedVariant,
+  seededCollections,
+  trackedVariants,
+  type Identified,
+} from "./tracked-products";
 
 const S85H = trackedVariants[0];
 const JB_PAGE = "https://www.jbhifi.com.au/products/samsung-65-s85h-oled-4k-smart-ai-tv-2026";
@@ -31,6 +37,11 @@ describe("matchTrackedVariant", () => {
       trackedVariantSlug: S85H.slug,
       matchedBy: "mpn",
     });
+  });
+
+  it("matches a model code printed with a hyphen or a space, as some stores print them", () => {
+    expect(matchTrackedVariant(found({ mpn: "QA65-S85HAEXXY" })).matchedBy).toBe("mpn");
+    expect(matchTrackedVariant(found({ retailerSku: "QA65 S85HAEXXY" })).matchedBy).toBe("mpn");
   });
 
   it("matches a product by a retailer SKU that is the model code", () => {
@@ -83,5 +94,30 @@ describe("matchTrackedVariant", () => {
   it("throws ValidationError for a URL that is not a string", () => {
     const malformed = { url: null, identifiers: found().identifiers } as unknown as Identified;
     expect(() => matchTrackedVariant(malformed)).toThrow(ValidationError);
+  });
+});
+
+describe("seededCollections", () => {
+  it("seeds Powerland's televisions, soundbars and vacuums, each with its DealZ category", () => {
+    expect(
+      seededCollections.map((seed) => [seed.retailerSlug, seed.collection, seed.category]),
+    ).toEqual([
+      ["powerland", "televisions", "tv"],
+      ["powerland", "hifi-soundbars", "soundbar"],
+      ["powerland", "vacuums", "vacuum"],
+    ]);
+  });
+
+  it("names a known category slug, or none, on every collection", () => {
+    expect(
+      seededCollections.every((seed) => seed.category === null || isCategorySlug(seed.category)),
+    ).toBe(true);
+  });
+
+  it("gives every collection a kebab-case handle on an https origin", () => {
+    for (const seed of seededCollections) {
+      expect(seed.collection).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(seed.origin).toMatch(/^https:\/\/[^/]+$/);
+    }
   });
 });

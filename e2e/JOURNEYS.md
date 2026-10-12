@@ -31,5 +31,6 @@ A journey is added when its feature is designed, before it is built. It is never
 | J-016 | Open the build log and see each decision with who decided it and each component with its stage | visitor | 1 | planned | |
 | J-017 | Search the catalogue and external sources for a product by title, model code or GTIN, then add a confirmed candidate to the catalogue | developer | 1 | planned | |
 | J-018 | Type in the product search and pick a product from the dropdown | developer | 1 | planned | |
+| J-019 | Read identifiers in bulk for index products that have none, from the lab | developer | 1 | planned | |
 
-J-014, J-015, J-017 and J-018 are development-only lab pages. They are served only when `NODE_ENV` is `development`, and Playwright runs the production build, where each returns 404, so a spec cannot reach them. They are verified by unit tests and by hand. Their status stays `planned` unless one becomes a product feature (ADR-0014, ADR-0016, ADR-0017).
+J-014, J-015, J-017, J-018 and J-019 are development-only lab pages. They are served only when `NODE_ENV` is `development`, and Playwright runs the production build, where each returns 404, so a spec cannot reach them. They are verified by unit tests and by hand. Their status stays `planned` unless one becomes a product feature (ADR-0014, ADR-0016, ADR-0017, ADR-0019).

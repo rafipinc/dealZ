@@ -1,9 +1,10 @@
 // Breaking tests for the database invariants. Each test tries to violate one
 // rule and asserts the named constraint or trigger message. The matrix is in
-// docs/TESTING.md. api_usage and catalogue_candidate are covered so far; the
-// rest of the matrix joins this file as further describe blocks on the same
-// harness.
+// docs/TESTING.md. api_usage and catalogue_candidate are covered in full,
+// product and identifier for the rules added on 2026-10-08; the rest of the
+// matrix joins this file as further describe blocks on the same harness.
 
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   searchCatalogueCandidates,
@@ -57,6 +58,72 @@ describe("migrations", () => {
     expect(String((index.rows[0] as { indexdef: string }).indexdef)).toContain(
       "USING gin (title gin_trgm_ops)",
     );
+  });
+});
+
+describe("migration 0006 via backfill", () => {
+  // The backfill is the last statement of the migration. It is read from the
+  // file, not copied, so the test runs the SQL that ships.
+  const migration = readFileSync("./drizzle/migrations/0006_review-refinements.sql", "utf8");
+  const backfill = migration.match(/^UPDATE "catalogue_candidate"[^;]*;/m)?.[0];
+
+  // A row as it stood before 0006: via was not yet written, so it holds the
+  // column default, storefront.
+  const seed = (handle: string, source: string, raw: object) =>
+    t.exec(
+      `INSERT INTO catalogue_candidate (retailer_slug, handle, canonical_url, title, source, raw)
+       VALUES ('shop', '${handle}', 'https://shop.example/${handle}', 'Title ${handle}',
+               '${source}', '${JSON.stringify(raw)}'::jsonb)`,
+    );
+
+  const viaOf = async (): Promise<Record<string, string>> => {
+    const result = await t.exec("SELECT handle, via FROM catalogue_candidate");
+    return Object.fromEntries(
+      (result.rows as { handle: string; via: string }[]).map((r) => [r.handle, r.via]),
+    );
+  };
+
+  beforeEach(async () => {
+    await t.truncate("catalogue_candidate");
+  });
+
+  it("finds the backfill statement in the migration file", () => {
+    expect(backfill).toBeDefined();
+  });
+
+  it("relabels a search row whose raw is a SerpApi result and leaves a storefront row alone", async () => {
+    await seed("storefront-row", "search", { id: 1, handle: "tv", title: "TV", vendor: "LG" });
+    await seed("google-by-id", "search", { source: "Harvey Norman", product_id: "123" });
+    await seed("google-by-link", "search", {
+      source: "JB Hi-Fi",
+      product_link: "https://g.example/p",
+    });
+
+    expect(Object.values(await viaOf())).toEqual(["storefront", "storefront", "storefront"]);
+    await t.exec(backfill!);
+
+    expect(await viaOf()).toEqual({
+      "storefront-row": "storefront",
+      "google-by-id": "google_shopping",
+      "google-by-link": "google_shopping",
+    });
+  });
+
+  it("leaves a row it cannot classify as storefront, the column default", async () => {
+    await seed("empty-raw", "search", {});
+    await seed("source-only", "search", { source: "Harvey Norman" });
+    await seed("id-only", "search", { product_id: "123" });
+    await seed("listing-lookalike", "listing", { source: "x", product_id: "1" });
+    await seed("inspect-lookalike", "inspect", { source: "x", product_link: "https://g.example" });
+    await t.exec(backfill!);
+
+    expect(await viaOf()).toEqual({
+      "empty-raw": "storefront",
+      "source-only": "storefront",
+      "id-only": "storefront",
+      "listing-lookalike": "storefront",
+      "inspect-lookalike": "storefront",
+    });
   });
 });
 
@@ -217,10 +284,50 @@ describe("catalogue_candidate", () => {
       { source: "'scrape'" },
       "catalogue_candidate_source_known",
     ],
+    [
+      "a placeholder gtin",
+      { gtin: "'00000000000000'" },
+      "catalogue_candidate_gtin_not_placeholder",
+    ],
+    [
+      "a category that is not a slug",
+      { category: "'Smart TVs'" },
+      "catalogue_candidate_category_format",
+    ],
+    [
+      "a via outside storefront, google_shopping",
+      { via: "'amazon'" },
+      "catalogue_candidate_via_known",
+    ],
   ])("rejects %s", async (_what, overrides, constraint) => {
     const error = await failure(insert(overrides));
     expect(error.constraint).toBe(constraint);
     expect(error.code).toBe(CHECK_VIOLATION);
+  });
+
+  it("accepts a valid row with every new column, and defaults via to storefront when omitted", async () => {
+    await t.exec(
+      insert({
+        category: "'tv'",
+        via: "'google_shopping'",
+        retailer_name: "'JB Hi-Fi'",
+        inspected_at: "now()",
+      }),
+    );
+    await t.exec(insert({ handle: "'b'" }));
+    const result = await t.exec(
+      "SELECT handle, via, category, retailer_name, inspected_at IS NOT NULL AS inspected FROM catalogue_candidate ORDER BY handle",
+    );
+    expect(result.rows).toEqual([
+      { handle: "b", via: "storefront", category: null, retailer_name: null, inspected: false },
+      {
+        handle: "lg-65-oled-evo-ai-c6-4k-smart-tv-2026",
+        via: "google_shopping",
+        category: "tv",
+        retailer_name: "JB Hi-Fi",
+        inspected: true,
+      },
+    ]);
   });
 
   it("moves updated_at when a candidate's title changes", async () => {
@@ -260,4 +367,97 @@ describe("catalogue_candidate", () => {
     const found = await searchCatalogueCandidates(t.db, { query: "08806096123456", limit: 10 });
     expect(found.map((r) => r.handle)).toEqual([lgC6.handle]);
   });
+});
+
+describe("product", () => {
+  // A valid row with one column overridden, so each test breaks exactly one rule.
+  const insert = (overrides: Record<string, string> = {}) => {
+    const row: Record<string, string> = {
+      slug: "'samsung-s90h'",
+      brand: "'Samsung'",
+      series: "'S90H'",
+      category: "'tv'",
+      release_year: "2026",
+      display_name: "'Samsung S90H'",
+      ...overrides,
+    };
+    const columns = Object.keys(row).join(", ");
+    return `INSERT INTO product (${columns}) VALUES (${Object.values(row).join(", ")})`;
+  };
+
+  beforeEach(async () => {
+    await t.truncate("product");
+  });
+
+  it("rejects two products with the same brand and series and a null year", async () => {
+    await t.exec(insert({ release_year: "NULL" }));
+    const error = await failure(insert({ slug: "'samsung-s90h-2'", release_year: "NULL" }));
+    expect(error.constraint).toBe("product_brand_series_year_ci_uq");
+    expect(error.code).toBe(UNIQUE_VIOLATION);
+  });
+
+  it("rejects SAMSUNG and Samsung with the same series and year", async () => {
+    await t.exec(insert());
+    const error = await failure(insert({ slug: "'samsung-s90h-2'", brand: "'SAMSUNG'" }));
+    expect(error.constraint).toBe("product_brand_series_year_ci_uq");
+    expect(error.code).toBe(UNIQUE_VIOLATION);
+  });
+
+  it("allows the same brand and series in another year, and once with no year", async () => {
+    await t.exec(insert());
+    await t.exec(insert({ slug: "'samsung-s90h-2025'", release_year: "2025" }));
+    await t.exec(insert({ slug: "'samsung-s90h-unknown'", release_year: "NULL" }));
+    const result = await t.exec("SELECT count(*)::int AS n FROM product");
+    expect(result.rows).toEqual([{ n: 3 }]);
+  });
+
+  it("rejects a product category that is not a slug", async () => {
+    const error = await failure(insert({ category: "'Smart TVs'" }));
+    expect(error.constraint).toBe("product_category_format");
+    expect(error.code).toBe(CHECK_VIOLATION);
+  });
+});
+
+describe("identifier", () => {
+  const productId = "00000000-0000-4000-8000-000000000001";
+  const variantId = "00000000-0000-4000-8000-000000000002";
+
+  // A valid gtin row with one column overridden, so each test breaks exactly one rule.
+  const insert = (overrides: Record<string, string> = {}) => {
+    const row: Record<string, string> = {
+      variant_id: `'${variantId}'`,
+      type: "'gtin'",
+      value: "'08806097962670'",
+      ...overrides,
+    };
+    const columns = Object.keys(row).join(", ");
+    return `INSERT INTO identifier (${columns}) VALUES (${Object.values(row).join(", ")})`;
+  };
+
+  beforeEach(async () => {
+    await t.truncate("product", "variant", "identifier");
+    await t.exec(
+      `INSERT INTO product (id, slug, brand, series, category, display_name)
+       VALUES ('${productId}', 'samsung-s90h', 'Samsung', 'S90H', 'tv', 'Samsung S90H')`,
+    );
+    await t.exec(
+      `INSERT INTO variant (id, product_id, slug, display_name, region)
+       VALUES ('${variantId}', '${productId}', '65', 'Samsung 65" S90H', 'AU')`,
+    );
+  });
+
+  it("accepts a valid gtin", async () => {
+    await t.exec(insert());
+    const result = await t.exec("SELECT count(*)::int AS n FROM identifier");
+    expect(result.rows).toEqual([{ n: 1 }]);
+  });
+
+  it.each([["00000000000000"], ["11111111111111"]])(
+    "rejects %s as a placeholder gtin",
+    async (value) => {
+      const error = await failure(insert({ value: `'${value}'` }));
+      expect(error.constraint).toBe("identifier_gtin_not_placeholder");
+      expect(error.code).toBe(CHECK_VIOLATION);
+    },
+  );
 });

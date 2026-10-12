@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { countOkCallsByOperation, type OkCallsByOperation } from "@/db/queries/api-usage";
+import {
+  listCandidatesWithoutGtin,
+  MAX_ENRICH_LIMIT,
+  type CatalogueCandidateRow,
+} from "@/db/queries/catalogue-candidates";
 import type { QueryDb } from "@/db/queries/db";
 import { dayRangeIn, SYDNEY } from "@/lib/day-ranges";
 import type { FetchLike } from "../sources/types";
@@ -15,8 +20,11 @@ import {
 } from "./catalogue-index";
 import {
   BUDGET_READ_TIMEOUT_MS,
+  DEFAULT_ENRICH_DELAY_MS,
+  DEFAULT_ENRICH_LIMIT,
   DEFAULT_SERPAPI_DAILY_CAP,
   discoverProducts,
+  enrichIndex,
   findProducts,
   INDEX_SUFFICIENT_MATCHES,
   INDEX_WRITE_TIMEOUT_MS,
@@ -25,6 +33,7 @@ import {
   SERPAPI_DAILY_CAP_ENV,
   serpApiBudget,
   type CountOkCalls,
+  type ListWithoutGtin,
   type StoreOutcomeFailed,
   type StoreOutcomeOk,
 } from "./discovery";
@@ -59,6 +68,11 @@ vi.mock("./usage", () => ({
 // The budget's default counter is the ledger query; replaced so no test reaches a database.
 vi.mock("@/db/queries/api-usage", () => ({
   countOkCallsByOperation: vi.fn(async () => ledgerRows(0)),
+}));
+// The enrich pass's default listing is a query too; replaced the same way, the rest kept.
+vi.mock("@/db/queries/catalogue-candidates", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/db/queries/catalogue-candidates")>()),
+  listCandidatesWithoutGtin: vi.fn(async () => []),
 }));
 // The real index writers and reader do too; tests of the index inject their own.
 vi.mock("./catalogue-index", async (importOriginal) => ({
@@ -734,6 +748,7 @@ function indexedProduct(
     mpn: null,
     gtin: null,
     imageUrl: null,
+    category: null,
     offers: stores.map((retailerSlug) => ({
       retailerSlug,
       retailerName: retailerSlug,
@@ -752,12 +767,20 @@ function indexedProduct(
   };
 }
 
-/** An index that answers `first` on the first search and `second` after the sources were remembered. */
-function fakeIndex(first: IndexedProduct[], second: IndexedProduct[] = first) {
+/**
+ * An index that answers `first` on the first search, `second` after the
+ * storefronts were remembered and `third` after Google Shopping was.
+ */
+function fakeIndex(
+  first: IndexedProduct[],
+  second: IndexedProduct[] = first,
+  third: IndexedProduct[] = second,
+) {
   const calls: unknown[] = [];
+  const answers = [first, second, third];
   const search: typeof searchIndex = vi.fn(async (input) => {
     calls.push(input);
-    const products = calls.length === 1 ? first : second;
+    const products = answers[Math.min(calls.length, answers.length) - 1];
     return {
       query: input.query,
       queryKind: "text" as const,
@@ -836,12 +859,13 @@ describe("discoverProducts", () => {
     expect(countOkCalls).not.toHaveBeenCalled();
   });
 
-  it("asks the stores and Google Shopping together when the index holds fewer than three matches, remembers everything and searches the index again", async () => {
+  it("asks the stores first and Google Shopping only when the index is still short, remembers each round and searches the index after each", async () => {
     const calls: Call[] = [];
     const batches: { candidates: { retailerSlug: string; method: string }[]; source: string }[] =
       [];
     const merged = [indexedProduct("m", "match", ["jb-hi-fi", "the-good-guys"])];
-    const { search, calls: searches } = fakeIndex(twoMatches, merged);
+    // Two matches before the stores and still two after them: short, so Google is asked.
+    const { search, calls: searches } = fakeIndex(twoMatches, twoMatches, merged);
     const periods: { provider: string; from: Date; to: Date }[] = [];
     let ledgerOk = 3;
     const report = await discoverProducts({
@@ -862,10 +886,10 @@ describe("discoverProducts", () => {
       },
     });
 
-    // One request per storefront and one hop-1 request to SerpApi, never the immersive hop.
-    expect(calls.map((call) => new URL(call.url).origin).sort()).toEqual(
-      [JB_ORIGIN, POWERLAND_ORIGIN, SERPAPI_ORIGIN].sort(),
-    );
+    // One request per storefront, then one hop-1 request to SerpApi, never the immersive hop.
+    const origins = calls.map((call) => new URL(call.url).origin);
+    expect(origins.slice(0, 2).sort()).toEqual([JB_ORIGIN, POWERLAND_ORIGIN].sort());
+    expect(origins.slice(2)).toEqual([SERPAPI_ORIGIN]);
     const [serpApi] = serpApiCalls(calls);
     expect(serpApi.searchParams.get("engine")).toBe("google_shopping");
     expect(serpApi.searchParams.get("q")).toBe("Samsung QA65S85HAEXXY");
@@ -887,14 +911,18 @@ describe("discoverProducts", () => {
     // Judged like a store's answer: the Good Guys title carries "Samsung" but not the code.
     expect(report.googleShopping.candidates[0].relevance.tier).toBe("partial");
 
-    // Both sources' candidates, one batch, source search, then the index is searched again.
+    // Each round's candidates in its own batch, source search, and the index searched after each.
     expect(report.found).toBe(12);
     expect(report.remembered).toBe(12);
-    expect(batches).toHaveLength(1);
-    expect(batches[0].source).toBe("search");
-    expect(batches[0].candidates.filter((c) => c.method === "google_shopping")).toHaveLength(5);
-    expect(batches[0].candidates.filter((c) => c.method === "storefront_search")).toHaveLength(7);
-    expect(searches).toHaveLength(2);
+    expect(batches).toHaveLength(2);
+    expect(batches.every((batch) => batch.source === "search")).toBe(true);
+    expect(batches[0].candidates.map((c) => c.method)).toEqual(
+      Array<string>(7).fill("storefront_search"),
+    );
+    expect(batches[1].candidates.map((c) => c.method)).toEqual(
+      Array<string>(5).fill("google_shopping"),
+    );
+    expect(searches).toHaveLength(3);
     expect(report.products).toEqual(merged);
     expect(report.total).toBe(1);
 
@@ -904,6 +932,51 @@ describe("discoverProducts", () => {
     expect(periods.every((period) => period.provider === "serpapi")).toBe(true);
     expect(report.budget).toEqual({ cap: 20, capSource: "default", usedToday: 6, remaining: 14 });
     expect(JSON.stringify(report)).not.toContain("sk-test");
+  });
+
+  it("skips Google Shopping, with reason storefronts_sufficient and no budget read, when the stores leave the index with three matches", async () => {
+    const calls: Call[] = [];
+    const batches: { candidates: { method: string }[]; source: string }[] = [];
+    const { search, calls: searches } = fakeIndex(twoMatches, threeMatches);
+    const countOkCalls = vi.fn(noSerpApiToday);
+    const report = await discoverProducts({
+      query: "LG C5 65",
+      fetch: fakeFetchByOrigin(fanoutRoutes, calls),
+      now: () => FIXED_NOW,
+      searchIndex: search,
+      recordUsage: async () => undefined,
+      countOkCalls,
+      rememberCandidates: async (input) => {
+        batches.push(input);
+        return { written: input.candidates.length };
+      },
+    });
+
+    // The stores were asked, Google was not, and the budget was never wanted.
+    expect(calls.map((call) => new URL(call.url).origin).sort()).toEqual(
+      [JB_ORIGIN, POWERLAND_ORIGIN].sort(),
+    );
+    expect(serpApiCalls(calls)).toEqual([]);
+    expect(countOkCalls).not.toHaveBeenCalled();
+    expect(searches).toHaveLength(2);
+
+    expect(report.source).toBe("fanout");
+    expect(report.googleShopping).toEqual({ status: "skipped", reason: "storefronts_sufficient" });
+    expect(report.budget).toBeNull();
+    expect(report.products).toEqual(threeMatches);
+    expect(report.total).toBe(3);
+    expect(report.storefronts?.every((store) => store.status === "ok")).toBe(true);
+    // The stores' candidates alone: one batch remembered and one list ranked.
+    expect(report.found).toBe(7);
+    expect(report.remembered).toBe(7);
+    expect(batches).toHaveLength(1);
+    expect(batches[0].source).toBe("search");
+    expect(batches[0].candidates.map((c) => c.method)).toEqual(
+      Array<string>(7).fill("storefront_search"),
+    );
+    expect(report.candidates).toHaveLength(7);
+    expect(report.candidates.every((entry) => entry.via === "storefront")).toBe(true);
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
   });
 
   describe("ranking every source's candidates in one list", () => {
@@ -1341,15 +1414,17 @@ describe("discoverProducts", () => {
     }
   });
 
-  it("reports a store failing beside a Google answer", async () => {
+  it("still asks Google Shopping when a store failed and the index stays short, and reports the failure beside Google's answer", async () => {
+    const calls: Call[] = [];
     const report = await discoverProducts({
       query: "LG C5 65",
-      fetch: fakeFetchByOrigin({ ...fanoutRoutes, [JB_ORIGIN]: html(bingLee) }),
+      fetch: fakeFetchByOrigin({ ...fanoutRoutes, [JB_ORIGIN]: html(bingLee) }, calls),
       now: () => FIXED_NOW,
       searchIndex: fakeIndex([]).search,
       recordUsage: async () => undefined,
       countOkCalls: noSerpApiToday,
     });
+    expect(serpApiCalls(calls)).toHaveLength(1);
     expect(report.storefronts && failedStore(report.storefronts, "jb-hi-fi").kind).toBe("blocked");
     expect(report.googleShopping.status).toBe("ok");
     expect(report.found).toBe(3 + 5);
@@ -1372,7 +1447,7 @@ describe("discoverProducts", () => {
     expect(report.queryKind).toBe("gtin");
     expect(report.gtin).toBe("08806097962670");
     expect(serpApiCalls(calls)[0].searchParams.get("q")).toBe(S85H_GTIN);
-    expect(searches).toHaveLength(2);
+    expect(searches).toHaveLength(3);
     if (report.googleShopping.status !== "ok") throw new Error("expected a Google answer");
     expect(
       report.googleShopping.candidates.every(
@@ -1439,9 +1514,13 @@ describe("discoverProducts", () => {
       // A handle so the default counter does not open the application database.
       db: fakeDb,
     });
-    expect(searchIndex).toHaveBeenCalledTimes(2);
-    expect(remember).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(remember).mock.calls[0][0]).toMatchObject({ source: "search" });
+    // Before the stores, after them, and after Google: the mocked index is always empty.
+    expect(searchIndex).toHaveBeenCalledTimes(3);
+    // One batch per round that returned candidates.
+    expect(remember).toHaveBeenCalledTimes(2);
+    for (const [input] of vi.mocked(remember).mock.calls) {
+      expect(input).toMatchObject({ source: "search" });
+    }
     expect(countOkCallsByOperation).toHaveBeenCalledTimes(2);
     expect(vi.mocked(countOkCallsByOperation).mock.calls[0][0]).toBe(fakeDb);
   });
@@ -1579,5 +1658,398 @@ describe("serpApiBudget", () => {
     await expect(
       serpApiBudget({ countOkCalls: "nope" as unknown as CountOkCalls }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+// ---------- enrichIndex: the bounded identifier pass over rows without a GTIN ----------
+
+describe("enrichIndex", () => {
+  const POWERLAND_URL = `${POWERLAND_ORIGIN}/products/samsung-65-s85h`;
+  /** The S85H product JSON with its barcode removed: a page that names no GTIN. */
+  const noBarcode = (() => {
+    const body = JSON.parse(jbS85hProduct) as { product: { variants: { barcode: unknown }[] } };
+    body.product.variants[0].barcode = null;
+    return JSON.stringify(body);
+  })();
+
+  /** One index row as the listing returns it; the enrich pass reads only the slug and the URL. */
+  function indexRow(overrides: Partial<CatalogueCandidateRow> = {}): CatalogueCandidateRow {
+    return {
+      id: "00000000-0000-0000-0000-000000000001",
+      retailerSlug: "jb-hi-fi",
+      retailerName: "JB Hi-Fi",
+      handle: "samsung-65-s85h-oled-4k-smart-ai-tv-2026",
+      canonicalUrl: JB_S85H_URL,
+      title: 'Samsung 65" S85H OLED 4K Smart AI TV [2026]',
+      brand: "Samsung",
+      storeType: null,
+      category: "tv",
+      mpn: null,
+      gtin: null,
+      retailerSku: null,
+      priceCents: 279500,
+      compareAtCents: null,
+      currency: "AUD",
+      available: true,
+      imageUrl: null,
+      source: "search",
+      via: "storefront",
+      raw: {},
+      firstSeenAt: FIXED_NOW,
+      lastSeenAt: FIXED_NOW,
+      inspectedAt: null,
+      createdAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      ...overrides,
+    };
+  }
+
+  const jbRow = indexRow();
+  const powerlandRow = indexRow({
+    id: "00000000-0000-0000-0000-000000000002",
+    retailerSlug: "powerland",
+    retailerName: "Powerland",
+    handle: "samsung-65-s85h",
+    canonicalUrl: POWERLAND_URL,
+  });
+  const offStoreRow = indexRow({
+    id: "00000000-0000-0000-0000-000000000003",
+    handle: "elsewhere",
+    canonicalUrl: "https://evil.example/products/elsewhere",
+  });
+
+  /** A listing answering the given rows, recording what it was asked. */
+  function listing(rows: CatalogueCandidateRow[]) {
+    const asked: unknown[] = [];
+    const listWithoutGtin: ListWithoutGtin = vi.fn(async (db, input) => {
+      asked.push({ db, input });
+      return rows;
+    });
+    return { listWithoutGtin, asked };
+  }
+
+  const bothStores: Record<string, Responder> = {
+    [JB_ORIGIN]: json(jbS85hProduct),
+    [POWERLAND_ORIGIN]: json(noBarcode),
+  };
+
+  beforeEach(() => {
+    vi.mocked(record).mockClear();
+    vi.mocked(rememberInspect).mockClear();
+    vi.mocked(listCandidatesWithoutGtin).mockClear();
+  });
+
+  it("reads each listed row once, remembers each read with the clock and the handle, and counts the GTINs", async () => {
+    const calls: Call[] = [];
+    const written: unknown[] = [];
+    const inputs: unknown[] = [];
+    const now = () => FIXED_NOW;
+    const report = await enrichIndex({
+      delayMs: 0,
+      fetch: fakeFetchByOrigin(bothStores, calls),
+      now,
+      recordUsage: async (entry) => void written.push(entry),
+      rememberInspected: async (input) => {
+        inputs.push(input);
+        return { written: 1 };
+      },
+      listWithoutGtin: listing([jbRow, powerlandRow]).listWithoutGtin,
+      db: fakeDb,
+    });
+
+    expect(calls.map((call) => call.url)).toEqual([`${JB_S85H_URL}.json`, `${POWERLAND_URL}.json`]);
+    expect(report.fetchedAt).toBe(FIXED_NOW);
+    expect(report).toMatchObject({ attempted: 2, read: 2, withGtin: 1, remembered: 2 });
+    expect(report.rows).toEqual([
+      {
+        retailerSlug: "jb-hi-fi",
+        retailerName: "JB Hi-Fi",
+        url: JB_S85H_URL,
+        outcome: { status: "ok" },
+        gtin: "08806097962670",
+      },
+      {
+        retailerSlug: "powerland",
+        retailerName: "Powerland",
+        url: POWERLAND_URL,
+        outcome: { status: "ok" },
+        gtin: null,
+      },
+    ]);
+    // Each read is written as it lands, with the clock, so inspected_at is this pass's.
+    expect(inputs).toEqual([
+      { quote: expect.objectContaining({ retailerSlug: "jb-hi-fi" }), now, db: fakeDb },
+      { quote: expect.objectContaining({ retailerSlug: "powerland" }), now, db: fakeDb },
+    ]);
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
+    expect(written[0]).toMatchObject({
+      provider: "retailer",
+      operation: "page",
+      outcome: "ok",
+      retailerSlug: "jb-hi-fi",
+      variantSlug: null,
+    });
+  });
+
+  it("lists every searchable storefront with a limit of 25 by default, or the one store and the limit asked", async () => {
+    const { listWithoutGtin, asked } = listing([]);
+    await enrichIndex({ delayMs: 0, listWithoutGtin, db: fakeDb });
+    await enrichIndex({
+      retailerSlug: "powerland",
+      limit: 3,
+      delayMs: 0,
+      listWithoutGtin,
+      db: fakeDb,
+    });
+    expect(DEFAULT_ENRICH_LIMIT).toBe(25);
+    expect(asked).toEqual([
+      {
+        db: fakeDb,
+        input: {
+          retailerSlugs: searchableStorefronts.map((store) => store.retailerSlug),
+          limit: DEFAULT_ENRICH_LIMIT,
+        },
+      },
+      { db: fakeDb, input: { retailerSlugs: ["powerland"], limit: 3 } },
+    ]);
+  });
+
+  it("reports an empty pass when no row is listed", async () => {
+    const report = await enrichIndex({
+      delayMs: 0,
+      fetch: fakeFetchByOrigin({}),
+      listWithoutGtin: listing([]).listWithoutGtin,
+      db: fakeDb,
+    });
+    expect(report).toMatchObject({
+      attempted: 0,
+      read: 0,
+      withGtin: 0,
+      rows: [],
+      remembered: 0,
+      usage: { calls: 0, recorded: 0 },
+    });
+  });
+
+  it("skips a row whose URL is off the store, or not a product page, with a failed outcome and no request", async () => {
+    const calls: Call[] = [];
+    const rememberInspected = vi.fn(async () => ({ written: 1 }));
+    const collection = indexRow({
+      id: "4",
+      handle: "tvs",
+      canonicalUrl: `${JB_ORIGIN}/collections/tvs`,
+    });
+    const report = await enrichIndex({
+      delayMs: 0,
+      fetch: fakeFetchByOrigin({}, calls),
+      recordUsage: async () => undefined,
+      rememberInspected,
+      listWithoutGtin: listing([offStoreRow, collection]).listWithoutGtin,
+      db: fakeDb,
+    });
+
+    expect(calls).toEqual([]);
+    expect(rememberInspected).not.toHaveBeenCalled();
+    expect(report).toMatchObject({ attempted: 2, read: 0, withGtin: 0, remembered: 0 });
+    expect(report.rows.map((row) => [row.url, row.outcome, row.gtin])).toEqual([
+      [
+        "https://evil.example/products/elsewhere",
+        {
+          status: "failed",
+          kind: "not_product_page",
+          message:
+            "https://evil.example/products/elsewhere is not on JB Hi-Fi (https://www.jbhifi.com.au)",
+        },
+        null,
+      ],
+      [
+        `${JB_ORIGIN}/collections/tvs`,
+        {
+          status: "failed",
+          kind: "not_product_page",
+          message: `${JB_ORIGIN}/collections/tvs is not a product page (expected /products/...)`,
+        },
+        null,
+      ],
+    ]);
+    expect(report.usage).toEqual({ calls: 0, recorded: 0 });
+  });
+
+  it("reports a page that cannot be read as a failed outcome, never a throw, and reads the rest", async () => {
+    const rememberInspected = vi.fn(async () => ({ written: 1 }));
+    const report = await enrichIndex({
+      delayMs: 0,
+      fetch: fakeFetchByOrigin({
+        [JB_ORIGIN]: html("not found", 404),
+        [POWERLAND_ORIGIN]: json(jbS85hProduct),
+      }),
+      now: () => FIXED_NOW,
+      recordUsage: async () => undefined,
+      rememberInspected,
+      listWithoutGtin: listing([jbRow, powerlandRow]).listWithoutGtin,
+      db: fakeDb,
+    });
+
+    expect(report).toMatchObject({ attempted: 2, read: 1, withGtin: 1, remembered: 1 });
+    expect(report.rows[0]).toEqual({
+      retailerSlug: "jb-hi-fi",
+      retailerName: "JB Hi-Fi",
+      url: JB_S85H_URL,
+      outcome: { status: "failed", kind: "http", message: `${JB_S85H_URL}.json answered 404` },
+      gtin: null,
+    });
+    expect(report.rows[1]).toMatchObject({ outcome: { status: "ok" }, gtin: "08806097962670" });
+    expect(rememberInspected).toHaveBeenCalledTimes(1);
+    // The failed request is metered too.
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
+  });
+
+  it("pauses delayMs between reads, never before the first, and not for a row it skipped", async () => {
+    const waits: number[] = [];
+    const sleep = vi.fn(async (ms: number) => void waits.push(ms));
+    await enrichIndex({
+      delayMs: 250,
+      sleep,
+      fetch: fakeFetchByOrigin(bothStores),
+      recordUsage: async () => undefined,
+      rememberInspected: async () => ({ written: 1 }),
+      listWithoutGtin: listing([jbRow, offStoreRow, powerlandRow]).listWithoutGtin,
+      db: fakeDb,
+    });
+    expect(waits).toEqual([250]);
+    expect(DEFAULT_ENRICH_DELAY_MS).toBe(500);
+
+    const silent = vi.fn(async () => undefined);
+    await enrichIndex({
+      delayMs: 0,
+      sleep: silent,
+      fetch: fakeFetchByOrigin(bothStores),
+      recordUsage: async () => undefined,
+      rememberInspected: async () => ({ written: 1 }),
+      listWithoutGtin: listing([jbRow, powerlandRow]).listWithoutGtin,
+      db: fakeDb,
+    });
+    expect(silent).not.toHaveBeenCalled();
+  });
+
+  it("throws NotFoundError for a store that is not a searchable storefront, before any listing", async () => {
+    const { listWithoutGtin } = listing([jbRow]);
+    const attempt = enrichIndex({
+      retailerSlug: "bing-lee",
+      delayMs: 0,
+      listWithoutGtin,
+      db: fakeDb,
+    });
+    await expect(attempt).rejects.toBeInstanceOf(NotFoundError);
+    await expect(attempt).rejects.toThrow('No searchable storefront with slug "bing-lee"');
+    expect(listWithoutGtin).not.toHaveBeenCalled();
+  });
+
+  it("propagates a listing that cannot be read, before any request, and a write that fails: the write is the point", async () => {
+    const calls: Call[] = [];
+    await expect(
+      enrichIndex({
+        delayMs: 0,
+        fetch: fakeFetchByOrigin(bothStores, calls),
+        listWithoutGtin: async () => {
+          throw new Error("connection refused");
+        },
+        db: fakeDb,
+      }),
+    ).rejects.toThrow("connection refused");
+    expect(calls).toEqual([]);
+
+    await expect(
+      enrichIndex({
+        delayMs: 0,
+        fetch: fakeFetchByOrigin(bothStores, calls),
+        recordUsage: async () => undefined,
+        rememberInspected: async () => {
+          throw new Error("index down");
+        },
+        listWithoutGtin: listing([jbRow, powerlandRow]).listWithoutGtin,
+        db: fakeDb,
+      }),
+    ).rejects.toThrow("index down");
+    // The first write failed, so the second row was never read.
+    expect(calls.map((call) => call.url)).toEqual([`${JB_S85H_URL}.json`]);
+  });
+
+  it("uses catalogue-index.rememberInspect and the query helper when none is given", async () => {
+    vi.mocked(listCandidatesWithoutGtin).mockResolvedValueOnce([jbRow]);
+    const report = await enrichIndex({
+      delayMs: 0,
+      fetch: fakeFetchByOrigin(bothStores),
+      recordUsage: async () => undefined,
+      db: fakeDb,
+    });
+    expect(listCandidatesWithoutGtin).toHaveBeenCalledWith(fakeDb, {
+      retailerSlugs: ["jb-hi-fi", "powerland"],
+      limit: DEFAULT_ENRICH_LIMIT,
+    });
+    expect(rememberInspect).toHaveBeenCalledTimes(1);
+    expect(rememberInspect).toHaveBeenCalledWith({
+      quote: expect.objectContaining({ retailerSlug: "jb-hi-fi" }),
+      now: expect.any(Function),
+      db: fakeDb,
+    });
+    // The mocked writer answers written 0, so the row is a failed outcome, not a read.
+    expect(report).toMatchObject({ attempted: 1, read: 0, withGtin: 0, remembered: 0 });
+    expect(report.rows[0].outcome).toMatchObject({ status: "failed", kind: "unparseable" });
+  });
+
+  it("reports a row the index wrote nothing for as failed, unparseable, and not read: it was not marked inspected", async () => {
+    const rememberInspected = vi.fn(async (input: { quote: { retailerSlug: string } }) => ({
+      written: input.quote.retailerSlug === "jb-hi-fi" ? 1 : 0,
+    }));
+    const report = await enrichIndex({
+      delayMs: 0,
+      fetch: fakeFetchByOrigin(bothStores),
+      now: () => FIXED_NOW,
+      recordUsage: async () => undefined,
+      rememberInspected,
+      listWithoutGtin: listing([jbRow, powerlandRow]).listWithoutGtin,
+      db: fakeDb,
+    });
+
+    expect(rememberInspected).toHaveBeenCalledTimes(2);
+    expect(report).toMatchObject({ attempted: 2, read: 1, withGtin: 1, remembered: 1 });
+    expect(report.rows).toEqual([
+      {
+        retailerSlug: "jb-hi-fi",
+        retailerName: "JB Hi-Fi",
+        url: JB_S85H_URL,
+        outcome: { status: "ok" },
+        gtin: "08806097962670",
+      },
+      {
+        retailerSlug: "powerland",
+        retailerName: "Powerland",
+        url: POWERLAND_URL,
+        outcome: {
+          status: "failed",
+          kind: "unparseable",
+          message: "the product JSON named no product; not marked inspected",
+        },
+        gtin: null,
+      },
+    ]);
+    // The page was still requested and metered; only the write came to nothing.
+    expect(report.usage).toEqual({ calls: 2, recorded: 2 });
+  });
+
+  it("throws ValidationError for a limit outside 1 to the query's cap, a negative delay or a sleep that is not a function", async () => {
+    const { listWithoutGtin } = listing([]);
+    for (const input of [
+      { limit: 0 },
+      { limit: MAX_ENRICH_LIMIT + 1 },
+      { delayMs: -1 },
+      { sleep: "later" as unknown as (ms: number) => Promise<void> },
+    ]) {
+      await expect(enrichIndex({ ...input, listWithoutGtin, db: fakeDb })).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+    }
+    expect(listWithoutGtin).not.toHaveBeenCalled();
   });
 });

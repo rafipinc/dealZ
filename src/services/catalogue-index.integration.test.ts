@@ -16,7 +16,14 @@ import {
   rememberInspect,
   searchIndex,
 } from "./catalogue-index";
-import { discoverProducts, findProducts, inspectCandidate, type CountOkCalls } from "./discovery";
+import {
+  discoverProducts,
+  enrichIndex,
+  findProducts,
+  inspectCandidate,
+  type CountOkCalls,
+} from "./discovery";
+import { seededCollections } from "./tracked-products";
 
 // The real recorder writes to the application database; the tests inject their own.
 vi.mock("./usage", () => ({
@@ -72,9 +79,13 @@ function fakeFetchByOrigin(routes: Record<string, Responder>): FetchLike {
 
 const recordUsage = async () => undefined;
 
+/** The seeded list cut to the televisions collection: the one the fixture records. */
+const televisionsOnly = seededCollections.filter((seed) => seed.collection === "televisions");
+
 /** Pulls the six Powerland fixture products through the real listing source. */
 async function seedPowerland() {
   return refreshIndex({
+    seededCollections: televisionsOnly,
     fetch: fakeFetchByOrigin({ [POWERLAND_ORIGIN]: json(televisions) }),
     now: () => FIXED_NOW,
     recordUsage,
@@ -104,6 +115,12 @@ describe("refreshIndex then searchIndex", () => {
     const rows = await all();
     expect(rows).toHaveLength(6);
     expect(rows.every((r) => r.source === "listing" && r.gtin === null)).toBe(true);
+    // A listing pull is of a storefront, named by the seeded table, and every
+    // row takes the collection's seeded category.
+    expect(rows.every((r) => r.via === "storefront" && r.retailerName === "Powerland")).toBe(true);
+    expect(televisionsOnly[0].category).toBe("tv");
+    expect(rows.every((r) => r.category === "tv")).toBe(true);
+    expect(rows.every((r) => r.inspectedAt === null)).toBe(true);
 
     const status = await indexStatus({ db: t.db });
     expect(status.total).toBe(6);
@@ -143,6 +160,7 @@ describe("refreshIndex then searchIndex", () => {
     // last_seen_at, read in a later statement, so it is past every row above.
 
     const report = await refreshIndex({
+      seededCollections: televisionsOnly,
       fetch: fakeFetchByOrigin({
         [POWERLAND_ORIGIN]: json(JSON.stringify({ products: kept })),
       }),
@@ -159,7 +177,12 @@ describe("refreshIndex then searchIndex", () => {
     const rows = await all();
     expect(rows).toHaveLength(6);
     expect(rows.find((r) => r.handle === dropped.handle)).toBeUndefined();
-    expect(rows.find((r) => r.handle === "lg-65-c5")).toMatchObject({ source: "search" });
+    // A search candidate without a hint takes the category its title gives.
+    expect(rows.find((r) => r.handle === "lg-65-c5")).toMatchObject({
+      source: "search",
+      via: "storefront",
+      category: "tv",
+    });
     expect(rows.filter((r) => r.source === "listing")).toHaveLength(5);
   });
 
@@ -167,6 +190,7 @@ describe("refreshIndex then searchIndex", () => {
     await seedPowerland();
 
     const report = await refreshIndex({
+      seededCollections: televisionsOnly,
       fetch: fakeFetchByOrigin({ [POWERLAND_ORIGIN]: json(JSON.stringify({ products: [] })) }),
       recordUsage,
       db: t.db,
@@ -198,8 +222,10 @@ describe("refreshIndex then searchIndex", () => {
       retailerSlug: "powerland",
       retailerName: "Powerland",
       source: "listing",
+      via: "storefront",
       available: true,
     });
+    expect(first.category).toBe("tv");
     expect(first.cheapest?.retailerSlug).toBe("powerland");
     expect(first.trackedVariantSlug).toBeNull();
   });
@@ -243,9 +269,14 @@ describe("refreshIndex then searchIndex", () => {
       provenance: { kind: "live", via: null },
       confidence: 1,
       evidence: null,
-      raw: { handle: listed.handle, vendor: "Samsung", product_type: "4K QLED UHD" },
+      // A store type that would map to soundbar: the read must not reclassify the seeded tv.
+      raw: { handle: listed.handle, vendor: "Samsung", product_type: "Soundbars" },
     };
-    expect(await rememberInspect({ quote, db: t.db })).toEqual({ written: 1 });
+    expect(listed.category).toBe("tv");
+    const inspectedAt = new Date("2026-10-08T03:04:05.000Z");
+    expect(await rememberInspect({ quote, now: () => inspectedAt, db: t.db })).toEqual({
+      written: 1,
+    });
 
     const rows = await all();
     expect(rows).toHaveLength(6);
@@ -257,6 +288,12 @@ describe("refreshIndex then searchIndex", () => {
       priceCents: 179900,
       imageUrl: listed.imageUrl,
       mpn: QN80H_65,
+      // The read is stamped; the store's own label is taken, but the seeded
+      // category and the store's name survive it (ADR-0019 item 4).
+      inspectedAt,
+      storeType: "Soundbars",
+      category: "tv",
+      retailerName: "Powerland",
     });
 
     const byGtin = await searchIndex({ query: "4006381333931", db: t.db });
@@ -298,7 +335,55 @@ describe("refreshIndex then searchIndex", () => {
       priceCents: 185000,
       available: null,
       source: "search",
+      // The inspection is kept on a later sighting, so an enrich pass never re-reads the row.
+      inspectedAt,
     });
+  });
+
+  it("enriches the rows without a GTIN once: a second pass finds nothing left to read", async () => {
+    await seedPowerland();
+    const [listed] = (await all()).filter((r) => r.mpn === QN80H_65);
+    const gtin = normaliseGtin("4006381333931");
+    if (gtin === null) throw new Error("fixture GTIN must be valid");
+    // Every Powerland product page answers with one product JSON; only the
+    // QN80H's carries a barcode.
+    const productJson = (barcode: string | null) =>
+      JSON.stringify({
+        product: {
+          title: "Samsung TV",
+          vendor: "Samsung",
+          product_type: "4K QLED UHD",
+          handle: null,
+          variants: [{ price: "1799.00", sku: QN80H_65, barcode }],
+        },
+      });
+    const fetch: FetchLike = async (url) => {
+      const body = url.includes(listed.handle) ? productJson("4006381333931") : productJson(null);
+      return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    const first = await enrichIndex({
+      retailerSlug: "powerland",
+      delayMs: 0,
+      fetch,
+      now: () => FIXED_NOW,
+      recordUsage,
+      db: t.db,
+    });
+    expect(first).toMatchObject({ attempted: 6, read: 6, withGtin: 1, remembered: 6 });
+    expect(first.usage).toEqual({ calls: 6, recorded: 6 });
+    const rows = await all();
+    expect(rows.every((r) => r.inspectedAt?.getTime() === FIXED_NOW.getTime())).toBe(true);
+    expect(rows.filter((r) => r.gtin !== null).map((r) => [r.handle, r.gtin])).toEqual([
+      [listed.handle, gtin],
+    ]);
+
+    // Nothing is listed twice: the rows without a barcode are marked inspected.
+    const second = await enrichIndex({ retailerSlug: "powerland", delayMs: 0, fetch, db: t.db });
+    expect(second).toMatchObject({ attempted: 0, read: 0, usage: { calls: 0, recorded: 0 } });
+
+    const byGtin = await searchIndex({ query: "4006381333931", db: t.db });
+    expect(byGtin.products.map((p) => [p.key, p.category])).toEqual([[`gtin:${gtin}`, "tv"]]);
   });
 
   it("finds nothing for a query no title answers", async () => {
@@ -470,10 +555,21 @@ describe("discoverProducts merging the sources in the index", () => {
       expect(report.budget).toEqual({ cap: 20, capSource: "default", usedToday: 0, remaining: 20 });
 
       const rows = await all();
-      expect(rows.map((r) => [r.retailerSlug, r.handle, r.source])).toEqual([
-        ["the-good-guys", "1202807262352129590", "search"],
-        ["some-seller", "99", "search"],
-        ["powerland", "samsung-65-s85h", "search"],
+      // A Google row is stored via google_shopping under the seller Google
+      // named; a storefront row via storefront under the tracked name.
+      expect(
+        rows.map((r) => [r.retailerSlug, r.handle, r.source, r.via, r.retailerName, r.category]),
+      ).toEqual([
+        [
+          "the-good-guys",
+          "1202807262352129590",
+          "search",
+          "google_shopping",
+          "The Good Guys",
+          "tv",
+        ],
+        ["some-seller", "99", "search", "google_shopping", "Some Seller", "tv"],
+        ["powerland", "samsung-65-s85h", "search", "storefront", "Powerland", "tv"],
       ]);
 
       // Both rows carry QA65S85HAEXXY: one product, two offers, cheapest first, and held.

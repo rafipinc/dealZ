@@ -11,6 +11,8 @@
 // a capture.
 
 import { z } from "zod";
+import type { CategorySlug } from "@/lib/category";
+import { normaliseModelCode } from "@/lib/model-code";
 import { canonicaliseUrl } from "@/lib/url";
 import type { PageSourceMethod } from "@/sources";
 import { ValidationError } from "./errors";
@@ -86,6 +88,8 @@ export interface SeededCollection {
   origin: string;
   /** The collection handle, e.g. "televisions". */
   collection: string;
+  /** DealZ's category for every product the collection lists (lib/category), or null when it spans several. */
+  category: CategorySlug | null;
   note: string | null;
 }
 
@@ -95,7 +99,24 @@ export const seededCollections: readonly SeededCollection[] = [
     retailerName: "Powerland",
     origin: "https://powerland.com.au",
     collection: "televisions",
-    note: "Decided by Rafi on 2026-10-06: Powerland's TV collection is pulled; JB Hi-Fi is learned from use until its terms are read (ADR-0017).",
+    category: "tv",
+    note: "Decided by Rafi on 2026-10-06: Powerland's TV collection is pulled; JB Hi-Fi is learned from use until its terms are read (ADR-0017). The collection count says 900 but the endpoint returns the 128 published products on one page; checked 2026-10-08.",
+  },
+  {
+    retailerSlug: "powerland",
+    retailerName: "Powerland",
+    origin: "https://powerland.com.au",
+    collection: "hifi-soundbars",
+    category: "soundbar",
+    note: "Added 2026-10-08 after the review session: Powerland lists 151 collections; a collection pull is one request per 250 products. 92 products listed on 2026-10-08.",
+  },
+  {
+    retailerSlug: "powerland",
+    retailerName: "Powerland",
+    origin: "https://powerland.com.au",
+    collection: "vacuums",
+    category: "vacuum",
+    note: "Added 2026-10-08 after the review session: Powerland lists 151 collections; a collection pull is one request per 250 products. 172 products listed on 2026-10-08; the first collection outside the consumer-tech wedge of ADR-0002, kept small so the category mapper is exercised on a second type.",
   },
 ];
 
@@ -201,10 +222,6 @@ const identifiedSchema = z.object({
   }),
 });
 
-function normaliseCode(value: string | null): string | null {
-  return value === null ? null : value.trim().toUpperCase();
-}
-
 /** The tracked variant's page URLs, canonicalised the way a candidate's is. */
 function trackedUrlsOf(variant: TrackedVariant): string[] {
   return variant.pages.map((page) => canonicaliseUrl(page.url));
@@ -212,10 +229,11 @@ function trackedUrlsOf(variant: TrackedVariant): string[] {
 
 /**
  * The tracked variant a found product already is, by GTIN first, then model
- * code (the MPN, or a retailer SKU that is the model code), then page URL.
- * Null for a product the tracked table does not hold. Shared by the
- * discovery and catalogue-index services so "held" means one thing. Throws
- * ValidationError for a product without a URL or identifiers.
+ * code (the MPN, or a retailer SKU that is the model code, compared with
+ * hyphens and case ignored), then page URL. Null for a product the tracked
+ * table does not hold. Shared by the discovery and catalogue-index services
+ * so "held" means one thing. Throws ValidationError for a product without a
+ * URL or identifiers.
  */
 export function matchTrackedVariant(input: Identified): TrackedMatch {
   const parsed = identifiedSchema.safeParse(input);
@@ -223,13 +241,13 @@ export function matchTrackedVariant(input: Identified): TrackedMatch {
     throw new ValidationError("Invalid matchTrackedVariant input", parsed.error.issues);
   }
   const found = parsed.data;
-  const mpn = normaliseCode(found.identifiers.mpn);
-  const sku = normaliseCode(found.identifiers.retailerSku);
+  const mpn = normaliseModelCode(found.identifiers.mpn);
+  const sku = normaliseModelCode(found.identifiers.retailerSku);
   for (const variant of trackedVariants) {
     if (found.identifiers.gtin !== null && found.identifiers.gtin === variant.gtin) {
       return { trackedVariantSlug: variant.slug, matchedBy: "gtin" };
     }
-    const target = normaliseCode(variant.mpn);
+    const target = normaliseModelCode(variant.mpn);
     if (mpn === target || sku === target) {
       return { trackedVariantSlug: variant.slug, matchedBy: "mpn" };
     }

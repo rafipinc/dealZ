@@ -5,6 +5,8 @@ import {
   countCatalogueCandidates,
   databaseNow,
   deleteUnseenListingRows,
+  listCandidatesWithoutGtin,
+  MAX_ENRICH_LIMIT,
   MAX_SEARCH_LIMIT,
   searchCatalogueCandidates,
   upsertCatalogueCandidates,
@@ -76,6 +78,10 @@ describe("upsertCatalogueCandidates", () => {
     expect(dvd?.currency).toBe("AUD");
     expect(dvd?.raw).toEqual({});
     expect(dvd?.available).toBeNull();
+    expect(dvd?.via).toBe("storefront");
+    expect(dvd?.category).toBeNull();
+    expect(dvd?.retailerName).toBeNull();
+    expect(dvd?.inspectedAt).toBeNull();
     expect(dvd?.firstSeenAt).toBeInstanceOf(Date);
     expect(dvd?.lastSeenAt).toEqual(dvd?.firstSeenAt);
   });
@@ -141,6 +147,39 @@ describe("upsertCatalogueCandidates", () => {
     expect(row.imageUrl).toBe(lgC6.imageUrl);
     // Every other mutable column takes the new value, null included.
     expect(row.brand).toBeNull();
+  });
+
+  it("keeps a stored category, retailer_name and inspected_at when the new row has none, and replaces via", async () => {
+    const inspectedAt = new Date("2026-10-07T09:00:00Z");
+    await upsertCatalogueCandidates(t.db, [
+      { ...lgC6, category: "tv", retailerName: "JB Hi-Fi", inspectedAt, via: "storefront" },
+    ]);
+
+    await upsertCatalogueCandidates(t.db, [
+      { ...lgC6, category: null, retailerName: null, inspectedAt: null, via: "google_shopping" },
+    ]);
+    const [row] = await all();
+
+    expect(row.category).toBe("tv");
+    expect(row.retailerName).toBe("JB Hi-Fi");
+    expect(row.inspectedAt).toEqual(inspectedAt);
+    expect(row.via).toBe("google_shopping");
+  });
+
+  it("overwrites a stored category, retailer_name and inspected_at when the new row carries them", async () => {
+    const first = new Date("2026-10-07T09:00:00Z");
+    const second = new Date("2026-10-08T09:00:00Z");
+    await upsertCatalogueCandidates(t.db, [
+      { ...lgC6, category: "tv", retailerName: "JB Hi-Fi", inspectedAt: first },
+    ]);
+    await upsertCatalogueCandidates(t.db, [
+      { ...lgC6, category: "monitor", retailerName: "JB Hi-Fi Online", inspectedAt: second },
+    ]);
+
+    const [row] = await all();
+    expect(row.category).toBe("monitor");
+    expect(row.retailerName).toBe("JB Hi-Fi Online");
+    expect(row.inspectedAt).toEqual(second);
   });
 
   it("overwrites a stored identifier when the new row carries one", async () => {
@@ -342,6 +381,108 @@ describe("databaseNow", () => {
     expect(await deleteUnseenListingRows(t.db, { retailerSlug: "jb-hi-fi", seenSince })).toBe(0);
     expect(await deleteUnseenListingRows(t.db, { retailerSlug: "powerland", seenSince })).toBe(1);
     expect((await all()).map((r) => r.handle)).toEqual([s90h.handle]);
+  });
+});
+
+describe("listCandidatesWithoutGtin", () => {
+  const stores = ["jb-hi-fi", "powerland"];
+  const jbUrl = (handle: string) => `https://www.jbhifi.com.au/products/${handle}`;
+
+  // Two rows the pass should read, at two retailers, the Powerland one newer.
+  const older: CatalogueCandidateInsert = {
+    ...s90h,
+    handle: "older-no-gtin",
+    canonicalUrl: jbUrl("older-no-gtin"),
+    lastSeenAt: new Date("2026-10-06T00:00:00Z"),
+  };
+  const newer: CatalogueCandidateInsert = {
+    ...powerlandDvd,
+    handle: "newer-no-gtin",
+    canonicalUrl: "https://powerland.com.au/products/newer-no-gtin",
+    lastSeenAt: new Date("2026-10-07T00:00:00Z"),
+  };
+  // Four rows it must leave out, each newer than both of the above.
+  const seen = new Date("2026-10-08T00:00:00Z");
+  const withGtin: CatalogueCandidateInsert = {
+    ...s90h,
+    handle: "with-gtin",
+    canonicalUrl: jbUrl("with-gtin"),
+    gtin: "08806096123456",
+    lastSeenAt: seen,
+  };
+  const inspected: CatalogueCandidateInsert = {
+    ...s90h,
+    handle: "inspected-no-gtin",
+    canonicalUrl: jbUrl("inspected-no-gtin"),
+    inspectedAt: new Date("2026-10-07T12:00:00Z"),
+    lastSeenAt: seen,
+  };
+  const google: CatalogueCandidateInsert = {
+    ...s90h,
+    handle: "google-no-gtin",
+    canonicalUrl: jbUrl("google-no-gtin"),
+    source: "search",
+    via: "google_shopping",
+    lastSeenAt: seen,
+  };
+  const otherRetailer: CatalogueCandidateInsert = {
+    ...s90h,
+    retailerSlug: "kogan",
+    handle: "kogan-no-gtin",
+    canonicalUrl: "https://www.kogan.com/au/buy/kogan-no-gtin",
+    lastSeenAt: seen,
+  };
+
+  beforeEach(async () => {
+    await upsertCatalogueCandidates(t.db, [
+      older,
+      newer,
+      withGtin,
+      inspected,
+      google,
+      otherRetailer,
+    ]);
+  });
+
+  const handles = async (retailerSlugs: string[], limit = 10) =>
+    (await listCandidatesWithoutGtin(t.db, { retailerSlugs, limit })).map((r) => r.handle);
+
+  it("lists the storefront rows with no gtin that were never inspected, newest sighting first", async () => {
+    expect(await handles(stores)).toEqual([newer.handle, older.handle]);
+  });
+
+  it.each([
+    ["a row with a gtin", withGtin.handle],
+    ["a row already inspected", inspected.handle],
+    ["a Google Shopping row", google.handle],
+    ["a row at a retailer not asked for", otherRetailer.handle],
+  ])("leaves out %s", async (_what, handle) => {
+    expect(await handles(stores)).not.toContain(handle);
+  });
+
+  it("reads only the retailers named", async () => {
+    expect(await handles(["jb-hi-fi"])).toEqual([older.handle]);
+    expect(await handles(["kogan"])).toEqual([otherRetailer.handle]);
+  });
+
+  it("returns nothing when no retailer is named", async () => {
+    expect(await handles([])).toEqual([]);
+  });
+
+  it("applies the limit", async () => {
+    expect(await handles(stores, 1)).toEqual([newer.handle]);
+    expect(await handles(stores, 0)).toEqual([]);
+  });
+
+  it("caps the limit at the maximum", async () => {
+    const bulk = Array.from({ length: MAX_ENRICH_LIMIT + 1 }, (_, i) => ({
+      ...s90h,
+      handle: `bulk-${i}`,
+      canonicalUrl: jbUrl(`bulk-${i}`),
+    }));
+    await upsertCatalogueCandidates(t.db, bulk);
+
+    expect(await handles(["jb-hi-fi"], MAX_ENRICH_LIMIT + 1_000)).toHaveLength(MAX_ENRICH_LIMIT);
   });
 });
 
