@@ -22,6 +22,7 @@ const DASH = "–";
 const providerNames: Record<string, string> = {
   serpapi: "SerpApi",
   gemini: "Gemini",
+  openai: "OpenAI",
   wayback: "Wayback Machine",
   retailer: "Retailer pages",
 };

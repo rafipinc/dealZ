@@ -56,7 +56,7 @@ async function validationErrorFrom(promise: Promise<unknown>): Promise<Validatio
 
 describe("record validation", () => {
   it.each<[string, Partial<Record<keyof RecordUsageInput, unknown>>]>([
-    ["a provider outside the known set", { provider: "openai" }],
+    ["a provider outside the known set", { provider: "anthropic" }],
     ["an empty operation", { operation: "" }],
     ["a start that is not a date", { startedAt: "2026-10-01" }],
     ["an invalid date", { startedAt: new Date("nope") }],

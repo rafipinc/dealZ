@@ -1,6 +1,7 @@
 // Metering for sources: one SourceCall per HTTP request, reported to the
-// injected meter. Shared by http.ts, serpapi.ts and gemini.ts so every request
-// is timed and classified the same way. Not exported from the index.
+// injected meter. Shared by http.ts, serpapi.ts, gemini.ts and openai.ts so
+// every request is timed and classified the same way. Not exported from the
+// index.
 
 import {
   SourceError,
@@ -55,7 +56,7 @@ export function report(meter: Meter, call: SourceCall): void {
 }
 
 /** The clock's reading, or the wall clock's when the injected clock throws or returns no real date. */
-function readClock(clock: () => Date): Date {
+export function readClock(clock: () => Date): Date {
   try {
     const reading = clock();
     if (reading instanceof Date && Number.isFinite(reading.getTime())) return reading;

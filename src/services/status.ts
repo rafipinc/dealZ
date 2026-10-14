@@ -26,7 +26,7 @@ import { record } from "./usage";
 import { usageLedger, type UsageRecorder, type UsageRecording } from "./usage-ledger";
 
 /** The environment variables that hold a key. Their values are never reported. */
-export const KEY_NAMES = ["GEMINI_API_KEY", "SERPAPI_API_KEY"] as const;
+export const KEY_NAMES = ["GEMINI_API_KEY", "OPENAI_API_KEY", "SERPAPI_API_KEY"] as const;
 export type KeyName = (typeof KEY_NAMES)[number];
 
 /**

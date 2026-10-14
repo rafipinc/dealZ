@@ -1,23 +1,37 @@
 "use client";
 
-// Button, inline SVG chart and per-page tables for the Wayback Machine
-// backfill of one tracked variant. Renders the pre-formatted HistoryView; the
-// only arithmetic here scales ISO dates and cents onto the viewBox. No chart
-// library: phase 3 decides that, so nothing is added to package.json.
+// Button, inline SVG chart and per-page tables for the price history of one
+// tracked variant: Wayback Machine captures of its tracked pages, plus a
+// model search over allowed sites with every point verified on its page
+// (ADR-0020). Renders the pre-formatted HistoryView; the only arithmetic here
+// scales ISO dates and cents onto the viewBox. No chart library: phase 3
+// decides that, so nothing is added to package.json.
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { fetchHistoryAction } from "./actions";
 import type {
   HistoryChartView,
+  HistoryModelSearchView,
   HistoryPageView,
   HistoryPageViewOk,
+  HistorySeriesView,
   HistoryView,
   HistoryViewResult,
 } from "./view";
 
 const columns = ["Date", "Price", "Was", "Condition", "Snapshot"] as const;
 const skippedColumns = ["Date", "Reason", "Snapshot"] as const;
+const verifiedColumns = ["Date", "Retailer", "Price", "Dated", "Source", "Evidence"] as const;
+const claimColumns = [
+  "Verdict",
+  "Retailer",
+  "Claimed date",
+  "Observed",
+  "Price",
+  "Reason",
+  "Source",
+] as const;
 
 /** Longest reason shown in a cell; the full text sits in the title attribute. */
 const MESSAGE_LIMIT = 160;
@@ -26,11 +40,17 @@ const cellClass = "px-3 py-2 align-top";
 const mutedClass = "text-zinc-500";
 const badgeClass = "rounded-full border px-2 py-0.5 text-xs font-medium";
 const linkClass = "text-zinc-700 underline dark:text-zinc-300";
+const tableWrapClass = "overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800";
+const theadClass = "bg-zinc-100 text-left dark:bg-zinc-900";
+const tbodyClass = "divide-y divide-zinc-200 dark:divide-zinc-800";
 
 /** Five strokes that read on both light and dark backgrounds. */
 const palette = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#dc2626"] as const;
 
 const chartBox = { width: 800, height: 320, left: 72, right: 16, top: 16, bottom: 40 } as const;
+
+/** Marker radius for an archive circle; a model square has the same footprint. */
+const MARKER = 4;
 
 function colourOf(colourIndex: number): string {
   return palette[colourIndex % palette.length];
@@ -52,7 +72,7 @@ function SubmitButton() {
       disabled={pending}
       className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
     >
-      {pending ? "Loading…" : "Load price history (Wayback Machine)"}
+      {pending ? "Loading…" : "Load price history"}
     </button>
   );
 }
@@ -62,7 +82,7 @@ function PendingNote() {
   if (!pending) return null;
   return (
     <span role="status" className="text-sm text-zinc-600 dark:text-zinc-400">
-      Reading archived pages. This is slow, up to a minute.
+      Reading archived pages and asking the model. This is slow, up to a minute.
     </span>
   );
 }
@@ -77,6 +97,56 @@ function scaleX(x: string, chart: HistoryChartView): number {
 function scaleY(y: number, chart: HistoryChartView): number {
   const { top, bottom, height } = chartBox;
   return top + ((chart.yMax - y) / (chart.yMax - chart.yMin)) * (height - top - bottom);
+}
+
+function Series({ series, chart }: { series: HistorySeriesView; chart: HistoryChartView }) {
+  const colour = colourOf(series.colourIndex);
+  const scaled = series.points.map((point) => ({
+    ...point,
+    cx: scaleX(point.x, chart),
+    cy: scaleY(point.y, chart),
+  }));
+  return (
+    <g>
+      <polyline
+        fill="none"
+        stroke={colour}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeDasharray={series.kind === "model" ? "4 3" : undefined}
+        points={scaled.map((point) => `${point.cx},${point.cy}`).join(" ")}
+      />
+      {scaled.map((point, index) => (
+        <a key={`${point.x}-${index}`} href={point.href} target="_blank" rel="noreferrer">
+          {point.kind === "archive" ? (
+            <circle cx={point.cx} cy={point.cy} r={MARKER} fill={colour}>
+              <title>{point.title}</title>
+            </circle>
+          ) : (
+            <rect
+              x={point.cx - MARKER}
+              y={point.cy - MARKER}
+              width={MARKER * 2}
+              height={MARKER * 2}
+              fill={colour}
+            >
+              <title>{point.title}</title>
+            </rect>
+          )}
+        </a>
+      ))}
+    </g>
+  );
+}
+
+/** One legend entry per retailer, whichever kinds of series it has. */
+function legendRetailers(series: HistorySeriesView[]): HistorySeriesView[] {
+  const seen = new Set<string>();
+  return series.filter((entry) => {
+    if (seen.has(entry.retailerSlug)) return false;
+    seen.add(entry.retailerSlug);
+    return true;
+  });
 }
 
 function Chart({ chart }: { chart: HistoryChartView }) {
@@ -143,34 +213,13 @@ function Chart({ chart }: { chart: HistoryChartView }) {
         >
           {chart.xMaxLabel}
         </text>
-        {chart.series.map((series) => {
-          const colour = colourOf(series.colourIndex);
-          const scaled = series.points.map((point) => ({
-            ...point,
-            cx: scaleX(point.x, chart),
-            cy: scaleY(point.y, chart),
-          }));
-          return (
-            <g key={series.retailerSlug}>
-              <polyline
-                fill="none"
-                stroke={colour}
-                strokeWidth={2}
-                strokeLinejoin="round"
-                points={scaled.map((point) => `${point.cx},${point.cy}`).join(" ")}
-              />
-              {scaled.map((point, index) => (
-                <circle key={`${point.x}-${index}`} cx={point.cx} cy={point.cy} r={4} fill={colour}>
-                  <title>{point.title}</title>
-                </circle>
-              ))}
-            </g>
-          );
-        })}
+        {chart.series.map((series) => (
+          <Series key={`${series.kind}-${series.retailerSlug}`} series={series} chart={chart} />
+        ))}
       </svg>
-      <figcaption>
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          {chart.series.map((series) => (
+      <figcaption className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+          {legendRetailers(chart.series).map((series) => (
             <li key={series.retailerSlug} className="flex items-center gap-2">
               <span
                 aria-hidden="true"
@@ -181,6 +230,13 @@ function Chart({ chart }: { chart: HistoryChartView }) {
             </li>
           ))}
         </ul>
+        <p className={mutedClass}>
+          <span aria-hidden="true" className="mr-1 inline-block h-3 w-3 rounded-full bg-current" />
+          circle: archive capture.{" "}
+          <span aria-hidden="true" className="mr-1 inline-block h-3 w-3 bg-current" />
+          square: model-found page, verified on the page. Every point links to the page it was read
+          from.
+        </p>
       </figcaption>
     </figure>
   );
@@ -188,9 +244,9 @@ function Chart({ chart }: { chart: HistoryChartView }) {
 
 function PointsTable({ page }: { page: HistoryPageViewOk }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+    <div className={tableWrapClass}>
       <table className="w-full text-sm">
-        <thead className="bg-zinc-100 text-left dark:bg-zinc-900">
+        <thead className={theadClass}>
           <tr>
             {columns.map((column) => (
               <th key={column} scope="col" className={`${cellClass} font-semibold`}>
@@ -199,7 +255,7 @@ function PointsTable({ page }: { page: HistoryPageViewOk }) {
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <tbody className={tbodyClass}>
           {page.points.map((point) => (
             <tr key={point.snapshotUrl}>
               <td className={`${cellClass} whitespace-nowrap`}>
@@ -225,9 +281,9 @@ function PointsTable({ page }: { page: HistoryPageViewOk }) {
 
 function SkippedTable({ page }: { page: HistoryPageViewOk }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+    <div className={tableWrapClass}>
       <table className="w-full text-sm">
-        <thead className="bg-zinc-100 text-left dark:bg-zinc-900">
+        <thead className={theadClass}>
           <tr>
             {skippedColumns.map((column) => (
               <th key={column} scope="col" className={`${cellClass} font-semibold`}>
@@ -236,7 +292,7 @@ function SkippedTable({ page }: { page: HistoryPageViewOk }) {
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <tbody className={tbodyClass}>
           {page.skipped.map((snapshot) => (
             <tr key={snapshot.snapshotUrl}>
               <td className={`${cellClass} whitespace-nowrap`}>{snapshot.dateLabel}</td>
@@ -313,17 +369,143 @@ function PageSection({ page }: { page: HistoryPageView }) {
   );
 }
 
+function VerifiedTable({ search }: { search: Extract<HistoryModelSearchView, { status: "ok" }> }) {
+  return (
+    <div className={tableWrapClass}>
+      <table className="w-full text-sm">
+        <thead className={theadClass}>
+          <tr>
+            {verifiedColumns.map((column) => (
+              <th key={column} scope="col" className={`${cellClass} font-semibold`}>
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className={tbodyClass}>
+          {search.verified.map((point, index) => (
+            <tr key={`${point.sourceUrl}-${index}`}>
+              <td className={`${cellClass} whitespace-nowrap`}>
+                <time dateTime={point.date}>{point.label}</time>
+              </td>
+              <td className={`${cellClass} whitespace-nowrap`}>{point.retailerName}</td>
+              <td className={`${cellClass} whitespace-nowrap`}>{point.price}</td>
+              <td className={`${cellClass} whitespace-nowrap ${mutedClass}`}>
+                {point.dateSourceLabel}
+              </td>
+              <td className={cellClass}>
+                <a href={point.sourceUrl} target="_blank" rel="noreferrer" className={linkClass}>
+                  source page
+                </a>
+              </td>
+              <td className={cellClass} title={point.quoteFull}>
+                <q>{point.quote}</q>
+                <span className={`ml-2 ${mutedClass}`}>{point.confidence}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ClaimsTable({ search }: { search: Extract<HistoryModelSearchView, { status: "ok" }> }) {
+  return (
+    <div className={tableWrapClass}>
+      <table className="w-full text-sm">
+        <thead className={theadClass}>
+          <tr>
+            {claimColumns.map((column) => (
+              <th key={column} scope="col" className={`${cellClass} font-semibold`}>
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className={tbodyClass}>
+          {search.claims.map((claim, index) => (
+            <tr key={`${claim.sourceUrl}-${index}`}>
+              <td className={`${cellClass} whitespace-nowrap`}>
+                <span
+                  className={`${badgeClass} border-amber-300 text-amber-700 dark:text-amber-400`}
+                >
+                  {claim.verdictLabel}
+                </span>
+              </td>
+              <td className={`${cellClass} whitespace-nowrap`}>{claim.retailerName}</td>
+              <td className={`${cellClass} whitespace-nowrap ${mutedClass}`}>
+                {claim.claimedDateLabel}
+              </td>
+              <td className={`${cellClass} whitespace-nowrap`}>{claim.observedLabel}</td>
+              <td className={`${cellClass} whitespace-nowrap`}>{claim.price}</td>
+              <td className={cellClass} title={claim.reason}>
+                {truncate(claim.reason)}
+              </td>
+              <td className={cellClass}>
+                <a href={claim.sourceUrl} target="_blank" rel="noreferrer" className={linkClass}>
+                  cited page
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ModelSearchSection({ search }: { search: HistoryModelSearchView }) {
+  return (
+    <section aria-label="Model search" className="flex flex-col gap-2">
+      <h4 className="font-medium">Model search</h4>
+      {search.status === "failed" ? (
+        <p className="text-sm">
+          <span className={`${badgeClass} border-red-300 text-red-700 dark:text-red-400`}>
+            {search.kind}
+          </span>
+          <span className="ml-2">
+            {search.sentence}: {search.message}
+          </span>
+        </p>
+      ) : (
+        <p className={`text-sm ${mutedClass}`}>{search.sentence}.</p>
+      )}
+      {search.status === "ok" ? (
+        <>
+          <p className={`text-sm ${mutedClass}`}>
+            {search.model}, {search.searches} {search.searches === 1 ? "search" : "searches"},{" "}
+            {plural(search.pageOpens, "page open")}
+          </p>
+          {search.verified.length > 0 ? <VerifiedTable search={search} /> : null}
+          {search.claims.length > 0 ? <ClaimsTable search={search} /> : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 function Summary({ view }: { view: HistoryView }) {
   return (
     <p className="text-sm text-zinc-600 dark:text-zinc-400">
-      Archive window {view.fromLabel} to {view.toLabel}, read at {view.fetchedAtLabel}.{" "}
+      Window {view.fromLabel} to {view.toLabel}, read at {view.fetchedAtLabel}.{" "}
       {view.lowest ? (
         <>
-          Lowest archived price: <strong>{view.lowest.retailerName}</strong> at{" "}
-          <strong>{view.lowest.price}</strong> on {view.lowest.label}.
+          Lowest price: <strong>{view.lowest.retailerName}</strong> at{" "}
+          <strong>{view.lowest.price}</strong> on {view.lowest.label}, from{" "}
+          {view.lowest.href ? (
+            <a href={view.lowest.href} target="_blank" rel="noreferrer" className={linkClass}>
+              {view.lowest.kindLabel === "archive capture" ? "an" : "a"} {view.lowest.kindLabel}
+            </a>
+          ) : (
+            <>
+              {view.lowest.kindLabel === "archive capture" ? "an" : "a"} {view.lowest.kindLabel}
+            </>
+          )}
+          .
         </>
       ) : (
-        <>No archived price parsed.</>
+        <>No price found.</>
       )}
     </p>
   );
@@ -341,6 +523,7 @@ function Results({ view }: { view: HistoryView }) {
       {view.pages.map((page) => (
         <PageSection key={page.retailerSlug} page={page} />
       ))}
+      <ModelSearchSection search={view.modelSearch} />
       <details className="text-sm">
         <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">Raw history</summary>
         <pre className="mt-2 overflow-x-auto rounded-md bg-zinc-100 p-3 text-xs dark:bg-zinc-900">
@@ -358,10 +541,16 @@ export function HistoryPanel({ slug }: { slug: string }) {
   );
   return (
     <div className="flex flex-col gap-4">
-      <form action={formAction} className="flex flex-wrap items-center gap-3">
-        <input type="hidden" name="slug" value={slug} />
-        <SubmitButton />
-        <PendingNote />
+      <form action={formAction} className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <input type="hidden" name="slug" value={slug} />
+          <SubmitButton />
+          <PendingNote />
+        </div>
+        <p className={`text-sm ${mutedClass}`}>
+          Wayback Machine captures of the tracked pages, plus a model search over allowed sites
+          (ADR-0020). Every point links to the page it was read from.
+        </p>
       </form>
       {view === null ? null : view.ok ? (
         <Results view={view} />

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PRICES,
   GEMINI_TOKEN_PRICES,
+  OPENAI_SEARCH_MICROS_PER_CALL,
+  OPENAI_TOKEN_PRICES,
   SERPAPI_MICROS_PER_CALL,
   estimateCostMicros,
   isFreeProvider,
@@ -71,9 +73,126 @@ describe("estimateCostMicros", () => {
   });
 
   it("reports an unknown provider as unpriced at zero", () => {
-    expect(estimateCostMicros(call({ provider: "openai" }))).toEqual({
+    expect(estimateCostMicros(call({ provider: "anthropic" }))).toEqual({
       costMicros: 0,
       priced: false,
+    });
+  });
+
+  describe("OpenAI", () => {
+    const openai = (patch: Partial<CostInput>, prices = DEFAULT_PRICES) =>
+      estimateCostMicros(
+        call({ provider: "openai", operation: "responses", model: "gpt-6-luna", ...patch }),
+        prices,
+      );
+
+    it.each([
+      // 1,000,000 input tokens on gpt-6-luna is USD 0.10.
+      [{ inputTokens: 1_000_000, outputTokens: 0 }, 100_000],
+      // 1,000,000 output tokens is USD 0.50.
+      [{ inputTokens: 0, outputTokens: 1_000_000 }, 500_000],
+      // The recorded S85H search: 44,210 in, 2,116 out is 4,421 + 1,058.
+      [{ inputTokens: 44_210, outputTokens: 2_116 }, 5_479],
+    ])("prices a responses call %j by its tokens at %d micro-dollars", (patch, expected) => {
+      expect(openai(patch)).toEqual({ costMicros: expected, priced: true });
+    });
+
+    it("charges a successful web_search_call the per-call rate, USD 10 per 1,000", () => {
+      expect(OPENAI_SEARCH_MICROS_PER_CALL).toBe(10_000);
+      expect(DEFAULT_PRICES.openAiSearchMicrosPerCall).toBe(OPENAI_SEARCH_MICROS_PER_CALL);
+      expect(openai({ operation: "web_search_call" })).toEqual({
+        costMicros: 10_000,
+        priced: true,
+      });
+    });
+
+    it("charges a failed web_search_call nothing, as priced", () => {
+      expect(openai({ operation: "web_search_call", outcome: "failed" })).toEqual({
+        costMicros: 0,
+        priced: true,
+      });
+    });
+
+    it("charges a web_search_open_page row nothing, as priced, whatever its outcome", () => {
+      // The provider bills per search query, not per page the model opened.
+      expect(openai({ operation: "web_search_open_page" })).toEqual({
+        costMicros: 0,
+        priced: true,
+      });
+      expect(openai({ operation: "web_search_open_page", outcome: "failed" })).toEqual({
+        costMicros: 0,
+        priced: true,
+      });
+    });
+
+    it("reports a web_search_open_page row of an unknown model as unpriced", () => {
+      expect(openai({ operation: "web_search_open_page", model: "gpt-9-nova" }).priced).toBe(false);
+    });
+
+    it("ignores tokens on a web_search_call row", () => {
+      expect(
+        openai({ operation: "web_search_call", inputTokens: 1_000_000, outputTokens: 1_000_000 }),
+      ).toEqual({ costMicros: 10_000, priced: true });
+    });
+
+    it("still prices a failed responses call by the tokens it reported", () => {
+      expect(openai({ outcome: "failed", inputTokens: 1_000_000, outputTokens: 0 })).toEqual({
+        costMicros: 100_000,
+        priced: true,
+      });
+    });
+
+    it.each(["responses", "web_search_call"])(
+      "reports an unknown OpenAI model as unpriced at zero for %s",
+      (operation) => {
+        expect(openai({ operation, model: "gpt-9-nova", inputTokens: 1_000 })).toEqual({
+          costMicros: 0,
+          priced: false,
+        });
+        expect(openai({ operation, model: null }).priced).toBe(false);
+      },
+    );
+
+    it("takes the OpenAI prices and the search rate from the table it is given", () => {
+      const prices = {
+        ...DEFAULT_PRICES,
+        openAiTokenPrices: {
+          "gpt-test": [
+            { effectiveFrom: null, inputMicrosPerMillion: 1_000_000, outputMicrosPerMillion: 0 },
+          ],
+        },
+        openAiSearchMicrosPerCall: 25_000,
+      };
+      expect(openai({ model: "gpt-test", inputTokens: 250 }, prices)).toEqual({
+        costMicros: 250,
+        priced: true,
+      });
+      expect(openai({ model: "gpt-test", operation: "web_search_call" }, prices)).toEqual({
+        costMicros: 25_000,
+        priced: true,
+      });
+      expect(openai({ inputTokens: 250 }, prices).priced).toBe(false);
+    });
+
+    it("never charges a negative or fractional search rate", () => {
+      const at = (rate: number) =>
+        openai(
+          { operation: "web_search_call" },
+          { ...DEFAULT_PRICES, openAiSearchMicrosPerCall: rate },
+        ).costMicros;
+      expect(at(-5)).toBe(0);
+      expect(at(9_999.6)).toBe(10_000);
+    });
+
+    it("holds the prices checked on 2026-10-13, opening with an undated entry", () => {
+      expect(OPENAI_TOKEN_PRICES).toEqual({
+        "gpt-6-luna": [
+          { effectiveFrom: null, inputMicrosPerMillion: 100_000, outputMicrosPerMillion: 500_000 },
+        ],
+      });
+      for (const entries of Object.values(OPENAI_TOKEN_PRICES)) {
+        expect(entries[0].effectiveFrom).toBeNull();
+      }
     });
   });
 
@@ -267,7 +386,10 @@ describe("isPriced", () => {
     ["serpapi", null, true],
     ["wayback", null, true],
     ["retailer", null, true],
+    ["openai", "gpt-6-luna", true],
     ["openai", "gpt", false],
+    ["openai", null, false],
+    ["anthropic", "claude", false],
   ])("%s with model %s is %s", (provider, model, expected) => {
     expect(isPriced(provider, model)).toBe(expected);
   });
@@ -293,7 +415,9 @@ describe("isFreeProvider", () => {
     // Free while the per-call constant is zero.
     ["serpapi", SERPAPI_MICROS_PER_CALL === 0],
     ["gemini", false],
+    // Billed by the token and by the search; never free.
     ["openai", false],
+    ["anthropic", false],
   ])("%s is %s", (provider, expected) => {
     expect(isFreeProvider(provider)).toBe(expected);
   });

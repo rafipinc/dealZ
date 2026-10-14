@@ -22,6 +22,9 @@ export interface DatedTokenPrice extends TokenPrice {
   effectiveFrom: string | null;
 }
 
+/** One provider's models, each with its dated prices, oldest first. */
+export type TokenPriceTable = Readonly<Record<string, readonly DatedTokenPrice[]>>;
+
 /**
  * Gemini list prices in US dollars per million tokens. Source:
  * ai.google.dev/gemini-api/docs/pricing, checked 2026-10-01.
@@ -38,7 +41,7 @@ export interface DatedTokenPrice extends TokenPrice {
  * states dates, not a time of day; the change is taken at 00:00 UTC. When the
  * provider changes a price, add an entry; never edit one that has applied.
  */
-export const GEMINI_TOKEN_PRICES: Readonly<Record<string, readonly DatedTokenPrice[]>> = {
+export const GEMINI_TOKEN_PRICES: TokenPriceTable = {
   "gemini-3.5-flash-lite": [
     { effectiveFrom: null, inputMicrosPerMillion: 300_000, outputMicrosPerMillion: 2_500_000 },
   ],
@@ -53,6 +56,34 @@ export const GEMINI_TOKEN_PRICES: Readonly<Record<string, readonly DatedTokenPri
 };
 
 /**
+ * OpenAI list prices in US dollars per million tokens. Source:
+ * developers.openai.com/api/docs/pricing, checked 2026-10-13.
+ *
+ * | Model | Input | Output | Applies |
+ * |---|---|---|---|
+ * | gpt-6-luna | 0.10 | 0.50 | now, no end date stated |
+ *
+ * Same shape and rules as GEMINI_TOKEN_PRICES. The Responses API reports
+ * reasoning tokens inside `output_tokens`, so output is everything billed as
+ * output already.
+ */
+export const OPENAI_TOKEN_PRICES: TokenPriceTable = {
+  "gpt-6-luna": [
+    { effectiveFrom: null, inputMicrosPerMillion: 100_000, outputMicrosPerMillion: 500_000 },
+  ],
+};
+
+/**
+ * OpenAI's web search tool is charged per search query on top of the tokens:
+ * USD 10 per 1,000 calls, which is 10,000 micro-dollars a call (same source
+ * and date). The ledger holds one row per search the model made, operation
+ * "web_search_call", and a successful one is charged; a page the model
+ * opened is a "web_search_open_page" row and costs nothing. See
+ * estimateCostMicros.
+ */
+export const OPENAI_SEARCH_MICROS_PER_CALL = 10_000;
+
+/**
  * SerpApi is charged per search, not per token. Zero while the account is on
  * the free tier. The paid tier is USD 75 for 5,000 searches, which is 15,000
  * micro-dollars a call: set this to 15_000 when the plan changes. Charged for
@@ -65,7 +96,8 @@ const FREE_PROVIDERS: ReadonlySet<string> = new Set(["wayback", "retailer"]);
 
 /**
  * True when the table prices every call to this provider at zero, so a zero
- * total is "free", not a measurement. False for a provider billed by use and
+ * total is "free", not a measurement. False for a provider billed by use
+ * (gemini and openai are billed by the token, openai by the search too) and
  * for one the table does not know.
  */
 export function isFreeProvider(provider: string): boolean {
@@ -84,7 +116,7 @@ export const SERPAPI_SEARCH_OPERATIONS: ReadonlySet<string> = new Set([
 
 export interface CostInput {
   provider: string;
-  /** What was asked of the provider: "google_shopping", "account", "generate_content", ... */
+  /** What was asked of the provider: "google_shopping", "account", "generate_content", "responses", "web_search_call", ... */
   operation: string;
   outcome: "ok" | "failed";
   /** When the call was made. Picks the price in force that day. */
@@ -104,12 +136,16 @@ export interface CostEstimate {
 /** The rates an estimate is made at. Passed in by tests; everything else uses the defaults. */
 export interface PriceTable {
   serpApiMicrosPerCall: number;
-  geminiTokenPrices: Readonly<Record<string, readonly DatedTokenPrice[]>>;
+  geminiTokenPrices: TokenPriceTable;
+  openAiTokenPrices: TokenPriceTable;
+  openAiSearchMicrosPerCall: number;
 }
 
 export const DEFAULT_PRICES: PriceTable = {
   serpApiMicrosPerCall: SERPAPI_MICROS_PER_CALL,
   geminiTokenPrices: GEMINI_TOKEN_PRICES,
+  openAiTokenPrices: OPENAI_TOKEN_PRICES,
+  openAiSearchMicrosPerCall: OPENAI_SEARCH_MICROS_PER_CALL,
 };
 
 const UNPRICED: CostEstimate = { costMicros: 0, priced: false };
@@ -120,11 +156,21 @@ function tokens(count: number | null): number {
   return count === null || !Number.isFinite(count) ? 0 : Math.max(0, Math.round(count));
 }
 
+/** The models of a provider billed by the token, or null for every other provider. */
+function tokenPricesFor(provider: string, prices: PriceTable): TokenPriceTable | null {
+  if (provider === "gemini") return prices.geminiTokenPrices;
+  if (provider === "openai") return prices.openAiTokenPrices;
+  return null;
+}
+
 /** The entries for a model, or null when the table does not know it. Own properties only. */
-function entriesFor(model: string | null, prices: PriceTable): readonly DatedTokenPrice[] | null {
+function entriesFor(
+  model: string | null,
+  table: TokenPriceTable,
+): readonly DatedTokenPrice[] | null {
   // Own-property lookup: a model named "constructor" is not in the table.
-  if (model === null || !Object.hasOwn(prices.geminiTokenPrices, model)) return null;
-  const entries = prices.geminiTokenPrices[model];
+  if (model === null || !Object.hasOwn(table, model)) return null;
+  const entries = table[model];
   return entries.length === 0 ? null : entries;
 }
 
@@ -156,9 +202,9 @@ export function priceInForce(
 /**
  * Whether the table can put a price on a call to this provider with this
  * model. Decided when a ledger row is read, from the table as it is now: a
- * Gemini row whose model the table does not know is "unpriced", and its
- * stored cost of zero is not a fact. Every other known provider is priced,
- * free ones at zero. An unknown provider is not.
+ * Gemini or OpenAI row whose model the table does not know is "unpriced",
+ * and its stored cost of zero is not a fact. Every other known provider is
+ * priced, free ones at zero. An unknown provider is not.
  */
 export function isPriced(
   provider: string,
@@ -166,16 +212,23 @@ export function isPriced(
   prices: PriceTable = DEFAULT_PRICES,
 ): boolean {
   if (FREE_PROVIDERS.has(provider) || provider === "serpapi") return true;
-  return provider === "gemini" && entriesFor(model, prices) !== null;
+  const table = tokenPricesFor(provider, prices);
+  return table !== null && entriesFor(model, table) !== null;
 }
 
 /**
  * Estimates one call's cost. Rounded to the nearest micro-dollar.
  *
  * SerpApi charges per successful search: a failed call and the Account API
- * cost nothing. Gemini charges for the tokens it reports, whatever became of
- * the answer, so a failed call that carries token counts is still priced, at
- * the price in force when the call started.
+ * cost nothing. Gemini and OpenAI charge for the tokens they report, whatever
+ * became of the answer, so a failed call that carries token counts is still
+ * priced, at the price in force when the call started. An OpenAI
+ * "web_search_call" row is one search the model made inside a request: it
+ * carries no tokens and is charged the per-call rate when it succeeded. A
+ * "web_search_open_page" row is a page the model opened, which the provider
+ * does not bill, so it is priced at zero. Every
+ * row of a model the table does not know is unpriced, the search rows too,
+ * so a row is priced or not by its model alone, as isPriced decides.
  */
 export function estimateCostMicros(
   input: CostInput,
@@ -188,11 +241,18 @@ export function estimateCostMicros(
       ? { costMicros: Math.max(0, Math.round(prices.serpApiMicrosPerCall)), priced: true }
       : NO_CHARGE;
   }
-  if (input.provider !== "gemini") return UNPRICED;
+  const table = tokenPricesFor(input.provider, prices);
+  if (table === null) return UNPRICED;
 
-  const entries = entriesFor(input.model, prices);
+  const entries = entriesFor(input.model, table);
   const price = entries === null ? null : priceInForce(entries, input.startedAt);
   if (price === null) return UNPRICED;
+  if (input.provider === "openai" && input.operation === "web_search_call") {
+    return input.outcome === "ok"
+      ? { costMicros: Math.max(0, Math.round(prices.openAiSearchMicrosPerCall)), priced: true }
+      : NO_CHARGE;
+  }
+  if (input.provider === "openai" && input.operation === "web_search_open_page") return NO_CHARGE;
   const micros =
     (tokens(input.inputTokens) * price.inputMicrosPerMillion +
       tokens(input.outputTokens) * price.outputMicrosPerMillion) /

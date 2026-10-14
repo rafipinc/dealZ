@@ -28,7 +28,12 @@
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export type SourceMethod =
-  "shopify_json" | "json_ld" | "serpapi_google_shopping" | "wayback" | "llm_extract";
+  | "shopify_json"
+  | "json_ld"
+  | "serpapi_google_shopping"
+  | "wayback"
+  | "llm_extract"
+  | "history_search"; // a model with web search found the page; the page was read (ADR-0020)
 
 export type Availability = "in_stock" | "out_of_stock" | "unknown";
 
@@ -43,8 +48,9 @@ export interface QuoteIdentifiers {
 }
 
 export interface QuoteProvenance {
-  kind: "live" | "search" | "archive";
-  /** Search: the aggregator's product link. Archive: the snapshot URL. Live: null. */
+  /** "model_search": a model with web search cited the page and the page was verified (ADR-0020). */
+  kind: "live" | "search" | "archive" | "model_search";
+  /** Search: the aggregator's product link. Archive: the snapshot URL. Model search: the cited page. Live: null. */
   via: string | null;
 }
 
@@ -114,7 +120,7 @@ export class SourceError extends Error {
 }
 
 /** The external service an outbound request went to. */
-export type SourceProvider = "serpapi" | "gemini" | "wayback" | "retailer";
+export type SourceProvider = "serpapi" | "gemini" | "openai" | "wayback" | "retailer";
 
 /** What the request asked that service for. */
 export type SourceOperation =
@@ -122,6 +128,9 @@ export type SourceOperation =
   | "google_immersive_product" // serpapi, hop 2
   | "account" // serpapi, the free Account API
   | "generate_content" // gemini
+  | "responses" // openai, one Responses API request (ADR-0020)
+  | "web_search_call" // openai, one search the model made inside a responses call; billed per call, no request of its own
+  | "web_search_open_page" // openai, one page the model opened inside a responses call; not billed, kept so the count is right
   | "cdx" // wayback, the capture index
   | "availability" // wayback, the closest-capture fallback
   | "snapshot" // wayback, one archived page
@@ -145,11 +154,11 @@ export interface SourceCall {
   errorKind: SourceErrorKind | null;
   /** Null when no response arrived. */
   httpStatus: number | null;
-  /** The model asked for. Null for every provider but gemini. */
+  /** The model asked for. Null for every provider but gemini and openai. */
   model: string | null;
   /** Null where the provider has no tokens, or answered without a count. */
   inputTokens: number | null;
-  /** Everything billed as output: for gemini, answer plus thinking tokens. */
+  /** Everything billed as output: for gemini and openai, answer plus thinking tokens. */
   outputTokens: number | null;
   /** The retailer the request was for, when there is one. Null for a search. */
   retailerSlug: string | null;

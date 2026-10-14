@@ -3,7 +3,11 @@
 //
 // Three functions, one per source kind (ADR-0012): fetchQuotes reads every
 // readable retailer page now, searchQuotes asks Google Shopping for every
-// seller, fetchHistory reads the Wayback Machine's copies of every page.
+// seller, fetchHistory reads the Wayback Machine's copies of every page and,
+// from the same button, asks a model with web search for dated price pages
+// and verifies each on its page (ADR-0020). The model search is gated by a
+// key and OPENAI_DAILY_CAP, counted from the usage ledger, and its failure
+// never fails the archive, nor the archive's failure the model search.
 //
 // fetchQuotes is layered, cheapest route first: the page's structured data
 // (free), then the model on a page without any (ADR-0013), and only for a
@@ -21,17 +25,23 @@
 // report's `usage` says how many calls were made and how many were recorded.
 
 import { z } from "zod";
+import type { QueryDb } from "@/db/queries/db";
+import { dayRangeIn, SYDNEY } from "@/lib/day-ranges";
+import type { ClaimVerdict, FragmentMatch } from "@/lib/history-evidence";
 import { slugify } from "@/lib/slug";
 import { canonicaliseUrl } from "@/lib/url";
 import {
   archiveSources,
+  historySearch,
   pageSources,
   REVIEW_THRESHOLD,
   searchSources,
   SourceError,
 } from "@/sources";
 import type {
+  AssessedClaim,
   FetchLike,
+  HistorySearchResult,
   LlmExtractInput,
   Meter,
   PriceQuote,
@@ -39,12 +49,14 @@ import type {
   SourceErrorKind,
   SourceInput,
 } from "@/sources";
+import { countOkCallsInLedger, dailyCapOf, usedTodayOf, type CountOkCalls } from "./daily-cap";
 import { NotFoundError, ValidationError } from "./errors";
 import { trackedVariants, type TrackedRetailerPage, type TrackedVariant } from "./tracked-products";
 import { usageLedger, type UsageRecorder, type UsageRecording } from "./usage-ledger";
 
 export { USAGE_WRITE_TIMEOUT_MS } from "./usage-ledger";
 export type { UsageRecorder, UsageRecording } from "./usage-ledger";
+export type { CountOkCalls } from "./daily-cap";
 
 export interface FetchQuotesInput {
   /** Slug of a tracked variant, see tracked-products.ts. */
@@ -147,6 +159,12 @@ const nowSchema = z.custom<() => Date>((value) => typeof value === "function").o
 const recordUsageSchema = z
   .custom<UsageRecorder>((value) => typeof value === "function")
   .optional();
+const countOkCallsSchema = z
+  .custom<CountOkCalls>((value) => typeof value === "function")
+  .optional();
+const dbSchema = z
+  .custom<QueryDb>((value) => typeof value === "object" && value !== null)
+  .optional();
 
 const fetchQuotesInputSchema = z.object({
   slug: slugSchema,
@@ -165,6 +183,10 @@ function keyOf(given: string | undefined, fromEnv: string | undefined): string |
 
 function geminiKeyOf(given: string | undefined): string | null {
   return keyOf(given, process.env.GEMINI_API_KEY);
+}
+
+function openAiKeyOf(given: string | undefined): string | null {
+  return keyOf(given, process.env.OPENAI_API_KEY);
 }
 
 /** The SerpApi key from the argument or SERPAPI_API_KEY; null when neither is set. Shared with discovery. */
@@ -593,10 +615,126 @@ export interface FetchHistoryInput {
   to?: Date;
   /** Defaults to 12. */
   maxSnapshotsPerPage?: number;
+  /**
+   * Lets a model with web search look for dated price pages alongside the
+   * archive (ADR-0020). Defaults to process.env.OPENAI_API_KEY. With neither
+   * set the model search is skipped, never an error. Never put in a report.
+   */
+  openAiApiKey?: string;
   fetch?: FetchLike;
   now?: () => Date;
   /** Defaults to usage.record. */
   recordUsage?: UsageRecorder;
+  /** Injected so tests need no ledger. Defaults to the ledger query over the application database. */
+  countOkCalls?: CountOkCalls;
+  db?: QueryDb;
+}
+
+// ---------- Model search: what the model found and what the pages confirmed (ADR-0020) ----------
+
+/** The environment variable that caps the day's model searches; unset means DEFAULT_OPENAI_DAILY_CAP. */
+export const OPENAI_DAILY_CAP_ENV = "OPENAI_DAILY_CAP";
+/** Requests per Sydney day, by default. About 5 cents a request (ADR-0020). */
+export const DEFAULT_OPENAI_DAILY_CAP = 10;
+/** The ledger operation that counts against the cap: one row per Responses API request. */
+const OPENAI_REQUEST_OPERATION = "responses";
+/** The provider as the ledger names it. */
+const OPENAI_PROVIDER = "openai";
+
+/**
+ * A point the model found and the page confirmed: the quoted fragment is on
+ * the page verbatim and the page or its URL carries a date. Confidence 0.8,
+ * so it charts solid, below an archive capture (0.9). It links to the page it
+ * was verified on, as ADR-0020 item 6 requires.
+ */
+export interface HistoryModelPoint {
+  /** The retailer as the model named it, slugified; "jb-hi-fi" for "JB Hi-Fi". */
+  retailerSlug: string;
+  /** The retailer as the model named it; the page's host when it named none. */
+  retailerName: string;
+  /** Midnight, Australia/Sydney, of the date the page or its URL states. Never the model's date. */
+  observedAt: Date;
+  priceCents: number;
+  /** The page the point was verified on. The chart links here. */
+  sourceUrl: string;
+  /** The fragment on the page that states the price. */
+  quote: string;
+  confidence: number;
+  /** Whether the date came from the URL (a dated catalogue path) or the page's own markup. */
+  dateSource: "url" | "page" | null;
+}
+
+/**
+ * One claim the model made, with the verdict the page gave it and why. The
+ * lab lists these under the chart. `claimedDate` is the model's own date,
+ * shown so a reader can see how far it was from the page's; it is never
+ * charted and never compared.
+ */
+export interface HistoryModelClaim {
+  retailerSlug: string;
+  retailerName: string;
+  priceCents: number;
+  /** The page as the model cited it. */
+  sourceUrl: string;
+  /** The fragment the model said states the price; "" when it gave none. */
+  quote: string;
+  /** The model's own date, as written, or null. Display only. */
+  claimedDate: string | null;
+  /** "candidate": fragment matched weakly or the page is undated. "unverified": the page could not be fetched. "rejected": fetched, fragment absent, or domain not allowed. */
+  verdict: ClaimVerdict;
+  /** 0.6 or 0.5 candidate, 0.4 unverified, 0.3 rejected (lib/history-evidence). */
+  confidence: number;
+  /** ISO date read from the URL or the page, when one was read. */
+  observedDate: string | null;
+  /** `observedDate` at midnight in Australia/Sydney, when there is one. */
+  observedAt: Date | null;
+  /** How the quote matched the page; null when the page was not read. */
+  fragment: FragmentMatch | null;
+  dateSource: "url" | "page" | null;
+  /** One line per rule that fired, in order. */
+  reasons: string[];
+}
+
+/**
+ * Why the model was not asked. "no-key": no OPENAI_API_KEY. "disabled":
+ * OPENAI_DAILY_CAP is 0. "daily-cap": today's requests in the ledger are at
+ * or over the cap. "budget-unknown": the ledger could not be read, and
+ * nothing is spent blind.
+ */
+export type HistoryModelSkipReason = "no-key" | "disabled" | "daily-cap" | "budget-unknown";
+
+/**
+ * What the model search did. "ok" means the model answered; its claims are
+ * sorted by the verdict the pages gave them, and an answer with no claims
+ * is ok with every list empty. A failure here never fails the archive pages.
+ */
+export type HistoryModelSearch =
+  | { status: "skipped"; reason: HistoryModelSkipReason }
+  | { status: "failed"; kind: SourceErrorKind; message: string }
+  | {
+      status: "ok";
+      /** The model the provider reports. */
+      model: string;
+      /** Searches the model made, each billed. */
+      searches: number;
+      /** Pages the model opened, not billed. */
+      pageOpens: number;
+      /** Chart these, solid. Oldest first. */
+      verified: HistoryModelPoint[];
+      /** Fragment matched weakly, or the page is undated. Listed with the reason, never charted. */
+      candidates: HistoryModelClaim[];
+      /** Fetched and the fragment is not there, or the domain is not allowed. Listed with the reason. */
+      rejected: HistoryModelClaim[];
+      /** The page could not be fetched, so nothing was checked. Listed. */
+      unverified: HistoryModelClaim[];
+    };
+
+/** The lowest price in the report and which kind of point it is: an archive capture or a verified model-found point. */
+export interface HistoryLowest {
+  kind: "archive" | "model";
+  retailerSlug: string;
+  priceCents: number;
+  observedAt: Date;
 }
 
 export interface HistoryPoint {
@@ -645,8 +783,11 @@ export interface HistoryReport {
   to: Date;
   /** Same order as the tracked pages. */
   pages: HistoryPage[];
-  /** The lowest archived price across every page, or null when none parsed. */
-  lowest: { retailerSlug: string; priceCents: number; observedAt: Date } | null;
+  /** The model search, run alongside the archive for the same window (ADR-0020). */
+  modelSearch: HistoryModelSearch;
+  /** The lowest price across every archive page and every verified model point; null when there is none. */
+  lowest: HistoryLowest | null;
+  /** Every call the archive and the model search made, written to one ledger. */
   usage: UsageRecording;
 }
 
@@ -657,9 +798,12 @@ const fetchHistoryInputSchema = z.object({
   from: z.date().optional(),
   to: z.date().optional(),
   maxSnapshotsPerPage: z.number().int().positive().default(DEFAULT_MAX_SNAPSHOTS_PER_PAGE),
+  openAiApiKey: z.string().optional(),
   fetch: fetchSchema,
   now: nowSchema,
   recordUsage: recordUsageSchema,
+  countOkCalls: countOkCallsSchema,
+  db: dbSchema,
 });
 
 function historyPointOf(quote: PriceQuote): HistoryPoint {
@@ -672,26 +816,156 @@ function historyPointOf(quote: PriceQuote): HistoryPoint {
   };
 }
 
-/** The lowest price across every ok page, earliest on ties, in page order. */
-function lowestOf(pages: readonly HistoryPage[]): HistoryReport["lowest"] {
-  let lowest: HistoryReport["lowest"] = null;
+/**
+ * The lowest price across every ok archive page and every verified model
+ * point, earliest on ties; the archive is considered first, so an archive
+ * capture wins an exact tie with a model point.
+ */
+function lowestOf(
+  pages: readonly HistoryPage[],
+  modelPoints: readonly HistoryModelPoint[],
+): HistoryLowest | null {
+  let lowest: HistoryLowest | null = null;
+  const consider = (candidate: HistoryLowest) => {
+    const lower =
+      lowest === null ||
+      candidate.priceCents < lowest.priceCents ||
+      (candidate.priceCents === lowest.priceCents && candidate.observedAt < lowest.observedAt);
+    if (lower) lowest = candidate;
+  };
   for (const page of pages) {
     if (page.status !== "ok") continue;
     for (const point of page.points) {
-      const lower =
-        lowest === null ||
-        point.priceCents < lowest.priceCents ||
-        (point.priceCents === lowest.priceCents && point.observedAt < lowest.observedAt);
-      if (lower) {
-        lowest = {
-          retailerSlug: page.retailerSlug,
-          priceCents: point.priceCents,
-          observedAt: point.observedAt,
-        };
-      }
+      consider({
+        kind: "archive",
+        retailerSlug: page.retailerSlug,
+        priceCents: point.priceCents,
+        observedAt: point.observedAt,
+      });
     }
   }
+  for (const point of modelPoints) {
+    consider({
+      kind: "model",
+      retailerSlug: point.retailerSlug,
+      priceCents: point.priceCents,
+      observedAt: point.observedAt,
+    });
+  }
   return lowest;
+}
+
+function modelClaimOf(claim: AssessedClaim): HistoryModelClaim {
+  return {
+    retailerSlug: claim.retailerSlug,
+    retailerName: claim.retailer === "" ? claim.retailerSlug : claim.retailer,
+    priceCents: claim.priceCents,
+    sourceUrl: claim.sourceUrl,
+    quote: claim.quote,
+    claimedDate: claim.claimedDate,
+    verdict: claim.verdict,
+    confidence: claim.confidence,
+    observedDate: claim.observedDate,
+    observedAt: claim.observedAt,
+    fragment: claim.fragment,
+    dateSource: claim.dateSource,
+    reasons: claim.reasons,
+  };
+}
+
+/** The source's result sorted by verdict. A verified claim always carries a date; one without is kept as a candidate. */
+function modelSearchOf(result: HistorySearchResult): HistoryModelSearch {
+  const verified: HistoryModelPoint[] = [];
+  const candidates: HistoryModelClaim[] = [];
+  const rejected: HistoryModelClaim[] = [];
+  const unverified: HistoryModelClaim[] = [];
+  for (const claim of result.claims) {
+    const row = modelClaimOf(claim);
+    if (claim.verdict === "verified" && claim.observedAt !== null) {
+      verified.push({
+        retailerSlug: row.retailerSlug,
+        retailerName: row.retailerName,
+        observedAt: claim.observedAt,
+        priceCents: row.priceCents,
+        sourceUrl: row.sourceUrl,
+        quote: row.quote,
+        confidence: row.confidence,
+        dateSource: row.dateSource,
+      });
+    } else if (claim.verdict === "rejected") {
+      rejected.push(row);
+    } else if (claim.verdict === "unverified") {
+      unverified.push(row);
+    } else {
+      candidates.push(row);
+    }
+  }
+  verified.sort((a, b) => a.observedAt.getTime() - b.observedAt.getTime());
+  return {
+    status: "ok",
+    model: result.model,
+    searches: result.toolCalls.searches,
+    pageOpens: result.toolCalls.pageOpens,
+    verified,
+    candidates,
+    rejected,
+    unverified,
+  };
+}
+
+interface ModelSearchDeps {
+  apiKey: string | null;
+  fetch: FetchLike | undefined;
+  now: () => Date;
+  meter: Meter;
+  countOkCalls: CountOkCalls;
+  db: QueryDb | undefined;
+}
+
+/**
+ * The model search behind its three gates: a key, a cap above zero, and the
+ * day's requests in the ledger under the cap. "Today" is the Sydney day, and
+ * the count is the ledger's successful `responses` rows, as the SerpApi
+ * budget counts searches. A ledger that cannot be read skips the search:
+ * nothing is spent blind. Never throws; a source failure is a failed outcome.
+ */
+async function runModelSearch(
+  variant: TrackedVariant,
+  from: Date,
+  to: Date,
+  deps: ModelSearchDeps,
+): Promise<HistoryModelSearch> {
+  if (deps.apiKey === null) return { status: "skipped", reason: "no-key" };
+  const { cap } = dailyCapOf(process.env[OPENAI_DAILY_CAP_ENV], DEFAULT_OPENAI_DAILY_CAP);
+  if (cap === 0) return { status: "skipped", reason: "disabled" };
+
+  let usedToday: number;
+  try {
+    const day = dayRangeIn(deps.now(), SYDNEY);
+    const rows = await deps.countOkCalls(
+      { provider: OPENAI_PROVIDER, from: day.from, to: day.to },
+      { db: deps.db },
+    );
+    usedToday = usedTodayOf(rows, (operation) => operation === OPENAI_REQUEST_OPERATION);
+  } catch {
+    return { status: "skipped", reason: "budget-unknown" };
+  }
+  if (usedToday >= cap) return { status: "skipped", reason: "daily-cap" };
+
+  try {
+    const result = await historySearch.search({
+      product: { title: variant.displayName, modelCode: variant.mpn, gtin: variant.gtin },
+      from,
+      to,
+      apiKey: deps.apiKey,
+      fetch: deps.fetch,
+      now: deps.now,
+      meter: deps.meter,
+    });
+    return modelSearchOf(result);
+  } catch (reason) {
+    return { status: "failed", ...failureOf(reason) };
+  }
 }
 
 /** The kind most of the skipped captures failed with; the first one on ties. */
@@ -715,26 +989,40 @@ export async function fetchHistory(input: FetchHistoryInput): Promise<HistoryRep
   const from = parsed.data.from ?? new Date(`${variant.onSaleFrom}T00:00:00Z`);
   const to = parsed.data.to ?? now();
   const ledger = usageLedger(parsed.data.recordUsage);
+  // The key goes to the source and nowhere else; no report includes it.
+  const openAiApiKey = openAiKeyOf(parsed.data.openAiApiKey);
 
   // Every page is tried, whatever its live `source`: an archived copy is HTML
   // with JSON-LD even for a Shopify store, and a bot-protected site may still
-  // have been captured.
+  // have been captured. The model search runs beside the archive, for the
+  // same window; neither waits on the other and neither's failure is the
+  // other's.
   const fetchedAt = now();
-  const settled = await Promise.allSettled(
-    variant.pages.map((page) =>
-      archiveSources.wayback({
-        retailerSlug: page.retailerSlug,
-        retailerName: page.retailerName,
-        url: page.url,
-        from,
-        to,
-        maxSnapshots: maxSnapshotsPerPage,
-        fetch,
-        now,
-        meter: ledger.meter,
-      }),
+  const [settled, modelSearch] = await Promise.all([
+    Promise.allSettled(
+      variant.pages.map((page) =>
+        archiveSources.wayback({
+          retailerSlug: page.retailerSlug,
+          retailerName: page.retailerName,
+          url: page.url,
+          from,
+          to,
+          maxSnapshots: maxSnapshotsPerPage,
+          fetch,
+          now,
+          meter: ledger.meter,
+        }),
+      ),
     ),
-  );
+    runModelSearch(variant, from, to, {
+      apiKey: openAiApiKey,
+      fetch,
+      now,
+      meter: ledger.meter,
+      countOkCalls: parsed.data.countOkCalls ?? countOkCallsInLedger,
+      db: parsed.data.db,
+    }),
+  ]);
 
   const pages: HistoryPage[] = variant.pages.map((page, index) => {
     const result = settled[index];
@@ -781,7 +1069,8 @@ export async function fetchHistory(input: FetchHistoryInput): Promise<HistoryRep
     from,
     to,
     pages,
-    lowest: lowestOf(pages),
+    modelSearch,
+    lowest: lowestOf(pages, modelSearch.status === "ok" ? modelSearch.verified : []),
     usage: await ledger.flush(variant.slug),
   };
 }

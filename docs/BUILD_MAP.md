@@ -30,9 +30,9 @@ One row per component. A row is added when the component is designed, before it 
 | C-007 | Database invariant tests | Database | `src/db/invariants.test.ts` | 1 | built | 0007, 0009, 0014, 0017, 0019 | yes |
 | C-008 | App scaffold | Adapters | `src/app/layout.tsx` | 1 | built | 0001, 0008 | yes |
 | C-009 | Shared pure helpers | Shared | `src/lib/` | 1 | tested | 0004, 0016, 0019 | yes |
-| C-010 | Sources layer | Sources | `src/sources/` | 1 | spike | 0012, 0013, 0017, 0019 | yes |
-| C-011 | `quotes` service | Services | `src/services/quotes.ts` | 1 | spike | 0012, 0013 | yes |
-| C-012 | Lab page | Adapters | `src/app/lab/` | 1 | spike | 0012, 0016, 0019 | no |
+| C-010 | Sources layer | Sources | `src/sources/` | 1 | spike | 0012, 0013, 0017, 0019, 0020 | yes |
+| C-011 | `quotes` service: live prices, and price history from the archive and a model search | Services | `src/services/quotes.ts` | 1 | spike | 0012, 0013, 0020 | yes |
+| C-012 | Lab page | Adapters | `src/app/lab/` | 1 | spike | 0012, 0016, 0019, 0020 | no |
 | C-013 | `retailers` service | Services | `src/services/retailers.ts` | 1 | planned | 0008, 0016 | yes |
 | C-014 | `catalog` service | Services | `src/services/catalog.ts` | 1 | planned | 0004, 0008, 0016 | yes |
 | C-015 | `listings` service | Services | `src/services/listings.ts` | 1 | planned | 0005, 0010 | yes |
@@ -44,7 +44,7 @@ One row per component. A row is added when the component is designed, before it 
 | C-021 | `pricing` service | Services | `src/services/pricing.ts` | 3 | planned | | yes |
 | C-022 | Scheduled ingestion and staging | Services | `src/services/ingestion.ts` | 4 | planned | 0010 | yes |
 | C-023 | Usage ledger: table, append-only trigger and query helpers | Database | `src/db/queries/` | 1 | tested | 0014 | yes |
-| C-024 | `usage` service | Services | `src/services/usage.ts` | 1 | tested | 0014 | yes |
+| C-024 | `usage` service | Services | `src/services/usage.ts` | 1 | tested | 0014, 0020 | yes |
 | C-025 | `status` service | Services | `src/services/status.ts` | 1 | tested | 0014 | yes |
 | C-026 | Status dashboard | Adapters | `src/app/lab/status/` | 1 | built | 0014 | no |
 | C-027 | `discovery` service | Services | `src/services/discovery.ts` | 1 | spike | 0016, 0017, 0019 | yes |
@@ -53,5 +53,9 @@ One row per component. A row is added when the component is designed, before it 
 | C-030 | `catalogue-index` service | Services | `src/services/catalogue-index.ts` | 1 | spike | 0017, 0019 | yes |
 | C-031 | Storefront listing source | Sources | `src/sources/storefront-listing.ts` | 1 | spike | 0017 | yes |
 | C-032 | Catalogue candidate table and search index | Database | `src/db/queries/catalogue-candidates.ts` | 1 | spike | 0010, 0017, 0019 | yes |
+| C-033 | History search source: an assistant proposes dated pages, each verified on the page | Sources | `src/sources/history-search.ts` | 1 | spike | 0013, 0020 | yes |
+| C-034 | History search provider client | Sources | `src/sources/openai.ts` | 1 | spike | 0013, 0020 | no |
+| C-035 | History evidence rules: fragment match, date from page or address, confidence | Shared | `src/lib/history-evidence.ts` | 1 | spike | 0013, 0020 | yes |
+| C-036 | Daily cap reader, shared by `discovery` and `quotes` | Services | `src/services/daily-cap.ts` | 1 | spike | 0017, 0020 | yes |
 
 The paths of planned components are where the component is expected to land. They are corrected when it is built.

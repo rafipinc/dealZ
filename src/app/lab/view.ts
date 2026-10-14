@@ -29,6 +29,11 @@ import type {
 } from "@/services/discovery";
 import type {
   ExtractReport,
+  HistoryLowest,
+  HistoryModelClaim,
+  HistoryModelPoint,
+  HistoryModelSearch,
+  HistoryModelSkipReason,
   HistoryPage,
   HistoryPoint,
   HistoryReport,
@@ -557,25 +562,33 @@ export interface HistoryPageViewFailed extends HistoryPageViewBase {
 
 export type HistoryPageView = HistoryPageViewOk | HistoryPageViewFailed;
 
+/** Where a charted point came from: a Wayback capture or a page the model found and the page confirmed (ADR-0020). */
+export type HistoryPointKind = HistoryLowest["kind"];
+
 export interface HistorySeriesPointView {
   /** ISO date, the x coordinate before scaling. */
   x: string;
   /** Integer cents, the y coordinate before scaling. */
   y: number;
-  /** Tooltip: "JB Hi-Fi, 14 May 2026, $3,295.00". */
+  /** Tooltip: "JB Hi-Fi, 14 May 2026, $3,295.00, archive capture". */
   title: string;
+  /** The archived snapshot or the model-found page. Every point links to the page it was read from (ADR-0020 item 6). */
+  href: string;
+  kind: HistoryPointKind;
 }
 
 export interface HistorySeriesView {
   retailerSlug: string;
   retailerName: string;
-  /** Index into the panel's palette. */
+  /** Index into the panel's palette. Shared by every series of one retailer, whatever its kind. */
   colourIndex: number;
+  /** Archive points and verified model points are separate series, drawn with different markers. */
+  kind: HistoryPointKind;
   points: HistorySeriesPointView[];
 }
 
 export interface HistoryChartView {
-  /** Only ok pages with at least one point. */
+  /** Ok pages with at least one point, then verified model points grouped by retailer. Candidates never chart. */
   series: HistorySeriesView[];
   /** Cents. yMax > yMin always. */
   yMin: number;
@@ -591,6 +604,65 @@ export interface HistoryChartView {
   ariaLabel: string;
 }
 
+/** A point the model found and its page confirmed, for the verified table (ADR-0020 item 3). */
+export interface HistoryModelPointView {
+  /** ISO date in Sydney, "2026-05-28". */
+  date: string;
+  /** "28 May 2026". */
+  label: string;
+  price: string;
+  priceCents: number;
+  retailerName: string;
+  retailerSlug: string;
+  /** The page the point was verified on. */
+  sourceUrl: string;
+  /** The fragment on the page, cut to QUOTE_LIMIT characters for the cell. */
+  quote: string;
+  /** The whole fragment, for the cell's title attribute. */
+  quoteFull: string;
+  /** "0.8". */
+  confidence: string;
+  /** "from the URL" or "from the page". */
+  dateSourceLabel: string;
+}
+
+/** A claim the pages did not confirm: a candidate, a rejection or a page that could not be read. Listed, never charted. */
+export interface HistoryModelClaimView {
+  verdict: HistoryModelClaim["verdict"];
+  /** "Candidate", "Rejected" or "Unverified". */
+  verdictLabel: string;
+  retailerName: string;
+  retailerSlug: string;
+  /** The model's own date as written, or "none". Shown so a reader sees how far it was from the page's. */
+  claimedDateLabel: string;
+  /** The date read from the page or its URL, or "undated". */
+  observedLabel: string;
+  price: string;
+  priceCents: number;
+  sourceUrl: string;
+  /** Every rule that fired, joined by "; ". */
+  reason: string;
+}
+
+export type HistoryModelSearchView =
+  | {
+      status: "skipped";
+      reason: HistoryModelSkipReason;
+      /** One sentence saying why nothing was asked. */
+      sentence: string;
+    }
+  | { status: "failed"; kind: FailureKind; message: string; sentence: string }
+  | {
+      status: "ok";
+      sentence: string;
+      model: string;
+      searches: number;
+      pageOpens: number;
+      verified: HistoryModelPointView[];
+      /** Candidates, rejected and unverified claims together, in that order. */
+      claims: HistoryModelClaimView[];
+    };
+
 export interface HistoryView {
   ok: true;
   variant: VariantView;
@@ -601,7 +673,14 @@ export interface HistoryView {
   to: string;
   toLabel: string;
   pages: HistoryPageView[];
+  /** The model search run alongside the archive (ADR-0020). */
+  modelSearch: HistoryModelSearchView;
   lowest: {
+    kind: HistoryPointKind;
+    /** "archive capture" or "model-found page". */
+    kindLabel: string;
+    /** The page the lowest price was read from; null only if the report's lowest matched no point. */
+    href: string | null;
     retailerSlug: string;
     retailerName: string;
     price: string;
@@ -609,7 +688,7 @@ export interface HistoryView {
     date: string;
     label: string;
   } | null;
-  /** Null when no page returned a point. */
+  /** Null when no page returned a point and the model verified none. */
   chart: HistoryChartView | null;
 }
 
@@ -618,6 +697,32 @@ export type HistoryViewResult = HistoryView | ViewError;
 /** Cents per axis step: $100. */
 const Y_STEP = 10_000;
 const Y_TICKS = 4;
+/** Longest quote shown in a cell; the whole quote sits in `quoteFull`. */
+const QUOTE_LIMIT = 160;
+
+const pointKindLabels: Record<HistoryPointKind, string> = {
+  archive: "archive capture",
+  model: "model-found page",
+};
+
+const modelSkipSentences: Record<HistoryModelSkipReason, string> = {
+  "no-key": "No OpenAI key is set",
+  "daily-cap": "The OpenAI daily cap is reached",
+  disabled: "The model search is disabled, OPENAI_DAILY_CAP is 0",
+  "budget-unknown": "The ledger could not be read, so nothing was spent",
+};
+
+const verdictLabels: Record<HistoryModelClaim["verdict"], string> = {
+  verified: "Verified",
+  candidate: "Candidate",
+  rejected: "Rejected",
+  unverified: "Unverified",
+};
+
+const dateSourceLabels: Record<"url" | "page", string> = {
+  url: "from the URL",
+  page: "from the page",
+};
 
 function toHistoryPointView(point: HistoryPoint): HistoryPointView {
   const date = isoDateInSydney(point.observedAt);
@@ -658,6 +763,129 @@ function toHistoryPageView(page: HistoryPage): HistoryPageView {
   };
 }
 
+function truncateQuote(quote: string): string {
+  return quote.length <= QUOTE_LIMIT ? quote : `${quote.slice(0, QUOTE_LIMIT - 1)}…`;
+}
+
+function toModelPointView(point: HistoryModelPoint): HistoryModelPointView {
+  const date = isoDateInSydney(point.observedAt);
+  return {
+    date,
+    label: formatIsoDate(date),
+    price: formatAud(point.priceCents),
+    priceCents: point.priceCents,
+    retailerName: point.retailerName,
+    retailerSlug: point.retailerSlug,
+    sourceUrl: point.sourceUrl,
+    quote: truncateQuote(point.quote),
+    quoteFull: point.quote,
+    confidence: point.confidence.toFixed(1),
+    dateSourceLabel: point.dateSource === null ? "undated" : dateSourceLabels[point.dateSource],
+  };
+}
+
+function toModelClaimView(claim: HistoryModelClaim): HistoryModelClaimView {
+  return {
+    verdict: claim.verdict,
+    verdictLabel: verdictLabels[claim.verdict],
+    retailerName: claim.retailerName,
+    retailerSlug: claim.retailerSlug,
+    claimedDateLabel: claim.claimedDate ?? "none",
+    observedLabel: claim.observedDate === null ? "undated" : formatIsoDate(claim.observedDate),
+    price: formatAud(claim.priceCents),
+    priceCents: claim.priceCents,
+    sourceUrl: claim.sourceUrl,
+    reason: claim.reasons.join("; "),
+  };
+}
+
+function toModelSearchView(search: HistoryModelSearch): HistoryModelSearchView {
+  if (search.status === "skipped") {
+    return {
+      status: "skipped",
+      reason: search.reason,
+      sentence: modelSkipSentences[search.reason],
+    };
+  }
+  if (search.status === "failed") {
+    return {
+      status: "failed",
+      kind: search.kind,
+      message: search.message,
+      sentence: "The model search failed, so the chart shows the archive alone",
+    };
+  }
+  const claims = [...search.candidates, ...search.rejected, ...search.unverified].map(
+    toModelClaimView,
+  );
+  const verified = search.verified.map(toModelPointView);
+  const sentence =
+    verified.length === 0 && claims.length === 0
+      ? "The model answered with no claims"
+      : `The model answered: ${plural(verified.length, "point", "points")} verified on the page, ${plural(
+          claims.length,
+          "other claim",
+          "other claims",
+        )}`;
+  return {
+    status: "ok",
+    sentence,
+    model: search.model,
+    searches: search.searches,
+    pageOpens: search.pageOpens,
+    verified,
+    claims,
+  };
+}
+
+/** One chartable point of either kind, before it is grouped into a series. */
+interface ChartablePoint {
+  retailerSlug: string;
+  retailerName: string;
+  kind: HistoryPointKind;
+  date: string;
+  label: string;
+  priceCents: number;
+  href: string;
+}
+
+/**
+ * Archive points of every ok page, then every verified model point. Only
+ * these reach the chart and the lowest line: a candidate never does
+ * (ADR-0020 item 3).
+ */
+function chartablePoints(
+  pages: HistoryPageView[],
+  modelSearch: HistoryModelSearchView,
+): ChartablePoint[] {
+  const archive = pages
+    .filter((page): page is HistoryPageViewOk => page.status === "ok")
+    .flatMap((page) =>
+      page.points.map<ChartablePoint>((point) => ({
+        retailerSlug: page.retailerSlug,
+        retailerName: page.retailerName,
+        kind: "archive",
+        date: point.date,
+        label: point.label,
+        priceCents: point.priceCents,
+        href: point.snapshotUrl,
+      })),
+    );
+  const model =
+    modelSearch.status === "ok"
+      ? modelSearch.verified.map<ChartablePoint>((point) => ({
+          retailerSlug: point.retailerSlug,
+          retailerName: point.retailerName,
+          kind: "model",
+          date: point.date,
+          label: point.label,
+          priceCents: point.priceCents,
+          href: point.sourceUrl,
+        }))
+      : [];
+  return [...archive, ...model];
+}
+
 /**
  * Axis bounds on $100 steps with a half-step of padding, widened so the
  * range splits evenly into Y_TICKS - 1 steps and is never zero.
@@ -672,29 +900,57 @@ function yBounds(values: number[]): { yMin: number; yMax: number } {
   return { yMin, yMax };
 }
 
-function toChartView(pages: HistoryPageView[]): HistoryChartView | null {
-  const series: HistorySeriesView[] = pages
-    .filter((page): page is HistoryPageViewOk => page.status === "ok" && page.points.length > 0)
-    .map((page, index) => ({
-      retailerSlug: page.retailerSlug,
-      retailerName: page.retailerName,
-      colourIndex: index,
-      points: page.points.map((point) => ({
-        x: point.date,
-        y: point.priceCents,
-        title: `${page.retailerName}, ${point.label}, ${point.price}`,
-      })),
-    }));
+/**
+ * One series per retailer and kind, archive series first in page order,
+ * then model series in the order their retailers first appear. A retailer
+ * keeps one colour across both kinds, so JB Hi-Fi's captures and its
+ * model-found pages read as one shop.
+ */
+function toSeriesViews(points: ChartablePoint[]): HistorySeriesView[] {
+  const colours = new Map<string, number>();
+  const series = new Map<string, HistorySeriesView>();
+  for (const point of points) {
+    if (!colours.has(point.retailerSlug)) colours.set(point.retailerSlug, colours.size);
+    const key = `${point.kind}:${point.retailerSlug}`;
+    let entry = series.get(key);
+    if (entry === undefined) {
+      entry = {
+        retailerSlug: point.retailerSlug,
+        retailerName: point.retailerName,
+        colourIndex: colours.get(point.retailerSlug) ?? 0,
+        kind: point.kind,
+        points: [],
+      };
+      series.set(key, entry);
+    }
+    entry.points.push({
+      x: point.date,
+      y: point.priceCents,
+      title: `${point.retailerName}, ${point.label}, ${formatAud(point.priceCents)}, ${
+        pointKindLabels[point.kind]
+      }`,
+      href: point.href,
+      kind: point.kind,
+    });
+  }
+  for (const entry of series.values()) {
+    entry.points.sort((a, b) => (a.x < b.x ? -1 : a.x > b.x ? 1 : 0));
+  }
+  return [...series.values()];
+}
+
+function toChartView(points: ChartablePoint[]): HistoryChartView | null {
+  const series = toSeriesViews(points);
   if (series.length === 0) return null;
 
-  const points = series.flatMap((entry) => entry.points);
-  const { yMin, yMax } = yBounds(points.map((point) => point.y));
+  const flat = series.flatMap((entry) => entry.points);
+  const { yMin, yMax } = yBounds(flat.map((point) => point.y));
   const yTicks = Array.from({ length: Y_TICKS }, (_, index) => {
     const y = yMin + ((yMax - yMin) * index) / (Y_TICKS - 1);
     return { y, label: formatDollars(y) };
   });
 
-  const dates = points.map((point) => point.x).sort();
+  const dates = flat.map((point) => point.x).sort();
   let xMin = dates[0];
   let xMax = dates[dates.length - 1];
   if (xMin === xMax) {
@@ -707,7 +963,8 @@ function toChartView(pages: HistoryPageView[]): HistoryChartView | null {
       const prices = entry.points.map((point) => point.y);
       const first = entry.points[0];
       const last = entry.points[entry.points.length - 1];
-      return `${entry.retailerName}: ${entry.points.length} archived ${
+      const noun = entry.kind === "archive" ? "archived" : "model-found";
+      return `${entry.retailerName}: ${entry.points.length} ${noun} ${
         entry.points.length === 1 ? "price" : "prices"
       } from ${formatIsoDate(first.x)} to ${formatIsoDate(last.x)}, lowest ${formatAud(
         Math.min(...prices),
@@ -728,15 +985,39 @@ function toChartView(pages: HistoryPageView[]): HistoryChartView | null {
   };
 }
 
+function toLowestView(
+  lowest: HistoryLowest | null,
+  points: ChartablePoint[],
+): HistoryView["lowest"] {
+  if (lowest === null) return null;
+  const date = isoDateInSydney(lowest.observedAt);
+  const match =
+    points.find(
+      (point) =>
+        point.kind === lowest.kind &&
+        point.retailerSlug === lowest.retailerSlug &&
+        point.date === date &&
+        point.priceCents === lowest.priceCents,
+    ) ?? null;
+  return {
+    kind: lowest.kind,
+    kindLabel: pointKindLabels[lowest.kind],
+    href: match?.href ?? null,
+    retailerSlug: lowest.retailerSlug,
+    retailerName: match?.retailerName ?? lowest.retailerSlug,
+    price: formatAud(lowest.priceCents),
+    priceCents: lowest.priceCents,
+    date,
+    label: formatIsoDate(date),
+  };
+}
+
 export function toHistoryView(report: HistoryReport): HistoryView {
   const pages = report.pages.map(toHistoryPageView);
+  const modelSearch = toModelSearchView(report.modelSearch);
+  const points = chartablePoints(pages, modelSearch);
   const from = isoDateInSydney(report.from);
   const to = isoDateInSydney(report.to);
-  const lowestPage =
-    report.lowest === null
-      ? null
-      : (report.pages.find((page) => page.retailerSlug === report.lowest?.retailerSlug) ?? null);
-  const lowestDate = report.lowest === null ? null : isoDateInSydney(report.lowest.observedAt);
   return {
     ok: true,
     variant: toVariantView(report.variant),
@@ -747,18 +1028,9 @@ export function toHistoryView(report: HistoryReport): HistoryView {
     to,
     toLabel: formatIsoDate(to),
     pages,
-    lowest:
-      report.lowest === null || lowestDate === null
-        ? null
-        : {
-            retailerSlug: report.lowest.retailerSlug,
-            retailerName: lowestPage?.retailerName ?? report.lowest.retailerSlug,
-            price: formatAud(report.lowest.priceCents),
-            priceCents: report.lowest.priceCents,
-            date: lowestDate,
-            label: formatIsoDate(lowestDate),
-          },
-    chart: toChartView(pages),
+    modelSearch,
+    lowest: toLowestView(report.lowest, points),
+    chart: toChartView(points),
   };
 }
 
