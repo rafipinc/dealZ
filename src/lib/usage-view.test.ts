@@ -192,7 +192,7 @@ describe("toUsageView", () => {
 
   it("totals a period of only free providers as free, and keeps an unknown provider's name", () => {
     const wayback = { ...retailerUsage, provider: "wayback", calls: 3, ok: 3 };
-    const unknown = { ...retailerUsage, provider: "openai", calls: 1, ok: 1 };
+    const unknown = { ...retailerUsage, provider: "anthropic", calls: 1, ok: 1 };
     const totals = { ...noUsage.totals, calls: 4, ok: 4 };
 
     const freeOnly = toUsageView({ ...dashboard, today: { providers: [wayback], totals } });
@@ -200,7 +200,7 @@ describe("toUsageView", () => {
     expect(freeOnly.today.totals?.cost).toBe("free");
 
     const mixed = toUsageView({ ...dashboard, today: { providers: [wayback, unknown], totals } });
-    expect(mixed.today.rows[1]).toMatchObject({ label: "openai", cost: "$0.00" });
+    expect(mixed.today.rows[1]).toMatchObject({ label: "anthropic", cost: "$0.00" });
     expect(mixed.today.totals?.cost).toBe("$0.00");
   });
 

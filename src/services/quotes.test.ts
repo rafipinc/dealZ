@@ -2,17 +2,22 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GEMINI_ENDPOINT } from "../sources/gemini";
+import { OPENAI_ENDPOINT } from "../sources/openai";
 import { SERPAPI_ENDPOINT } from "../sources/serpapi";
 import { REVIEW_THRESHOLD, type FetchLike } from "../sources/types";
 import { AVAILABILITY_ENDPOINT, CDX_ENDPOINT, waybackSnapshotUrl } from "../sources/wayback";
 import { NotFoundError, ValidationError } from "./errors";
 import {
+  DEFAULT_OPENAI_DAILY_CAP,
   extractQuote,
   fetchHistory,
   fetchQuotes,
+  OPENAI_DAILY_CAP_ENV,
   searchQuotes,
   USAGE_WRITE_TIMEOUT_MS,
+  type CountOkCalls,
   type ExtractReport,
+  type HistoryModelSearch,
   type HistoryPageOk,
   type QuoteOutcomeFailed,
   type QuoteOutcomeOk,
@@ -42,6 +47,8 @@ const immersive = fixture("serpapi-immersive-s85h-65.json");
 const cdxJbHiFi = fixture("wayback-cdx-jbhifi.json");
 const geminiJbHiFi = fixture("gemini-extract-jbhifi.json");
 const geminiSamsungDoubt = fixture("gemini-extract-samsung-doubt.json");
+const openAiHistory = fixture("openai-history-s85h-65.json");
+const jbCatalogue = fixture("jbhifi-catalogue-2026-05-28.html");
 
 const SLUG = "samsung-s85h-65-au";
 const variant = trackedVariants.find((candidate) => candidate.slug === SLUG);
@@ -847,6 +854,16 @@ function okPages(pages: { status: string }[]): HistoryPageOk[] {
 }
 
 describe("fetchHistory", () => {
+  // The machine running the tests may hold a real key; the archive tests
+  // want the model search skipped, and the model tests set what they need.
+  beforeEach(() => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv(OPENAI_DAILY_CAP_ENV, "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("reads four archived prices for JB Hi-Fi oldest first and none for pages never captured", async () => {
     const report = await fetchHistory({
       slug: SLUG,
@@ -889,10 +906,12 @@ describe("fetchHistory", () => {
     for (const page of rest) expect(page.points).toEqual([]);
 
     expect(report.lowest).toEqual({
+      kind: "archive",
       retailerSlug: "jb-hi-fi",
       priceCents: 279500,
       observedAt: new Date("2026-05-14T02:51:41.000Z"),
     });
+    expect(report.modelSearch).toEqual({ status: "skipped", reason: "no-key" });
   });
 
   it("keeps only the newest maxSnapshotsPerPage captures, still oldest first, within the given range", async () => {
@@ -926,6 +945,7 @@ describe("fetchHistory", () => {
       now: () => FIXED_NOW,
     });
     expect(report.lowest).toEqual({
+      kind: "archive",
       retailerSlug: "samsung-au",
       priceCents: 269500,
       observedAt: new Date("2026-09-05T00:00:00.000Z"),
@@ -1052,6 +1072,409 @@ describe("fetchHistory", () => {
         slug: SLUG,
         from: "2026-05-01" as unknown as Date,
         fetch: fakeFetchBySubstring([]),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+// ---------- fetchHistory: the model search beside the archive (ADR-0020) ----------
+
+const OPENAI_KEY = "sk-test-key-0123456789abcdef";
+const VERIFIED_CATALOGUE_URL = "https://catalogue.jbhifi.com.au/2026/05/28-05-syt/index.html";
+const STATICICE_URL = "https://www.staticice.com.au/cgi-bin/search.cgi?q=QA65S85HAEXXY";
+
+/** The recorded answer plus one claim on a domain outside the allow-list, so every verdict appears. */
+function recordedAnswerWithStaticIce(): string {
+  const body = JSON.parse(openAiHistory) as {
+    output: { type: string; content?: { text: string }[] }[];
+  };
+  for (const item of body.output) {
+    if (item.type !== "message" || item.content === undefined) continue;
+    const rows = JSON.parse(item.content[0].text) as unknown[];
+    rows.push({
+      date: "2026-06-01",
+      retailer: "StaticICE",
+      price_aud: 2399,
+      source_url: STATICICE_URL,
+      quote: "$2399.00",
+    });
+    item.content[0].text = JSON.stringify(rows);
+  }
+  return JSON.stringify(body);
+}
+
+/** A catalogue page with the model code but neither the quoted fragment nor the price. */
+const catalogueWithoutFragment = `<html><body><p>Samsung 65" OLED 4K Smart AI TV 902825 / QA65S85HAEXXY</p></body></html>`;
+
+/** The model answers with the recorded claims; one catalogue verifies, one is forbidden, two lack the fragment. */
+const modelHistoryRoutes: [string, Responder][] = [
+  [OPENAI_ENDPOINT, json(recordedAnswerWithStaticIce())],
+  ["2026/05/28-05-syt", html(jbCatalogue)],
+  ["2026/07/02-07-acp", html(catalogueWithoutFragment)],
+  ["2026/07/30-07-acp", html("<html><body>Forbidden</body></html>", 403)],
+  ["2026/09/03-09-ldd", html(catalogueWithoutFragment)],
+  ...historyRoutes,
+];
+
+const noOpenAiToday: CountOkCalls = async () => [];
+const openAiRowsToday =
+  (responses: number): CountOkCalls =>
+  async () => [
+    { operation: "responses", count: responses },
+    // Searches never count against the cap; only requests do.
+    { operation: "web_search_call", count: responses * 3 },
+  ];
+
+function okModelSearch(modelSearch: HistoryModelSearch) {
+  if (modelSearch.status !== "ok") throw new Error(`Expected ok, got ${modelSearch.status}`);
+  return modelSearch;
+}
+
+function openAiCalls(calls: Call[]): Call[] {
+  return calls.filter((call) => call.url === OPENAI_ENDPOINT);
+}
+
+describe("fetchHistory model search", () => {
+  beforeEach(() => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv(OPENAI_DAILY_CAP_ENV, "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("skips the model search without a key and still reads the archive", async () => {
+    const calls: Call[] = [];
+    const report = await fetchHistory({
+      slug: SLUG,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes, calls),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    expect(report.modelSearch).toEqual({ status: "skipped", reason: "no-key" });
+    expect(openAiCalls(calls)).toHaveLength(0);
+    expect(okPages(report.pages)[0].points).toHaveLength(4);
+    expect(report.lowest).toMatchObject({ kind: "archive", priceCents: 279500 });
+  });
+
+  it("verifies one point, rejects three, leaves one unverified, and picks the model point as lowest", async () => {
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    const search = okModelSearch(report.modelSearch);
+    expect(search.model).toBe("gpt-6-luna");
+    expect(search.searches).toBe(3);
+    expect(search.pageOpens).toBe(2);
+
+    expect(search.verified).toEqual([
+      {
+        retailerSlug: "jb-hi-fi",
+        retailerName: "JB Hi-Fi",
+        // Midnight of 2026-05-28 in Sydney, from the catalogue URL, not the model's 2026-05-14.
+        observedAt: new Date("2026-05-27T14:00:00.000Z"),
+        priceCents: 249500,
+        sourceUrl: VERIFIED_CATALOGUE_URL,
+        quote: expect.stringContaining("$2495"),
+        confidence: 0.8,
+        dateSource: "url",
+      },
+    ]);
+    expect(search.candidates).toEqual([]);
+    expect(search.rejected.map((claim) => [claim.sourceUrl, claim.reasons[0]])).toEqual([
+      [
+        "https://catalogue.jbhifi.com.au/2026/07/02-07-acp/index.html",
+        "quoted fragment not on page",
+      ],
+      [
+        "https://catalogue.jbhifi.com.au/2026/09/03-09-ldd/index.html",
+        "quoted fragment not on page",
+      ],
+      [STATICICE_URL, "domain not on the allow-list"],
+    ]);
+    expect(search.rejected.every((claim) => claim.confidence === 0.3)).toBe(true);
+    expect(search.unverified).toEqual([
+      expect.objectContaining({
+        sourceUrl: "https://catalogue.jbhifi.com.au/2026/07/30-07-acp/index.html",
+        verdict: "unverified",
+        confidence: 0.4,
+        claimedDate: "2026-07-16",
+        reasons: ["page unreachable: blocked"],
+      }),
+    ]);
+
+    // The archive's lowest is 2795 at JB Hi-Fi; the verified catalogue point is 2495.
+    expect(report.lowest).toEqual({
+      kind: "model",
+      retailerSlug: "jb-hi-fi",
+      priceCents: 249500,
+      observedAt: new Date("2026-05-27T14:00:00.000Z"),
+    });
+    expect(okPages(report.pages)[0].points).toHaveLength(4);
+    expect(JSON.stringify(report)).not.toContain(OPENAI_KEY);
+  });
+
+  it("picks the archive point as lowest when a capture is cheaper than every verified model point", async () => {
+    const cheaperLater = theGoodGuys.replace('"price": "2795.00"', '"price": "2395.00"');
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring([
+        [cdxNeedle(SAMSUNG_URL), json(JSON.stringify([["timestamp"], ["20260905000000"]]))],
+        [`id_/${SAMSUNG_URL}`, html(cheaperLater)],
+        ...modelHistoryRoutes,
+      ]),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    expect(okModelSearch(report.modelSearch).verified).toHaveLength(1);
+    expect(report.lowest).toEqual({
+      kind: "archive",
+      retailerSlug: "samsung-au",
+      priceCents: 239500,
+      observedAt: new Date("2026-09-05T00:00:00.000Z"),
+    });
+  });
+
+  it("takes the key from OPENAI_API_KEY when none is given", async () => {
+    vi.stubEnv("OPENAI_API_KEY", OPENAI_KEY);
+    const calls: Call[] = [];
+    const report = await fetchHistory({
+      slug: SLUG,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes, calls),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    expect(report.modelSearch.status).toBe("ok");
+    const [request] = openAiCalls(calls);
+    expect(new Headers(request.init?.headers).get("authorization")).toBe(`Bearer ${OPENAI_KEY}`);
+  });
+
+  it("skips with daily-cap when today's requests reach the default cap, and spends nothing", async () => {
+    const calls: Call[] = [];
+    const countOkCalls = vi.fn(openAiRowsToday(DEFAULT_OPENAI_DAILY_CAP));
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes, calls),
+      now: () => FIXED_NOW,
+      countOkCalls,
+    });
+    expect(DEFAULT_OPENAI_DAILY_CAP).toBe(10);
+    expect(report.modelSearch).toEqual({ status: "skipped", reason: "daily-cap" });
+    expect(openAiCalls(calls)).toHaveLength(0);
+    expect(countOkCalls).toHaveBeenCalledTimes(1);
+    // Today, Sydney time: FIXED_NOW is 11:02 on 2026-09-28 AEST.
+    expect(countOkCalls.mock.calls[0][0]).toEqual({
+      provider: "openai",
+      from: new Date("2026-09-27T14:00:00.000Z"),
+      to: new Date("2026-09-28T14:00:00.000Z"),
+    });
+    expect(okPages(report.pages)[0].points).toHaveLength(4);
+  });
+
+  it("runs while today's requests are under the cap, counting requests and not searches", async () => {
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes),
+      now: () => FIXED_NOW,
+      countOkCalls: openAiRowsToday(DEFAULT_OPENAI_DAILY_CAP - 1),
+    });
+    expect(report.modelSearch.status).toBe("ok");
+  });
+
+  it("reads the cap from OPENAI_DAILY_CAP", async () => {
+    vi.stubEnv(OPENAI_DAILY_CAP_ENV, "2");
+    const capped = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes),
+      now: () => FIXED_NOW,
+      countOkCalls: openAiRowsToday(2),
+    });
+    expect(capped.modelSearch).toEqual({ status: "skipped", reason: "daily-cap" });
+
+    const under = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes),
+      now: () => FIXED_NOW,
+      countOkCalls: openAiRowsToday(1),
+    });
+    expect(under.modelSearch.status).toBe("ok");
+  });
+
+  it("skips with disabled when the cap is 0, without reading the ledger", async () => {
+    vi.stubEnv(OPENAI_DAILY_CAP_ENV, "0");
+    const calls: Call[] = [];
+    const countOkCalls = vi.fn(noOpenAiToday);
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes, calls),
+      now: () => FIXED_NOW,
+      countOkCalls,
+    });
+    expect(report.modelSearch).toEqual({ status: "skipped", reason: "disabled" });
+    expect(countOkCalls).not.toHaveBeenCalled();
+    expect(openAiCalls(calls)).toHaveLength(0);
+  });
+
+  it("uses the default cap when OPENAI_DAILY_CAP is not a number", async () => {
+    vi.stubEnv(OPENAI_DAILY_CAP_ENV, "lots");
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes),
+      now: () => FIXED_NOW,
+      countOkCalls: openAiRowsToday(DEFAULT_OPENAI_DAILY_CAP),
+    });
+    expect(report.modelSearch).toEqual({ status: "skipped", reason: "daily-cap" });
+  });
+
+  it("skips with budget-unknown when the ledger cannot be read, spending nothing", async () => {
+    const calls: Call[] = [];
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes, calls),
+      now: () => FIXED_NOW,
+      countOkCalls: async () => {
+        throw new Error("database down");
+      },
+    });
+    expect(report.modelSearch).toEqual({ status: "skipped", reason: "budget-unknown" });
+    expect(openAiCalls(calls)).toHaveLength(0);
+    expect(report.lowest).toMatchObject({ kind: "archive" });
+  });
+
+  it("reports a model-search SourceError as failed and keeps the archive", async () => {
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring([
+        [OPENAI_ENDPOINT, json('{"error":{"message":"rate limited"}}', 429)],
+        ...historyRoutes,
+      ]),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    expect(report.modelSearch).toMatchObject({ status: "failed", kind: "blocked" });
+    if (report.modelSearch.status === "failed") {
+      expect(report.modelSearch.message).not.toContain(OPENAI_KEY);
+    }
+    expect(okPages(report.pages)[0].points).toHaveLength(4);
+    expect(report.lowest).toMatchObject({ kind: "archive", priceCents: 279500 });
+  });
+
+  it("keeps the model search when every archive lookup fails", async () => {
+    const unreachable: Responder = () => {
+      throw new Error("ENOTFOUND web.archive.org");
+    };
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring([
+        [OPENAI_ENDPOINT, json(recordedAnswerWithStaticIce())],
+        ["2026/05/28-05-syt", html(jbCatalogue)],
+        ["catalogue.jbhifi.com.au", html(catalogueWithoutFragment)],
+        [CDX_ENDPOINT, unreachable],
+        [AVAILABILITY_ENDPOINT, unreachable],
+      ]),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    expect(report.pages.every((page) => page.status === "failed")).toBe(true);
+    expect(okModelSearch(report.modelSearch).verified).toHaveLength(1);
+    expect(report.lowest).toMatchObject({ kind: "model", priceCents: 249500 });
+  });
+
+  it("writes the model request, its searches, its page opens and every claim page to the ledger", async () => {
+    const calls: Call[] = [];
+    const recorded: Parameters<UsageRecorder>[0][] = [];
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring(modelHistoryRoutes, calls),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+      recordUsage: async (call) => {
+        recorded.push(call);
+      },
+    });
+    const openai = recorded.filter((call) => call.provider === "openai");
+    expect(openai.map((call) => call.operation)).toEqual([
+      "responses",
+      "web_search_call",
+      "web_search_open_page",
+      "web_search_call",
+      "web_search_open_page",
+      "web_search_call",
+    ]);
+    expect(openai[0]).toMatchObject({
+      outcome: "ok",
+      model: "gpt-6-luna",
+      inputTokens: 44_210,
+      outputTokens: 2_116,
+      variantSlug: SLUG,
+    });
+    const claimPages = recorded.filter((call) => call.provider === "retailer");
+    expect(claimPages).toHaveLength(4);
+    expect(claimPages.every((call) => call.retailerSlug === "jb-hi-fi")).toBe(true);
+    expect(claimPages.filter((call) => call.outcome === "failed")).toHaveLength(1);
+    expect(recorded.every((call) => call.variantSlug === SLUG)).toBe(true);
+    // Five tool-call rows have no request of their own; every other row is one fetch.
+    expect(report.usage).toEqual({ calls: calls.length + 5, recorded: calls.length + 5 });
+    expect(JSON.stringify(recorded)).not.toContain(OPENAI_KEY);
+  });
+
+  it("lists a weakly matched claim on a dated page as a candidate, never charted and never lowest", async () => {
+    // The price and the model code sit near each other but the quoted fragment is not verbatim.
+    const weakPage = `<html><body><p>65" OLED 4K Smart AI TV QA65S85HAEXXY</p><p>$2795</p></body></html>`;
+    const report = await fetchHistory({
+      slug: SLUG,
+      openAiApiKey: OPENAI_KEY,
+      fetch: fakeFetchBySubstring([["2026/07/02-07-acp", html(weakPage)], ...modelHistoryRoutes]),
+      now: () => FIXED_NOW,
+      countOkCalls: noOpenAiToday,
+    });
+    const search = okModelSearch(report.modelSearch);
+    expect(search.candidates).toEqual([
+      expect.objectContaining({
+        sourceUrl: "https://catalogue.jbhifi.com.au/2026/07/02-07-acp/index.html",
+        verdict: "candidate",
+        confidence: 0.6,
+        fragment: "weak",
+        observedDate: "2026-07-02",
+        observedAt: new Date("2026-07-01T14:00:00.000Z"),
+        dateSource: "url",
+      }),
+    ]);
+    expect(search.rejected).toHaveLength(2);
+    expect(search.verified).toHaveLength(1);
+    expect(report.lowest).toMatchObject({ kind: "model", priceCents: 249500 });
+  });
+
+  it("rejects a db that is not an object", async () => {
+    await expect(
+      fetchHistory({
+        slug: SLUG,
+        fetch: fakeFetchBySubstring([]),
+        db: "nope" as unknown as Parameters<typeof fetchHistory>[0]["db"],
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects a countOkCalls that is not a function", async () => {
+    await expect(
+      fetchHistory({
+        slug: SLUG,
+        fetch: fakeFetchBySubstring([]),
+        countOkCalls: "nope" as unknown as CountOkCalls,
       }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
@@ -1529,6 +1952,7 @@ describe("usage ledger", () => {
   beforeEach(() => {
     vi.stubEnv("SERPAPI_API_KEY", "");
     vi.stubEnv("GEMINI_API_KEY", "");
+    vi.stubEnv("OPENAI_API_KEY", "");
     vi.mocked(record).mockClear();
   });
   afterEach(() => {

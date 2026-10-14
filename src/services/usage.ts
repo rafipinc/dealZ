@@ -26,7 +26,7 @@ import { defaultDb } from "./default-db";
 import { ValidationError } from "./errors";
 
 /** The services DealZ calls. Mirrors SourceProvider in src/sources/types.ts. */
-export const USAGE_PROVIDERS = ["serpapi", "gemini", "wayback", "retailer"] as const;
+export const USAGE_PROVIDERS = ["serpapi", "gemini", "openai", "wayback", "retailer"] as const;
 export type UsageProvider = (typeof USAGE_PROVIDERS)[number];
 
 export type UsageOutcome = "ok" | "failed";

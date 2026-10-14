@@ -1,6 +1,6 @@
 # ADR-0013: A language model reads pages that carry no structured data, returns evidence, and never sets a price on its own
 
-**Status:** Proposed
+**Status:** Proposed. Item 4 is amended by [ADR-0020](0020-model-assisted-price-history.md): a model-found point verified on its page may be charted
 **Date:** 2026-09-28
 **Decider:** Rafi (the approach proposed by Rafi, the rules and the model tier proposed by Claude)
 

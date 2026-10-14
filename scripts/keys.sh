@@ -13,7 +13,7 @@ set -euo pipefail
 
 SERVICE_PREFIX="dealz"
 # Every key the project can use. Add a name here and in .env.example together.
-KEY_NAMES=(GEMINI_API_KEY SERPAPI_API_KEY)
+KEY_NAMES=(GEMINI_API_KEY SERPAPI_API_KEY OPENAI_API_KEY)
 ACCOUNT="${USER}"
 
 die() {

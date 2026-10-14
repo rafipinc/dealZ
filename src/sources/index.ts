@@ -1,6 +1,7 @@
 // Public surface of the sources layer. Services pick a strategy by
 // SourceMethod; nothing else imports from here (src/CLAUDE.md rule 9).
 
+import { quotesOf as historyQuotesOf, searchHistoryClaims } from "./history-search";
 import { fetchJsonLdQuote } from "./json-ld";
 import { fetchLlmExtractQuote } from "./llm-extract";
 import { discoverGoogleShopping, fetchSerpApiAccount, searchGoogleShopping } from "./serpapi";
@@ -57,10 +58,34 @@ export const listingSources: Record<"storefront_listing", ListingSource> = {
 /** SerpApi's plan and quota, for the status service. Not a price source. */
 export const accountSources = { serpapi: fetchSerpApiAccount } as const;
 
+/**
+ * The model-assisted history search (ADR-0020): a model with web search
+ * finds dated price pages, and every claim is verified on its page here.
+ * Its input carries a key and a product, so it sits beside the registries.
+ * `historyQuotesOf` turns a result's verified claims into quotes.
+ */
+export const historySearch = { search: searchHistoryClaims, quotesOf: historyQuotesOf } as const;
+
 export { SourceError, REVIEW_THRESHOLD } from "./types";
 export { DEFAULT_LIMIT, fetchCandidateIdentifiers, MAX_LIMIT } from "./storefront-search";
 export { DEFAULT_MAX_PAGES, MAX_PAGES, PAGE_SIZE } from "./storefront-listing";
 export { DISCOVERY_DEFAULT_LIMIT, DISCOVERY_MAX_LIMIT } from "./serpapi";
+export {
+  allowedDomainsOnly,
+  buildHistoryPrompt,
+  CLAIM_PAGE_CONCURRENCY,
+  DEFAULT_HISTORY_MODEL,
+  HISTORY_ALLOWED_DOMAINS,
+  HISTORY_MAX_CLAIMS,
+  HISTORY_MAX_TOOL_CALLS,
+} from "./history-search";
+export type {
+  AllowedDomain,
+  AssessedClaim,
+  HistorySearchInput,
+  HistorySearchProduct,
+  HistorySearchResult,
+} from "./history-search";
 export type { LlmExtractInput } from "./llm-extract";
 export type { SerpApiAccount, SerpApiAccountInput } from "./serpapi";
 export type {

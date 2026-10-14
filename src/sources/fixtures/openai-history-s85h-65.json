@@ -1,0 +1,340 @@
+{
+  "_note": "Recorded live on 2026-10-13 from the OpenAI Responses API, model gpt-6-luna, web_search fenced to the tracked retailers' domains, max_tool_calls 6, asking for the dated Australian price history of the Samsung 65-inch S85H (QA65S85HAEXXY). Nothing removed: the response carries no key. This field is DealZ's note, not part of the response.",
+  "id": "resp_0a1de0e7956f473c006acdbe9ad95087d0a4e6c862f5054be0",
+  "object": "response",
+  "created_at": 1791868571,
+  "status": "completed",
+  "access_programs": null,
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1791868595,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": null,
+  "max_tool_calls": 6,
+  "model": "gpt-6-luna",
+  "moderation": null,
+  "output": [
+    {
+      "id": "ws_0a1de0e7956f473c006acdbe9bf1e087d0bbe5f0bfb2b42c45",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "queries": [
+          "site:jbhifi.com.au QA65S85HAEXXY",
+          "site:thegoodguys.com.au QA65S85HAEXXY",
+          "site:harveynorman.com.au QA65S85HAEXXY",
+          "site:samsung.com/au QA65S85HAEXXY"
+        ],
+        "query": "site:jbhifi.com.au QA65S85HAEXXY",
+        "sources": [
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/tvs/oled-tv/s85h-65-inch-oled-4k-smart-tv-qa65s85haexxy/"
+          },
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/business/tvs/oled-tv/s85h-65-inch-oled-4k-smart-tv-qa65s85haexxy/"
+          },
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/support/model/QA65S85HAEXXY/"
+          },
+          {
+            "type": "url",
+            "url": "https://www.thegoodguys.com.au/samsung-65-inches-oled-s85h-4k-smart-ai-tv-2026-qa65s85haexxy"
+          },
+          {
+            "type": "url",
+            "url": "https://www.harveynorman.com.au/samsung-65-inch-s85h-ai-4k-oled-smart-tv.html"
+          },
+          {
+            "type": "url",
+            "url": "https://www.jbhifi.com.au/products/samsung-65-s85h-oled-4k-smart-ai-tv-2026"
+          },
+          {
+            "type": "url",
+            "url": "https://images.samsung.com/is/content/samsung/assets/au/offer/tnc/S85H_2026_Retailer_Spec_Sheet_10032026.pdf"
+          },
+          {
+            "type": "url",
+            "url": "https://images.samsung.com/is/content/samsung/assets/au/Samsung_SmartThings_Supported_Devices.pdf"
+          },
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/tvs/oled-tv/s85f-65-inch-oled-4k-vision-ai-smart-tv-qa65s85faexxy/?msockid=01f2aef5172f66ba3eebb830160067da"
+          },
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/tvs/oled-tv/s90h-48-inch-4k-smart-tv-qa48s90haexxy/"
+          },
+          {
+            "type": "url",
+            "url": "https://www.thegoodguys.com.au/samsung/televisions/oled-tvs"
+          },
+          {
+            "type": "url",
+            "url": "https://commercial.thegoodguys.com.au/televisions/all-tvs/tvs-65-inch-to-74-inch"
+          },
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/tvs/oled-tv/s90h-42-inch-4k-smart-tv-qa42s90haexxy/"
+          },
+          {
+            "type": "url",
+            "url": "https://www.samsung.com/au/tvs/oled-tv/s95h-83-inch-oled-4k-vision-ai-smart-tv-qa83s95haexxy/"
+          },
+          {
+            "type": "url",
+            "url": "https://images.samsung.com/is/content/samsung/assets/nz/offer/tnc/S.com-2026-TV-Launch-Offer-TCs.pdf"
+          },
+          {
+            "type": "url",
+            "url": "https://images.samsung.com/is/content/samsung/assets/au/business/display-solutions/hospitality/AUS21269002_0007-Hospitality-Brochure_FA_LR_2437789.pdf"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rs_0a1de0e7956f473c006acdbe9edb9c87d086db460b2759f12d",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqzb61Npm7BCj0lEq13yQm8l2KNr5yvFg_FYyEDmakeWye3dphjWUuLnuNUMZUYPU3zo6Ds2xrRx7kEww30WT85nBLZbrjkGOqVllChGVSc4D98T2NYJUQ00ZCDLLBqU-u5QUGj_LBU30pITChRYbottNWI36rLew5rBKfl_LEESPNWTjxf_03LdoDASDwRKr_LGmwqwA8pCUoOha64yCyJ63dqaY5HP_3ynL9WJTcJV5X9HKH6BogSlcCT8dChezjjF1CTUfwxY78pUqhoTqJBCUc_tNPaVbhYB2Fyp0kCK2B-Fdy8QCZcCuX7AfgwAjdad6VIjnerRmZWOJEozby-ffMov427UcCKvUmkd8X3iO2ffRA6yMtgWEaTCIa5dn-OsPI6SwPrzngqeQjTUtc6v8WH_NGg7YJvcGuVJyqux8wRlPmJO9KNBG_EV2NRcbJ_XTDMZ4YhEqYvw2X3Qcx7U5Ks_WPg8sjBtIRuoQKSX_EgtxxaSiIHB_M4mmO_x3jyt0BT2n6zkCZAZf_HnNztnV37nw_Ic6cuT2TMhP82G2HmqaJe8Q2Tbv4zeyWnjiPrMsWtaRnj23tTixkGkFOjuKULI1CHxytb-YO-4wPxoMlBMO0AVO8hHl2LC_iqyPzQLIHoIN1NrQ6OGCEpsF5kmEFPuKzKchhMkx-Qd5_iyaEDemNHq9j9lhIUlMupFxufFuGH9zJPXUquk50zs6TieNXSkQRvtRWBqvtOcfLV3kxosgmxDxOrOMjqJybmgJdmXXQovGifgZUfq1iNJ3HicNv_Wk8uYMDkw16TkpuX3-R5wjQ61QMrU08ZMM1R4c16BIgfw3unWk47R-fXUCXfVl5hJufrwkjlLF_YPXbUGJNulWukQhQaxPiJskIQ107PiVfdjmSBySQmhW3J-FZlX6_3w0TQH3KmhWXwnlDVHzeBAPCV_7e8pc3R2PIQsB-KHEN3CnYmNihtWaN7OwyyDgHPUV6t8OugwEI6GXgTakhh558Q_YqDB5AIskypkzgVbvQ74frTLKEYeNIYc6ezGGfHnBiZBKkY5lVism9YC0n9bREZZ__CYY7m7kfxDDT90_LifYZL6uVUAwgNV3xfITmMAyAmrldfLdQQVa9XxxekG6xbwRdBO6PpLVNQgpPDA5-qjjq7fuYt8ysUKIK_N03mL30SGjsS5iiRjIQtNbVN22h1PL9SAocFLt1Et00SAtm8Iln_XEIuY5KQMpZemAvaTMpmo3ayfbd4uyV01EA6F2mJKPK9yGXrlZJNNb6kmorcecRH509dV_Ggf6GUG8yUKyxMK5yI1JxWFqDis4-wuqEUnk5jSztYN_EL0ROsjKrTxDD7aOh99VnS_A7b5_TsqkosHG6yeYGvET_O4gj8B0jccxJCjJTskrsoxmaNxERwhIHfKSyGGXxzcNVxKkPD1HhbV1vadcAIQIkctoTKMyTnmeXqNxOw8QabCQaDC0QuTtMgoOtY1SgnoYtEa8yODKSMupq5bB1nLxZqydlg-xhvMgFJqhgah-Nl_paVLy22_of42CXXV4_5lGqrLYE_9XkeBrRrVQEL1AqK31DCEvf6X92MjWM2Zd1YkPKcISCx4M-DFQpbABTX-gSBbv-OlW3jn8hLEiLDzCDNWb4CK7GqaItAySbYtcaUMtv3dCxGZy0W8HnLnHivUf3A68m_pRWAEut5HQzF7Qqtr8VrKbOorO3p5gMXEmwWQgANKXFNUDvLt98dbNqYKYjQrKN6hPViK4wr5t36hfAXvIfY_m1IMtJbWmqQID3VQGqahJFqecjJQdeDinZqdfuAEN3mhkShVX6RUCYbyOyQl3JEWz5a-Cz4NmgL3WpKl-DrcKdrpemd3qI4_8CT4IPxml3zyL6NXXSduLF6yaKV15J_9bOd_pJk3RGm9Jj6gV1Nx-poliNMdsi3x8MNVQm9yGsJMEPt3ofGPcl20OJ6nc-MApZz_rLRSX4l0Ck6ljCTOOyKEs2m9uqFeN-8qvfrK6TVb4JPG14Sf8D0-Mui-kWBZ51RaaQvjtyzjfxnJVnhyibu1mxiyrVL5SrHlvmmXnzOwD1PiOQ0CEdiHUndQM4pXdaOlFGgETUndxTBVbmjLlOKKC4zDHqFopkWLYe18vS2Zlyu0racYL3OH5xaOLqoexkh7xka9cB6f1W0mzb122TQQ-UJb21j1s-msUJvxCI8rzVUUFZetSxK9jFCzwF_NqYOPXxgWzt0DV0jGfI2pzTnanqhsSGkEzWJMU_4PgyIS384Lajs4WfNRsiG9_-JiE=",
+      "summary": []
+    },
+    {
+      "id": "ws_0a1de0e7956f473c006acdbe9f357887d082af71f2f20a7048",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.thegoodguys.com.au/samsung-65-inches-oled-s85h-4k-smart-ai-tv-2026-qa65s85haexxy"
+      }
+    },
+    {
+      "id": "rs_0a1de0e7956f473c006acdbe9ff71087d0971a04332cf7ab72",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqzb61TxjR0Qqx6L_FjWQvW6Gw3otnetRForArFdQ08Fyjzd0wzsQhjLUPA00UMm7yOSZt-jd-fNDTej9UpuWZO1avnpGKVtkzH7rFWk3StkJ7lo32LSvR2fSvQ0veqyq3xoekUyRhMKhxMgpY2WTiCwblOMVGaoQpplCCAsCxCoBLERUfkp2oFxgLQNRXWb5zyZoVrvxOwvU6iFNKsLEqKOqVWKXmKeInGAq3gpUBLyLJRoW8ktCf4nyPj-Vm7Feh1vDKvCBFc6v9Lf3MWTQT90oHZy2PdpqUl4oOArvDjyxs-kJ3hn6Z6Oq45DJPQA0TkXcf4-zc2aGe6HW9B9cNB1uusWoWfVJGtcblosDJ2jw6_tgwGJgWkDDctXKBIpsq7xJ3Z2U84Rdes0ZHEa67-7Hn9b2mTth0l2Ipfc27ARQzHGlAu9yEUISzg6ZUiynZwOUEIWQUbbXagyoU0DRIYMX13NR7CP9CPMA6Y1p5pWnRjIpLOwyb1I7NsgbCq7Q0tokXyNr8MVKN34lghYHDyDMCP3g2yikULRZo_dV8n8ZyHGFchXG21atXUBAwikqNPYc-kXQO8c5uw4Wf8lGa6J2PyvpgkI3llHMYNQgXFlsSaOVzh2IOFQwMIrMprJy6-5OVVQdajCKkNcy039aV6wxXovp1kjVk48wBAdhYIqiuyvQpr8dG6gmkyjLQhKgj4PY6GpTBypCwEOYw5hN-gKEAHa1xYnFNkf1mqufiOUh7IfvlDA9PGRWa3PFhfUk570em2zlm-FrokYcOBWPkbgRvQ4hatzWVRn3eK3yN_nOs9tsNFH3ma-5ljIoiYheDqEzqKsD7gFWcXHcqzWVvFFRnUqgUgw53zDVsxmGKIy5lO66ef4KSpRKkJW9_3wdx7PWMeyMsMIYYmi7Ox2BQQnJYomW-wdef1ZRsdaDmpiT0TAMy-tujkp3tVWOREf41t6c8WkbgoS3r7NBsgbhdWGsicyhhQGHJdgp6gb8aHumUeLL8C7yVLoy4fU0Mk_LHVyUPrlcNKuYvwzdO6nb1ykXOSo8vGOWiU3EvLf87iyIEvo3MmI0ipIWeHJitZXi0S7LAFktLyfdPOWoPvlKvYA4DiWNpN1b81YdMcTzK3I8wovMbRzyDoz8ILS_D2qcq6kLQnNajy0Dbuw1SAO3PzhpXkpsu_jAVq4c427qear80l2js41fedNm7YjQBvSY1UnwxALs2hI123njVDbfLVij93PE74FK939CYPyx9UwzLGNKp-mLbwg5bgluLt7UZINeTtZzqNWTwzdYjKrzQhzgqDMo-MxeG2UQz8doLCH-2WxQ_9mXou_t-96onClGXVkzUPsCo_4pfnuYrb7PRQ9P24_0ToKb3J1tCoAz2ktBi7eG5BoFxOhVGJHYXi_3vumrGi7ERznbRhsZJbzMLct3jjA5_tSBYhaPONolvE2RfiooqWEo9Q89SQlAAtJY8PFt-7uajVdP7Bvl4K7l8QrVIGjbEQlEeDXzsnTwmWb6mmplzGcY6QySkgylSwZzS-HtDnnM-qCmUi9qDooMhbS-WmeyWLgnzkieUC4w3p-AupBzaLwi2l3SUrgiwz55uaHhk8vV6LLgsFnBijDJwokWa-LZUWDyrl0S9sHBFevVpQhKs2NGpVuav_lp1d97z6oCBJAfLzGhuBGd2-vdsEsetLtezbwxSSAzlpKfmdfAs7W6ktsSBEOdbKqyCiwAXFwUfuWw-nf5W7tc_gJhopUhp1Caa4uQdB6D18AtH2NEJy5ppf7qDRymADqBfTOOH-3QE28Avmyox8277ckrbVR87Vh0W5QSQeQA6KWlnGFARHyS3G8IldJFJKpEjxBcYQKnryjm5hVELljA8mBXRe7O5SLavVb2wy3gp0rS-Bz6KSnA_rPU-acx8BuILddvT-SnpgzbAqn54fiGMWgmPQ5g20v8YWvfC8ifPRR-fAjLhDkkVcZEee0Ck1zN5wuQEF7IktS4KWlISfgJiToVzx-PIma_AzLMOwNPgkdh2ru3wXhWB-33RBuESMNszo44fN1kA97JJzDksxsHHw1H5DykbIN8MHyBlfvO0qtHycnzhKMx4n-DU-h2qrcYnTyPUmpyOf2GVRmtQo2hQa1nMjM67iHe9tcwV59kWAe30NilhlZ8Y_DsjdGiydTTJcM0ahby4gS-SgjACNC_VjgYLapeJ2Sm8GW-P_B-yQ-VIYtW1X2cLE8y8F5SKi81qEXeOzSd1UnpAUAM7iEJHog4QDMLo5b9vYgP7xodJ1FKmvJgiflRND2-jC1eoQIibppsC-ZSL8BMh-JfFZ0xSR-_dKArmt3j-N07Qyf-RAlPZn4wY0jdUkEhMQ5lwF3KglXDab75S7OGQHOSpompZRgYLm5VSGt5JNdVsBZwNUq9TUmlyFnvNdSbyHRzXSU9ov4L8NjnwTiaeF3ethvelTrDBe5A9nSebK0xS94a1XUo9dBhlPHY7hXunwA5VNb_V3FZDxPf6-H4y9IVSbh0DmAjA6hbhIGk3Hck1keEGMjLc4cPEKt6-QxJor7UFStSZ7whPmvsICW3XPy3VEogPjLIU459XseSw2PBps-z7QziG0EB8mmwCzNlMhdj2TGWsbfnAdT4x65qejy0fyadcHBTopLE_qkUD-nJb3IZtesfEN8V21CClUksdSNOj2tKPAyHH04s2bR1c317TSj9xSAOPgE9cH84LSNElAE79qRAZKDeIVym2xH88ZeStwoqy_utsAoKB2mCOBxYkVRaB-sz8zgLW6Aokjch-35M4Annyl7_xVPUgUORfCxg1n_oAESXSdQ01BBjccBwE6UQTT_VV_ox7mnqW0Gx5zJYwySXFCyx8PUSiBWfAniGgpe5l6pN_Q05ZwTJSjoRjCg7KByHHjzzbjY7UuNrLTDP-3AUpZalHTWHZjUpc_Jfzla3aenOiv-45D1wSzAQQKSvlePgJWY8j9giD4OlAX1b9ZELlmaGuoXFNQXQL7Umv5h8oZqBB9tqWRRKavIfXy18fvUOcqjb5IrqtO0_CVVR_ArI_PdvEEj3gOjvOfW6etGpkYI_SmgE6",
+      "summary": []
+    },
+    {
+      "id": "ws_0a1de0e7956f473c006acdbea1578487d0ac9f25d2923520b4",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "queries": [
+          "site:ozbargain.com.au \"QA65S85HAEXXY\"",
+          "site:press-start.com.au \"QA65S85HAEXXY\"",
+          "site:catalogue.jbhifi.com.au \"QA65S85HAEXXY\"",
+          "site:thegoodguys.com.au \"QA65S85HAEXXY\" \"$\""
+        ],
+        "query": "site:ozbargain.com.au \"QA65S85HAEXXY\"",
+        "sources": [
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/07/30-07-acp/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/05/28-05-syt/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/07/02-07-acp/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/09/03-09-ldd/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/06/04-04-tax/index.html"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rs_0a1de0e7956f473c006acdbea2f21487d0986626acb28c04bc",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqzb61CIUn-Xb8F2e7V5LEWp-iOdzn0K7ciFH5teUI2m5Cfsm2bCxDr3Resk8qpZrcbGlCOAXDD6DyyClcrRXLHw0gx61qKbQQ_iilWYv7ZvA1ZDJjfM66cAwjRwznKgK0XVvo7i7KGr1ojmGIXHdH_VNc5G7UBK4T_I3opPwCDXE2jPSBANBMuiBx5BtOUyCLtOCOCBumzREII7GZ3wmDD5Goo4N3RwWmeTfimDkgPiQ0tHX9ojx9sRcWZ8zgLdjsRl3PpY9EsM9cSAX69y7QuvErKRpiqh28uGuYmyeY32DB4FbkQnyFOeApwkP5d_wqyU57APHuFNruzTBUcBKCBTa1yYPux9qRDBm8D6gdrjQ9vvjWlAxZ64UEpjZet5t7pEv-uVqlarUGlbGi-ZY-7B_Po_JgpgAix6V-_ORaRlxZOp3ysbW0tjdxNYB6HO3rh1uk7tVfRtdUM8wkdZF1XDe34OAVbkQ6KSYfy9aAcfFLil9kw9CM8oq2R42YuNy3ngw2l8FFtc0HFdgMxWiHaPZvbe-GadEDO2LvLEpqYv2Z3aMqveMT43wHLLc4X73dMXzyKibF9fjc0Lo-o7WO9bNHy8WScFD_dJCp5iKqmEA1OAWO5kRURnQqPoVPeE1l94Oh_Fq3Jkvei7Bk1iEFQ7tZ3WaRZ8_P3C_r4ih7tdWZj04XsOHLy657Q4V4_FUsUHBcrZH0jcrvrexwHJYRv0gADC4vYs96NK9HP8sSqZK3xBWgLLxocfrvQVUurZM_2GBrYoQEMbx5VbnsFuXluYQdaSFR1-XE8ap_tUUR2XWT18Dm7QCba2TPDrebubZQBbu1uFsUS1cfV1v5jgKV8D6gd86RVf5olmBP-2ElrRJU294cxysfsEhvO6fCI34VsVHEqKaMO5wIjJRq0lHaMO5cS6MUrcJl4qUQKMx6sBUsKckG0VKdL2LX8PMsc1yE4hJRfnIrdrnRsyGm3UyUIou7c8aTZ6MZ12D9mO2Z46wFar-Ly0RC3bq9v-lnJGfYVhKKCqQblE-CY0oT5JkFK1yQ9gghAPBWn57Yv0_I8oXh8q8mR2Gtst5STfEW74QEbOdTo9fVmKQsjNVpwzHBRNUPyioio-o3xOkDyFhXr5o30VDsyljmvEvibi8r5ugb2fhq3wNJUQZjpG0vfly8J6oDEMvQlnWMGG9didIWPe2x4o76IEvaKVj87pzdlFLfxhz7yuuo226sAYqiBeteSwn88g_BSTiFgmceWa404ozMKyY2YNx4hoHNhKA6qJDTyI-08_YL7iTi8BoYrrSW17czenZMiStU-HcHI2tC42jz42LnNVByN1qrLRdOuliMPpbafO3-7VNztI8_lm39K7eoku-3cnzkkc78X2nYmp2NGGA5HepxTslvsIJ4JJTGXIpihri0-U8ao1kjqrID9cPO4svgcoEo-1PMTwBQHCda04IKumCttglHBnFxt1bn60KldHYiBETPNCC7Aqe-3B0lPyz-aNT_tD9NUCTQgD1thmhx38AjsPXfyCW05r33FNAIjaAyJXgJesE0J4ACeyF13h_RHxKYbuPZ5OU_e2AEOTrKiod2-3z3YnH36Wv8TxjxAhqff9MwJwnFVP4I55OTp8pmX_MiEqi81Yj3DLn5Anz3-DpvEtxAXPgmmwcXLCgztB9dv222w2u1Be0clgXLgBPGkfiSqlg1tNUedto8rhBadxSB_oDSBiMHLu026oehVZwSzy516qValtlhVsf1VvNceYFTA8pWxIcav81oo0xPOUeeRRxGAicAl3THIC3DuEd5AULzTvay4w9xukgOODOmjuNt0cn3DsugMfWaWqSArhVN8StxEf7tzRYVqbVu1FBYQYaYCSusrri5cTct6n4VsLRZ4lsMsJ0HYWbhNOcBCanHwu87N9CtgxRAKAGSoBbtzQh0EvwrmWUB_CflWRHqfxnDSpLAbh_WxLyEISXWI_iDizWb47OM2Z5gYCVHjdCMCFyA72sDEVphhsqYjXpZ1Oq4ci1S7UlWTejwPcqzgsMkVmHJe_Cm4B75T3gHPIW8Aiz32ID8vZQy-XafYd0g5Sq5xq58zO5X7N3E7cceeELLkH6dpuRHwKqhPA2gwGqI_teiT6Q3Pceuql_FJClmByrNkSal1qtgMuVljnZnBlvZ7gliysHKqY6-INuardhvnJf6CI4ch5Qg3LkwFjd_NON6Y1iWMn6Lw4f3JAkL0iEgg9JqrjyEMGTDoUK26o1TdfPjrKF59fT2B1Q_XnpoAtcKKKGyoUnp15mW2BnCKWd1gwaiFcUG7ua1fsW4Ci6xWyh98o-fSTMyfGyhgB3DZnEyqex9YL0YxCQRQJxmddlYAiUOgMbZ4aiPPM15mRs5bQU9ia0P7zYxGKj-SODM1glqH7BfcB8pj26XvmxYHO8fCrF-cnPhazVbA8kgtaqtElbj8bf1a-v-udPLQyWhO46ZbKGBcA4J8SEQhg2MsPt5CLhhzvfwmcbVhndRn6gXTYzTAzJntQZ8acZu_rNxEOu0KI-m5cyY58r75dYAdW70FBQMwCgT5StGLyPTWfiCu2BkGNwsY2v4PWvyoPhGJCjhRBD7hNzcetRKcMSU03dhMXrOo7aJxm8B69zeCNl8qHYjHBGNr-QbtcvONEEdLno7KjN8Z7B2faejuhzgwIS6Oeq_ETQCQRRXexN4o2ZUcxlIYYt4TBiwwERVgPKz1YQ1TalIKWCKz7mRb_lPGCWxX5XyIMUxTDiEnbjFOI2tO2Ef61WR2Yt4zkh3tXAgrPkjFEfSdiZMHbP2LxnSnl-3FufEWlRXdrFtd0yDRh809xSE7iE4XkqiBHFP8nUMCq3e876GDmVfDnCZZRxwBbkRmWDybD5PbsnCM-2WQxn5OGMsJRH-Zt-FtWRSKXrOGyHHUXF9C6xnAfXxh8QLpJArfNq89Vvd2c3yfjBSW0zdD6Yhb71GlUOW_KpTAl1uaXUBORguQLXstGYE8FmRXsC29KjxhOOC2NvJ0IoQACUU0-7tO0W5XsQWUQJZGE2I0JrktHvC9oAQ8QhOXCj-ShFXW0e_VQggiuNqfVFUXGYdpAWSp0uqK6EJuHNY5uJufNpc4I-AcPOnSdnUjSld6zmH1jujB-7t0zRlOkYlKpedOVMMFeoCGoKpSdgJpRbnmf6YZofaoExOzTF0ubWVtZGDzqJWvi0b35ExDjSgW5FOyJ2d599bsDqt3H0F2WkZ5FEKyno79pOBEJsUTyFzcHNp2jslLplpEwuBqaC9m25-JCFf0zaJ7vn3vBiTzm1d5gTg-825GK5G6YzSBS8pw6yH4_0LkOiTt8dVIv140fsD5HTjceY134EIGqAU2_HDoUflLaUm4vVqdSOkkwsAfn2QowJA8vEnmM6m5URV3Xpny70nFtSujC60_7eKJgwvWBtABQI8tjBgAFtHZJYbxJBAHvhMVw0fWPN81QwtiTpSVnV7-2_1pafbiwN42OgSIYPx2eCaDf5fEaprn8ZpRMxTwM-Z-cwMJQBAKnN7-g5aZvthjhDz0fdm6XMb-nA9eGn52SIfIkiX3N0y_l2pj00hIqEWPYvNmGJz0o_sFq7c-kRxO7VjYh0uplPNxLvYmturP5gu3pgUMYEcf7EE9CTsT2AAImqjLRZxhNJYs1-ptucFUTmbtBIv9FqCR-AjrMdL9KemSrnLMh1tBUY9gfKH4xb8Hobsv2ANmEmOWZkfuom_jLrq0AqcLlYAu4yWFACZ1DpHqeMcNVejc1RYtaM8D2evSZy_fhqUOghtU3t-3OOy2kDomj2ywG_HRP6iHMP5PKj2Gw4WqfGEAb5rF1dM2ZfOGo8uk-IYue23oaOCvFmjqF9D2gdZD5PSBhC1ZC2L07xPsQGYp5M9gmmp_J_N3nGLEnqEDYJoDcJSZI7O5w-UqYR1cooJgzU0GhaWKnp_cE8QzF6ItzIBp2Iy6eobTtvZ07IOHfUW86J8TIiO9rDlkTbnCRyT0sXGlh8rGLBY_-MZj_fqCbO1bC0EbObEtz3qqaG3q6LlOZzMHvYTtXXzeBbWKYlzaSRTaWhr8pi_VN6LBQhVLKNL6PBOutopAxcuzIA1mww0lSNH1YewhGUwZsuMoZoDYAk7TCqE65fYu6VhWOlJAhnorwu3UFAzQyF1hMQDAnzucC0MrzpnabKGqAMzyvlB5F_EGzIGTbz8rwAggwDaIlvmdnD2KGgqJq0TlXGVQVPbSPehwyRh7m8zZex_6T6DazHYZa9uLXxbpkCTQ8f9VXR73KJmecbKNt4040VNYtuXlhT7hmk374wFxEzfh_PcS9VagzZjj3irIS3aV-pjT-iHmXtSp56aIX3HPuBhcrxS18En-L1d5zmjgc_mLY0CvvCvB2_bbmz2xZeFCOFlp1FfsZDpMnRAuF6QvucK0S7FSTy3MlfprGW5TvkxvCfvUG7Q2TSPwh3se41Npdc8igJkJC1dJRpzTWUU6h9QPRiyA6C9AdeAz9VKXIFN1RewmKcOL29yMnizWk2NSzI7A78-iQmMyjaPLShDyDeHazulfY63arC-K0Uth4dqaKHO9OhOjArhpNjdPmlDKUZPWZv0mVikE3wuO-J4UmX61j7dVflzKNBsEYbTXu_WI7yoAYgvTem3XpkNBJCMdMMJyFdMLgv14jMEhnds6g5Bs_JIZaZYVtyjfNW4Fh7QDBj86-HVlhYbavxHAlF0jqfS2b8bQh7lgg3WeAjTx7GVzksqMOCkdKHqnXdJN83lXKjqEts3d40NtkpKce-hiw-lwahrG37WRladUlx9nTw3rIJ7I4Gec7xzNL5U_nwnvO19chOAeV1NvH-00pBj5G6OSddG63un1pzSYZcPLWNrEw3etbBVwuyEaWO-2zxWtyatZrebXDHEzR5QWx_HlptoRnNCqQ1VHTqtUo2JHVHYGOk2hx_YSjsTJKHioYXO0mzIwFzoIW3GQvvW-MOpcdeQkosqmLjWdLXDbcnxjwP6QNbRKPz6zRouElfo4A1cOCLrxb8FSYTAlPWGp5EiXpPuQ5-8sePPg8kdfnZ6OeCOzc14BJPZgn7gUnfKWXYseRunzhm8uypY_8kHPyq322-7h4Q5wQYE5-8Ca-QPaRv6dM914xmmqgQcbYmP1vE7x4kwR5qdyUMhOgscoGUkGeRf25TcWmVrpyrojIBRMkOY-cgF0G-GvXdJqlQhjCXljNDgSBDqBel-VBv0We2J0i7YcZmN048wOVhAsZJYSaKQkBqxGFvkxqxz3nXcwr_kFxsfIaEKt029W9Jf1Up6_6UHmcSrmstlRyOHgyGXlyBDIuYnupCAimHRlcpiHwLv2QeVCX3ap-Lj67ugSagrR-n9M0b_B05qdxm12HFAYM9pV9ek7owq2XuvimyBjhs69NS7-dTs4fSxZIkKgj317LMtz4bQImEARvBFt3DFOZlLJ7DHTDMaHhCm89pnILTvdC-0abBzoZpyFzjDhv-AsnzeomRJ93rjsUTxh19Lky8fMOmvYesNrfx3wdSn62qcmGs8UN68Y1pbIcbmammSZl6fYUAqGRISgrcqUsl_HCpKQvDCCFPXGtGAswWb6LrPwkoGAJP63pHjOkmji1giHIXCnOi598gy71KJHYasjEFP1XQuKlhy",
+      "summary": []
+    },
+    {
+      "id": "ws_0a1de0e7956f473c006acdbea63f4087d09eae464a11bd949d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://catalogue.jbhifi.com.au/2026/05/28-05-syt/index.html"
+      }
+    },
+    {
+      "id": "rs_0a1de0e7956f473c006acdbea77d1887d0be6f512f1adc72e3",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqzb61VabDxJ-QIumO044dPsaz4iEQI4ZKqN7Rqdx74-ELpDQn6a4rlkoxsp9u60eRgX9VoeF929EwrEUwAvu9GD5R2bpJDVzGbHiaaSj-oEU7VhLNf2Jx2PTzAnqEH6KZK26WGvMnI3A_3ExC06wyi0-TDzd2DqgV03VFhBs5ja7J5mnoKFIU-3G-TVUHSmKNHiUFG0u7QB_dOQzaSezeZEY954Ckfd-4Kd9BUjSxDbYko9-7Qh7gpIbd6Qjfu5gTRmVW5UxBIZCB00Q3lZHgI4hD3xRaG-RUmWRWDSrIEccSV-NsQucLm7ODN8Oz68h6vmsA3PjNF2yEAgTLSh75CKZ83ODxwds3lO0ItyaQ0RraqknCMc98gCgPlhBpdRAqLeUddvAmXx5_bvt-Lt_01qsrzMTK7_u3Waqh0UorcadOWSsIitNr4r1_YcMzp9l_aCvg9mPRKNOTN7LObJbWE76-ZicBAKWrbMOG678vjcdM5jmuMCDvY1G3ub50i5Cb-trhPgxixcZjP58HFz7X_31fmEoPmYHow86d_aO9dBlrBFQpV0-IZrtqUsTR-R-qAJd8DXOBdZ48cCk0xPCJVIVa2LXHMXUcX4DBQg3hbqzr4UklflzMOU6wnpJPTUxxKvDphoNnmfY9Xz4ZNN_52FRi0EKiN3iG2lT_HwmtHvSsaZdpQqiw09otSaDjajW_1yeMTNH-O4og6ef-5I1ESB8Z_WOlKA5ug7CunN93A3l9B1ELaj8gCt19ovZWIJyG7VI0QgfENfxuadjaVSEg97Tr823ie451x5yA3rRWnpuoBBl5xpVd3CrnTLMbptIqLnvCp0mdc2uX9dnwy3gcJ0KE9GyLypBmVueCSJVHZsY-oUdMvMGqfzkKGF2SVMbaGHq8ve9OQunozmoq8XZvk1QKOs-3725WT9tCgGgKR-EAtjGsBfUEe-wo0kaqocLE8rTR1w2VpjW6TinpHRaVyptrR9VWgsWZmjwy6hJmX1tIoHAd62m3ohHE2OdAyJz1S1iFdz8GOJlCtgH4MzSSx5lpxBzFOtPWWvov14vBxPGDDXi35jRnjj5AXyIZLEjjyPxZFt-7qZ6jTr3UNYzR_vMjxvjnuzAhM33uawqvzHcEQamlrabNkDQf1aBKo6UW4OR1xf_1NJDj5fghA0IPJssiRM9dWytGxHa85IrW9dxZUfWYtQbdlDEffpAcrW8fpHqowkygr9i9BvVJCdmcaZ3HumqJpuRgyxzyjT99VA6r5So5XbdzvDl-IpeCUPSSGlW8jNxkdf6XnNXe6MRQY36D8ZKjVH3sAHf46e5MOI30KL2w5xJyuKna5sc8wqCZnfXRXG5_OUHf6KdLS8Bub3OSSeoeUUg022PU5yK0MMa-WpP72eMSkWorV7eNGYkdVBqkqdi22Z-cr5bni8Dr6RdFT4m4DNYsyhiw05keAZFBzT_6TUlUc354Z45XKP7svuQdTxIHb_UorwpkgCzXC6pWwxYhwQv-s0kV6IShKg9_4psfsvo5XuT8Pt9FGqPu0uTTGyEyMvyZlE_vTXe0GLOesuzHFIY0mfkhFyY4lMuJHfsUk1C5OtmQzlrxGz9oQI7OBD9s69cTarWBEDzRtTpDVu8yYA4L4C6NqVTBsCJkQ6hUYSLkcaEWF8o_ESGigbK8lheKfi0l7tKTvk04rpbuNZAaF8vIjeWXH0d4ISiVcix0Ht-GNRTvfS6mmEgYFbeUlrZWHpIc7Dy4DH87JsN7pRTBY79V7ecojrBA6AhZTyVnqjRL0SMF9jhiu6v7QUiohO-SI7Yopq5WjTr1Tr583ldF0pWYfeDnsHI-VYtxWRs-Ay9oXsIS0-AR6sPsh_agMGutHbfsnipVC4GgQdYhZ_5cD8d14ruCiLf1L-CxEIvILWFeqohFFIxy9CPgXs8RxatSYoT0p45TX-yTs98831mx4Ya32lE2Yxa1lYeTZM1L9lqu7jNISy5YXjtwfouyzasoEmrwJcKac83DKoB5Az_MJnQL6dIgEhlLd_S50p3Zc4ukup5m9o_bt7TMbk8tT7t24hjjvMnXR1xLwgEAnFegikthHFkKtb9K0sTVDmXdvyI0xLkE-0mkrd33rrvHNM7XvnmJiYowcgrov-UPCXCzQltSVwfQ1BUi7Q1mvJYP8IbCYd9CsMvaGC2s6R8IBkxPqHDR5KCHcwNEtxEZUDzCafJGFnGxeEWZtloH20ULv10ht8Zz5Kh6sIVklE-nChx25yna_oYj229hAcciOO2hp39GdtNgpN7yB7xUod0Jrwh6BXofz5WPCooI-FASp_3VvRiUAY6b6ngnKIScLZLUgf6a7XA6uh1WUz3DM9J3Ydcx7r6DnjV8CdYo6tNQlJ94BDVRKP1QSNeGK_VY8k8NE5dVMKMUKpyXHt5JW1ge7C7izXbzqNFF0uAi74ydd5OkEFcIQdlUDoAyFEPguWJhk3xQUCBb4PK1Ij28axXc2t6PiAFFdyEnl9ibCzZP5L5Lr-m-l-NBZ0uViislVR-PKZWlcJm1rbhzzxxq4VUWIZseh8su4ID-gQmfCC_mAcEHdF5SmW6wZYi_FPevYtyc_6-pC8Q4qZPybaPgFXKX2M47Vg2rcBIaElGoK4SZyw452OH2sYpq2OtxCe_lEsYfnVd_ySkBjAHSCWlZ1KjI649BDbdefCLWdH8xepOtDGdd3jU0xYubsUHfHJOxnK8XssU_ff5gEvCUNMVARD-k7t2aeQaovGl1q_z8lgIVJu2F8Qaf7CSpTRBlCrDiTwV6iGjjUszrV-65WlqiE0ZZVDOlyavjT4jP96MhDmMBNbNuzzOlwvFesYvnuZm0lUswiZlPtS6Du0fX3rvQDWf_bftFQQXEn1l5FmQtepdJG_UTCbt2IC-AE6ogrhUGqxIJZkwW5DYO_7ZASx33nFE4TdNkQlemBvvcFAumWxrLFdYnHXJFuTSC18ARKagEGr7UMn2iS_wm5g3RYrSttwI1mEkLNTd2tdupoZclaD7mWtRsUzOzgkBF5xwihZE-P7urPlXBzutSfwZfrozvviyP-DdGVnwa7gExnN8qpfUs9sLxuwHHp-3LMXIiVvzV8Y7dY5OztiQLXIWstUrLvDM=",
+      "summary": []
+    },
+    {
+      "id": "ws_0a1de0e7956f473c006acdbea8ff4c87d08b3dd1591f5cb2b9",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "queries": [
+          "site:catalogue.jbhifi.com.au/2026/ \"QA65S85HAEXXY\"",
+          "site:catalogue.jbhifi.com.au/2026/ \"QA65S85HAEXXY\" \"time of printing\"",
+          "site:catalogue.jbhifi.com.au \"QA65S85HAEXXY\" 2026 $2795"
+        ],
+        "query": "site:catalogue.jbhifi.com.au/2026/ \"QA65S85HAEXXY\"",
+        "sources": [
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/07/30-07-acp/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/07/02-07-acp/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/05/28-05-syt/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/09/03-09-ldd/index.html"
+          },
+          {
+            "type": "url",
+            "url": "https://catalogue.jbhifi.com.au/2026/06/04-04-tax/index.html"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rs_0a1de0e7956f473c006acdbeab0d2487d0a6d5315ec8ca90c7",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqzb61fcHmOYy8gAtABa4lcwg7aJZ2n9EloONfL3A_URA3uhjr1CHH84i5YPkwEHhTnwL5G09XeSx3y5fxXRQ-TPcvoGGkjTgaorLTKILZrllo9c110ZrO4SukYc_I6A7sDI7pHZCC6y8DBKGj_LVYyfsrCv_zQJ4OJ5O8OEw5c3aFYeAErmzoah8B6PmPpSlDEke_UjQxTkZ1LZEEHemMirfq9uhE1BDEuMGYJRyxLSmQm5Xmi_45r_JjulYxH9bJTcTVMyNjOKYXcptP5Kl-BNXbCTGFnNVULsBRBBufnG5lF_IMpVFzLd1aGmGESP-rBh0sfdViHM0NVALpY6iX4kwmq9D5y7tw2o8Ce8PTn-EaGn75COIqAeIb81bngx8qKLrMGR056Ly2MB3PxMOjAcVJOds68S8VenovDdLpqqG40XZUhvHl-S7TFpUIGvU_CLV-vDC3wkcWp4XTz0FnANiG0M4r31bKQe2w2sWJb7tT94hBhRvD-uQXsKywYtUCWI0LOe_xMoCPm8p_x9qQzk6Tu38ZLYBlNLLRO8ZSnHJZQshcdO902GmvvOsLsCQRngRzO4Wjrs9sUDD0Tn7qLdINRB_AQrSOw5Lrr3sUjyWTlIW_DXuDWZ4kyZj-X0e4o7FMnQwJ5dkDE5rtN6_uyD40gajQs_vxVoGPcbkxMpBGSXNlUSTMjQGsTTtlX2l9xkq_RXqGcTDP9Lp3CHbdhXPBsHPXUGuR8uIBy8o1VeaLiUCehAQmK9UzcWsEtakCWLst_Cf0xI9QVcShPonTM_U98YxaOm4iR3ofcsF-yYeZt4DnGpv7BEcJpPSQp8XtLKWlNhqD0IeDR5pB6wNMP20CiBRCpl3FLKTsQYO0MUWxSXAJexvvvMmJuY6tP5ioDmwBCDaH1EKUri3xslyYjrTYfXIR2x3LRDXP_wwArY_9WGVm7QjOOJisF6TcscTWFwmc4AC3BcTO0Tj6G4jVJL3ktLTUvrVlT3mdle4QJdhqvcZ5JeXdX4dC1PBkHqToPAeTRQxsfdZ_EXC8MB_e5n6C0FMhGv2H2yL3E4Q1Tn3W4_LW1yXocNH2AY1aaxHF7JsuxvwZjKDl4A4WooU2zkcNtVtdyxxauq7GOrvoSx2WLqi9C2pFdTgjZNx-uqU139ee6GmmVoHanDPNEX38H9SA2huY3gSSTPdF1gqUj4W_tD38TlT-CikzXZ75szhLZKLiAg5aXdiOxGgOWVkfdiaPgD7sCuFflZmDN7f6IQHPqpdH2_FXLoUgiE97Dx9vF13Ur3jcPQKy4Cl73dIXeUQucOKVo5sMLEuK76s0i3dSAs9l05nioBblP6LltQgLcpGwo_VzQ_XPE4iBRrICpWce2HQmV0NbsR_IVEupHeEDzR4OOb1F4FVIFbB5TmxnwmNJlleBckRT4VmqWwzvBcecKfcE4ceJ_tWj-58vWBE9roWmMK9Rm55ePEzfHehyaNbiqF_d5stkF5wUFa15xgGwdsXaFUE8OBEbRnI62gvX0QOOYgZcuLQBZJKD0x7cI1KpGvzMDaep2KQF6tQP2AWHc9JIhaU6-IVONlz1ZIWKG4CxA8Vu45WCNxC1WhHM08HeeXWYM5glNvIz6-K56-X3KIaVDlSxBCqvBaeQss4BqPQxZS_JAq542bonErTmi8jlrUu-vG4qLZRsNvegQBrRP2t46lo5NlxvyvW8-wWbnRQ_GrXD1zfVLtdY0yc-q-UaoQ0kQyxv46GvB3lRjGXPkeD3P_Z9cU6TJa0y_EdsdGKnVdOx-LtRHmOlgS83KY-321GzlyTmdP9FuA55efMfNJYA-aODMzUGlxU6Qza8l7fA7r_qRDmpHwGUxRSIIZ847k2nxlNiE1IyBJ_RoSEdgPx9xdUg63sr6VcidTrSA9-AUguslFLbLGc4CQASboS2fRuqG9PtvXJNwI3lFKtWuTmHBKAvDaGN_Z3jEieStTUFan-YpTwFum9g5wPxL54lbLoET6PEW7_YvCXv8A4f_CnGkIQw6jbsb-k9WkWXIk9shKi1zYSETOvSEtiA23jye2UJJgmcnOufQPizJmKWLYCcDfbCaQGL0QtOe_kd6FEOSgRlCgE_k0yrHvIxLWa8CGx7u8dNjw8H-N1vm-kpWGMrpOwP6Q8lDgPo8YSGhoO78ijzHiXCPYzTSSeHu6aCyKJOWIv9GcK6rZWqp-7gXq-RIbZiHVOkmtwgZHvL3lMDj5a3YetUQ9qBwtZAERs202zWN8bhcAEmJAga0iqNfV0d9qEhGkTgaaASh7hBHbmUG-q-XDsXplZ0XavHXlL6eaNrQk3rp2TWobQb_KPtNjptUJKadgwcQ5s0ECoAMUiFNNvWXpTYcU39rPLRW7JCAC0dnIdiGOrGAsDuJ8Y4jVbu5S2OmQHafFRJdIBfih7hg5bO8uPwFEUV75zG_dmOuWkmdFKkIB-ecc0zZiuB2AaPfjCorWkqsBAdoUTEHkOjINFsZSKc7fBxNIJYbVlQnSLS6EskyCBkJIm3muNyIpKh7zYPFT5UFLqxKa70_eMPxMf54xiGq2VkFoWVk3w3EP5LMhDtclo3hsNCWFEpU84iTbb4idk4J9c4mduUQazDDdm5v8Dus7_lT5jriQqMtP_XZjJ_M5dC5Mm1c5nREtMVHV1KYniNGM6w1y6hxZqvN_55fF0OpveR148xrbSV8UlJ5fBkoGBH4IKfBjXWC4LR_WgNV7p_avBVLeRmvodnShC8cxa_y8KsfB9drFUhqv091DUvT6jS9DNFk0O_3ZkGSIANIsmhaPnTlo0-5ypT1hvd2YEH1MdMmCuMxHaxHEaNQFl9xHoNaftNl5sTMbOUZ5WzXT7rdQDpPEfKzuNF-Y9OGxa-XnNvUBR0mj7HXUnTfCK-FdkRwltyCMQEMoU8GkkxOQB1pokduFxGWT5bfu_-oGNr_qRD4CRq5DufZdwSRCS40pkfT_s9ziq62C3YPWZPwgTKiDYdAFDxDjSu7ABbNAb90I9gtAD0GKUfKda4qp-QGzIjKsH1wesGL9cWu5N8HPfhjkeAOVD4XwVix2ACK9un7R2a-K2wTifY8Fd5upAk0V7PC-fNDH-A4ffuuV6KFdgvcp3PPkqWnHno6rD_Vzy4_ocW6G7HGeTQnQrJuPOMVgEgetD7QvugaCLfmx6KU0S1TlOOd82A3mNKiwmru58IZBjydpdTde_jvXweTV3CIfmP2GYSeNr5Hzb0pXJbUILvnUIBOD2C6dP1vMyaR3DUAVyVY6rLOHeFRx71ULe31aQTOzCJwirBPEo_uYNe-HCbAmu0zELOh_1OOOhnzxtH-Piklvqq0KCNu8gmax0NOaP_9UkLRmSFePfEfdttx4-Rsx-SrZ6fmHuYuIwLj58SY6CkUH4H5ybbJPzDprCQfeWgZnDLMfv0u8LN6fbdyzNBdHfcT5WzNc1WWIJI9fdx--Ircd68sOIJsK_Wuutdnd6V-uGyNvpxWhOTq0-XH3uIcdv2NSrMtQ79-OMBEYFv_axgBealeYcgi0cyjUHfB6Hx5sXW4bRJ_D1WYaufVgtvG9GVnc_2vhp_mj2MwPtZwo09Eg3tOr-a1cBw1aE4NPL26VHZRur4I-gQWVvBnhdMozshcpgHCjWP3QsdIUsnoCBdK3LMJ81dJteFoXyQV7YbgrkqsWDtEgB2377jYOlWocWdPFbfIT5DoibC0guH-g4JdFPliZ_YVf2RFv6l4wzVC5yWzGZmvGSD652Zk5u0uoC2SvmB9BECmPZJaaNbCFZM7-8Sew9yZha3FfkMRCXObDeeFMmuope9WHt8bkGsg0cMzvg9NSuTZmqpMYiRTDmdVv0irH4rPq3_BkgHEF1Gih0pAcemLEbW8Cn-nwCDc0jce4PUJHpsx-pbQyPs_GdF0cwzFGP-9KYTEOHsOadMFPk-9M-GHdcxxQ8SCpJPQJFl3Eht5m_RBnEtxJ61HHE7W1ectbT5PeCtqtqG4px30XCw83WUfhvBVLnfAzDhvM4TWsZ7zYg-P4MxwleWZDfOsxT3sg3tCUu__QWF3hPGiRi4BAvnWY_HBLYCYWG-cPXxcHrbZB3ohEmOt1J5RWzqTmcFVfxZ8FBrbnEz_Aeaq4Bp7pgWc5_ahSyhghB4_f4SBLai1WWL2K1v2lFdpidOPK9euq2EgcqI7kXOW9Gn0RBkHC-rmcJBwflpb7Eg5DhXg6BBiI56HllIVhel6ISgQ20nZHZign75OYIxiOFPgSNBkmt2W0jFJKLmNh-QnEXRW8WBRt1HmW8OGRyxZUm6fiIhTaq1HEuxiN5Mt3-0hShwtGu9vnqfaMysXL9GYeVLQAXsaHBU7ieBgJYMALHzlFyEKROhTuEz2-4q4JxB1BAOGld85SSQe5kYBIjzoljrtK-K-hfGdtGFDPxt7O_zI6Bh6RC3hnp-5Wf0T_TeBUWNhZC-LR0KDzsXIG4lncV4OLkeRhXIPqBQdWBZSWoUgNyqwXcnBSLHyROaa2Pi92OPMjPmSWOH3XYDrEujxmqIfJseSr683flR3LLaeq7FHaVM8nnc8WRh6wwxjfPe0roEDpQMwz4lMEhE83pboc7uUCPoKmaS0CGpPP5NNDjsk4TA63J-ayK_kSW9jSjburyNDKP7ZVuDJLOYgt2qoRtAEBc7gi6N5wE4pPqlh2zs4P6lP0jAvpiYSd-LrcPl093hhsgCsRSsWZz0_-ivIJd8nwNbT6R4u1OioAWVtp8ggy3zg8NBFvwj9pdAhMKDSIioS6cwD0EkTxWQzeD8_ctcymedUaNRxLCGwTgyJQy_7zTekRU-Y41XN12aetqWyAsLzUi4a9BXTo7y_h4P9zXueqBvHC_WCa2lPmM_5rjUkLDloatRBXWkGbUnfEbUsTDrddFmd0QTELK1C4Kb2rO6ePW_-cP1Z3-K3tGIZxomeJgGI11VaK6ICZggjTwJYU1AH0SsVmf4gILJe2ii2nAFsh1LjmyWEgVSLsMBYgGB9duBpXSHkIkYX6XhBIZOwXvcnthM2cbpN5E6cgZtCpylPKr182Epv7W613tvLEyt2-e6iZoH0rS9NBMcjdZy4C8XUYdVTAFLmX-n6i5YsmpJ6XsptlI_LPLCLHu4vlRe0AIR9D6fiNTZD3TxLQf-AfzfGDs7ruv6qF7ROyc1nefIXgbcgHbbC_G86XmrrTpE2QsFLIaxVF4D4H09V596ZF-o-9FfKd1QMyLvkiV77KequzJMpdzku751Ii8o6HLl9d86p6XloGv-cYIO9o-Ubo7JmqIxcJMxLyAeSCPSL39t9juWRW1z406NWMwT1UINcBR8Mj6n9kk7psYNTT4ZLcMIY_T7RiCN_7UANtU42WIqekcdikCkHbFDwWeHRGQWOY4Djdqeg3VFXUObQBsBHo_vaR-7sZAGQQ0xifwieNgaS5pQq3Lvhaw9zS0X8_kwAs7b6u69AgQ-SV06tn7NcIWnBRRMvgXbU9VosDX8VWelEfFVmB4vwH8eho72_ORah4TNTbS6iTNr-gZW2VZkVecvEDeVJAFGbFLkDOt9Wh89hukVZGv20k3nPEP0AArxSZU6joH_D4pTkzY3OYVl9JBcqfjd_rRWtmrUddA_5a5LHHc6HaAJxj-PkZGwJFJZ8BsoW6fU1lcgwsZUql5GkHR86GeWZfqyhfZgOlZQF86N-oI7tUyQzwYIVJSECUw_kzM0IdiiC59nULepKaoakbQdEvqKUf8EZH_3QnEGnXNb95Rf6veCNIKfnosAyrz0rlWXdyQHQXwb5rYj49V7XrgAurWz2x4bNu9qf4cq8j0-nN8-0Sx0iFZ6t65eOI_wOILMJxPjHHxVD13bYkUYe2mug1-ZjBPK-kSzmLNNtbifkdKjhbyTcwlppVu-oJ1fq8egdXZI5Qk8syOLkeeW7WWGGU9QOK4TGddMWTFYEyPbIas5xv0Xx0Nu3FHwoA027B7SXmX9xDnHMdR46HgcCGdgKiJE25jW3lG96Gaamz4DDHiE5ow_nnYz2YMozOC5NiBMN0Ek9keZEqCKsA3FOcj7ao7h7hQdKPvNesf3UfXi81Z8AId-qMb1I0eftMfG9_6A_-KiYzkAq7_uyAvFU3fW60sAClC0S4L8QlXpkfHNGjPUQVUlHodCMjNfpMw_iTv0fBod662L3BplKG92Jdzv7iL5Vkc-w9MwhaNeuKoFPqZc2iDrGN9I2KYMRnCx8_GlBwKFLmVK6Bu3g_5OzdZYJbo1CdOGLIii2JGmlO9dqUa4otg5XhSkjpCfaiJkPO01ELWE3WkDIQoTACzrphrVusf2QUF2US_kA3wOGygzoaHXfSemF1lWMHismYm84bCFKZfMxywEYJNaHooNGlXl7DrVMktuStb_GAQgDXTdxApWB6Xm9UQMfy0JfBCMXzsnP-FDRlMxP7Lkbuj4LjUQ46SgUX2_yvdPQqdYhx0e1gkwuFh-YdD5GeP51Ml6-o7WaVyILRfflLAERFlq0q_umFVNOPnyJKSIyYdJ23diigMxpUk_W6ytV3taxIF5e9eZBF2EEdWfinQIQCvx9bPGLItR_HbDvFYW1OAsaMhIun-RH1PvxoTP_mu6s0BzfQ6OuIHhC3XA7kbqStgoTqScI4IN1Fw_CzIxICve4bGMB8qI_aVNepBYnvd02zZ6L1P_-ScRH8IS4fvXimBbFZyXThyHJfC2V32XPxhyOtamV0dkMxhcU2XtrNsDQWnuAsTnD-5FaEoGbbwV8tyseQehLdsBpjhLN0esw6C82aeMf_zXPHgVnHMSBA5KxKkbbmCTriu0slYxmbSlOLP3FNqGACFYe14VzkM2MQe_EoJE1sAbI28UBd56g4Fqk_8-Xgizwy9k9PqbirI7D6FN3AN1KE6IDaD2e-u95MZqWJQjm41mMghzgtK00QJjSnq_L4K7ZYsuxRFuleLUjwD_M_trd6SUeaDrIiwWcKUkdIIfxa-PY2zKOgpEcsFHTI7mOSD_oR-RE7GaEcq_21jolo6lbEfnp3pRy08zIG5Jc_gWnLsZ_CF4UFSkCdSWvzDsHV3FQIIRnrCSLU4IHwLjCCFzMkRpUZTuH1_WNK48TAg1iD2laoEWJmMR6uhX-vDKgFyzMlEs-6WCO-JTaCqURzceHJ5UO9Yx8jlPYy5ZlgHllbmEbokZK_yVIL-Hj0zPhVjiR9W2jQ8uNlSsK5Z13tm7c7k7AOml8jO7Ptg8fCBI9zO6GI2WRW5wjQDS3ugxMFReqsvXvmnQR8slgxALoA9x1WOLq5uhpfG6rxmX-JxD-1FgTa9PnpS5qy2hwZpu9MmytanaGbtqgK3jTVQ59AYjiCG5nuPbQNVUi-NvekpXi0qS3ajRQ5bBw5vKe-Guhit5fx9X2hJd-F8UE9iDxtbEBamBPdZdSWEVieoqd2djACREeAT3BwpXRKChumOjS_gBVj1Qt7T6cdBI3yiYAVykVq_QywvrmCuSHBUczZSHA1-rzfEo_u1S8jCvmmWHlecse6m1CDWak3vDw2ms5B3ivkyROh34ofRmGg1q5VXaU4YujLc=",
+      "summary": []
+    },
+    {
+      "id": "rs_0a1de0e7956f473c006acdbeb0005887d0bac9459c9ff99eb6",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqzb61cO4CGb2gn04_VPL2HXXT48TeGE5JO6JcAnVnnf3P1hDQRwqNWntwk2mA6OG8WzXsrDeUjTQQ1BMzp3Clnv-k7UAu8AyixR8-0eFsNt9HnxhCE2wVrUsEscsBXFRE0p5YpYpQHcnu21ucr4pbI9sHZgmr4ZfFVtV6P7UaHiJbEG6MuxxIi8lVgdqcUwdFi9tojWIr9lP0U_d5dJ6IyFM6nsqgWTwP_Gb6_l5FvMH-e0Y8cgIBSJtkDNfG02mvKb4JgMCVbgar2pQebTf30sQrMZWUM-R1OrJnaVtbxPEucqE28mL_-_t85a7n_6E7HkWR5U1sOx0EzWkSdTvQk8RliJ2BYGOKHmeuGx_LLa8sIFH1ZK1orTulmiqeOyCbFOwQ96IOrHtUaekCyQ2w5v0bQvavvJuFYpXyslDV0hoQf_cJCdhxqAzSes2L019eD1AsECBmvq8O3k4ednwrqFxG81_I46y-qmrMpnsQhZHDXywjt8QywymBC6FEcwPJPblUYFJlARkeP7y_BOI7aIhTtvFo3FMXhT9ylOGOTqfsQunRT3zaEuaQgVOZbk87MXGbDlgGCVtzdPi2C6v1bIFLNpwz4DmMi2mZQcdyr3nYAOYF7j-r7Tr6sC5PSIW77PvRweH3hapbdpVB71ZF4S86NACSFHK98Yt6Q1b_oH6D-hhlVRNKfHkc0VkJUVztipZRNZqq2Ql3KdnXZnWKpXtU_Y1QhFsF434CM63QgFHawpx6e1rR0b1n9ufEFTrjCx3srr63ZiCR-eli2vMO2UzYwifKmwbTXwoN7GNqyFX4AfYQfLqx5_DZ2TaTmjkNznVfD1woyxkZZB2-yEepul3TrJ0zsaJ1D4A-shCWNELuIE8jG0uYJZdlb0DwDa1dCEjxOZ74Sj_3RRynXsj2e5pvog97WdIJvrGDF7QQqVWSpgELvE4twRTP6tC4uIHweicU8W5oTALIv5dcUtV8coyv6L6xwkNu7A2xfd7M--CO6aFgxnxf3gpEhSfeZJrLWsH1uAScHOx3zElC-2zXGlax0r59a-8j4MxBxJxHtQE4RuZVSW1o7evKkVzkH5VqvpkOpdEHN-7XQVr0MtyZu9esXpqD0c5pLcnH2nV6KuCoAGW06jgkFbNlfYzoaPi6c83RtsCd5I78jsF6mUQQgtM0NJ4D3TLp1WboeltGRpu2qY6CAJjyjnYdeTrJWiwrtiI66evmlET0w_nPpIG6hrqVuAulxBtc3T1emhqSoxoP53QzBlIIKse9S1l7malP3Yh0C-tAyuWWPG8PTxs_KuQNCd1N7kabsIvp-F4DUH3d4K7ju8cub4tFYDDZKMVdyBWa4jTCmks93s9Zr7r01KoPl3BDrxSyvC0LTKPY4piVb06wXEehP4lA4FQQbwUsdsKGUOKeCjj447VDo5DtSwyzt_UM_mplhbkoPVxJ9ufeLBqtFKbd28Jl_vQvQLzDNp3t3cxhOO6vzuurxSD0c_jb9jvYcxnfwMFRoQvoklJf35xU9tEngd5sZOejtmTVgaNxVQJng9mJbAqkVkhbFixZf218DHbd4VVJeQNGYNUQSe6AuoVPE3WboXvElA_I4urGMDjDl4VApBOU8LEF2qhgMGNVR1zCvxcHXDjPY3WBIPWRw6VWiQVlwrg_hkwlcBi4SDDt-AlQh_p8QHr2GHp2oXMarJAC77jc44aI1FLZqEQkuAe64t1vc8zZG009DwSBSXJt4u2amlv81gfT23iWWrbtME2uWjv59tcPuD0WXRXup3GoLH0llW92CJFf03Lh",
+      "summary": []
+    },
+    {
+      "id": "msg_0a1de0e7956f473c006acdbeb07a0887d0bed03b2650f303d4",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "[\n  {\n    \"date\": \"2026-05-14\",\n    \"retailer\": \"JB Hi-Fi\",\n    \"price_aud\": 2495,\n    \"source_url\": \"https://catalogue.jbhifi.com.au/2026/05/28-05-syt/index.html\",\n    \"quote\": \"$2495 $800 OFF^ TICKET $3295 120 Hz OLED 65\\\" OLED 4K Smart AI TV 902825 / QA65S85HAEXXY\"\n  },\n  {\n    \"date\": \"2026-06-22\",\n    \"retailer\": \"JB Hi-Fi\",\n    \"price_aud\": 2795,\n    \"source_url\": \"https://catalogue.jbhifi.com.au/2026/07/02-07-acp/index.html\",\n    \"quote\": \"$2795 $500 OFF^ TICKET $3295 120 Hz OLED 65\\\" OLED 4K Smart AI TV • NQ4 AI Gen2 Processor • Premium Gaming Pack 902825 / QA65S85HAEXXY\"\n  },\n  {\n    \"date\": \"2026-07-16\",\n    \"retailer\": \"JB Hi-Fi\",\n    \"price_aud\": 2795,\n    \"source_url\": \"https://catalogue.jbhifi.com.au/2026/07/30-07-acp/index.html\",\n    \"quote\": \"$2795 $500 OFF^ TICKET $3295 120 Hz OLED 65\\\" OLED 4K Smart AI TV • NQ4 AI Gen2 Processor • Premium Gaming Pack 902825 / QA65S85HAEXXY\"\n  },\n  {\n    \"date\": \"2026-08-20\",\n    \"retailer\": \"JB Hi-Fi\",\n    \"price_aud\": 2795,\n    \"source_url\": \"https://catalogue.jbhifi.com.au/2026/09/03-09-ldd/index.html\",\n    \"quote\": \"$2795 $500 OFF^ TICKET $3295 OLED 120 Hz 65\\\" OLED 4K Smart AI TV • NQ4 AI Gen2 Processor • Premium Gaming Pack 902825 / QA65S85HAEXXY\"\n  }\n]"
+        }
+      ],
+      "phase": "final_answer",
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "mode": "standard",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": true,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+    "image_gen": {
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "total_tokens": 0
+    },
+    "web_search": {
+      "num_requests": 3
+    }
+  },
+  "tools": [
+    {
+      "type": "web_search",
+      "filters": {
+        "allowed_domains": [
+          "jbhifi.com.au",
+          "catalogue.jbhifi.com.au",
+          "thegoodguys.com.au",
+          "harveynorman.com.au",
+          "binglee.com.au",
+          "samsung.com",
+          "ozbargain.com.au",
+          "powerland.com.au",
+          "toptek.com.au",
+          "appliancecentral.com.au",
+          "videopro.com.au",
+          "press-start.com.au"
+        ]
+      },
+      "return_token_budget": "default",
+      "search_content_types": ["text"],
+      "search_context_size": "medium",
+      "user_location": {
+        "type": "approximate",
+        "city": null,
+        "country": "US",
+        "region": null,
+        "timezone": null
+      }
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 44210,
+    "input_tokens_details": {
+      "cache_write_tokens": 4693,
+      "cached_tokens": 0
+    },
+    "output_tokens": 2116,
+    "output_tokens_details": {
+      "reasoning_tokens": 1643
+    },
+    "total_tokens": 46326
+  },
+  "user": null,
+  "metadata": {}
+}

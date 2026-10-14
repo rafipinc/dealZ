@@ -93,10 +93,10 @@ function check(patch: CheckServicesInput = {}): Promise<ServicesStatus> {
 }
 
 describe("checkServices", () => {
-  it("reports everything healthy: database migrated, both keys set, the account's quota", async () => {
+  it("reports everything healthy: database migrated, every key set, the account's quota", async () => {
     const urls: string[] = [];
     const status = await check({
-      env: { GEMINI_API_KEY: GEMINI_KEY, SERPAPI_API_KEY: SERP_KEY },
+      env: { GEMINI_API_KEY: GEMINI_KEY, OPENAI_API_KEY: "sk-test", SERPAPI_API_KEY: SERP_KEY },
       fetch: accountFetch(() => new Response(accountBody, { status: 200 }), urls),
     });
 
@@ -110,6 +110,7 @@ describe("checkServices", () => {
       },
       keys: [
         { name: "GEMINI_API_KEY", set: true },
+        { name: "OPENAI_API_KEY", set: true },
         { name: "SERPAPI_API_KEY", set: true },
       ],
       serpApiAccount: {
@@ -148,16 +149,19 @@ describe("checkServices", () => {
     const status = await check({ env: { GEMINI_API_KEY: GEMINI_KEY } });
     expect(status.keys).toEqual([
       { name: "GEMINI_API_KEY", set: true },
+      { name: "OPENAI_API_KEY", set: false },
       { name: "SERPAPI_API_KEY", set: false },
     ]);
   });
 
   it("reads process.env and the journal when neither is injected", async () => {
     vi.stubEnv("GEMINI_API_KEY", GEMINI_KEY);
+    vi.stubEnv("OPENAI_API_KEY", "");
     vi.stubEnv("SERPAPI_API_KEY", "");
     const status = await checkServices({ db: t.db, fetch: noFetch });
     expect(status.keys).toEqual([
       { name: "GEMINI_API_KEY", set: true },
+      { name: "OPENAI_API_KEY", set: false },
       { name: "SERPAPI_API_KEY", set: false },
     ]);
     expect(status.database).toMatchObject({
@@ -197,6 +201,7 @@ describe("checkServices", () => {
     });
     expect(status.keys).toEqual([
       { name: "GEMINI_API_KEY", set: false },
+      { name: "OPENAI_API_KEY", set: false },
       { name: "SERPAPI_API_KEY", set: true },
     ]);
     expect(status.serpApiAccount.status).toBe("ok");
@@ -240,7 +245,7 @@ describe("checkServices", () => {
       message: "The database did not answer within 20 ms",
     });
     expect(status.serpApiAccount.status).toBe("ok");
-    expect(status.keys).toHaveLength(2);
+    expect(status.keys).toHaveLength(3);
   });
 
   it("reports a database that answers the ping and then goes silent as unreachable, not unmigrated", async () => {
@@ -313,7 +318,7 @@ describe("checkServices", () => {
     });
     expect(status.database.status).toBe("unreachable");
     expect(status.serpApiAccount.status).toBe("failed");
-    expect(status.keys).toHaveLength(2);
+    expect(status.keys).toHaveLength(3);
   });
 
   describe("the Account call in the usage ledger", () => {

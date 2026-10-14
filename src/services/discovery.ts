@@ -60,11 +60,6 @@
 
 import { z } from "zod";
 import {
-  countOkCallsByOperation,
-  type OkCallsByOperation,
-  type ProviderPeriod,
-} from "@/db/queries/api-usage";
-import {
   listCandidatesWithoutGtin,
   MAX_ENRICH_LIMIT,
   type CatalogueCandidateRow,
@@ -99,6 +94,13 @@ import {
   type IndexedProduct,
   type OfferVia,
 } from "./catalogue-index";
+import {
+  countOkCallsInLedger,
+  dailyCapOf,
+  usedTodayOf,
+  type CapSource,
+  type CountOkCalls,
+} from "./daily-cap";
 import { defaultDb } from "./default-db";
 import { NotFoundError, ValidationError } from "./errors";
 import { serpApiKeyOf } from "./quotes";
@@ -115,6 +117,7 @@ export type { Relevance, RelevanceTier } from "@/lib/relevance";
 export type { IndexedOffer, IndexedProduct, OfferVia } from "./catalogue-index";
 export type { MatchedBy } from "./tracked-products";
 export type { UsageRecorder, UsageRecording } from "./usage-ledger";
+export type { CapSource, CountOkCalls } from "./daily-cap";
 
 /** Writes candidates to the catalogue index. catalogue-index.remember is the real one. */
 export type RememberCandidates = typeof remember;
@@ -122,16 +125,6 @@ export type RememberCandidates = typeof remember;
 export type RememberInspected = typeof rememberInspect;
 /** Searches the catalogue index. catalogue-index.searchIndex is the real one. */
 export type SearchIndex = typeof searchIndex;
-/**
- * Counts a provider's successful ledger calls by operation over a period.
- * The real one is db/queries/api-usage.countOkCallsByOperation over the
- * application database.
- */
-export type CountOkCalls = (
-  period: ProviderPeriod,
-  deps: { db?: QueryDb },
-) => Promise<OkCallsByOperation[]>;
-
 /**
  * How long a report waits for the catalogue index before going out without
  * it, the same bound as the usage ledger. A write still in flight is not
@@ -416,33 +409,8 @@ export async function findProducts(input: FindProductsInput): Promise<DiscoveryR
 export const SERPAPI_DAILY_CAP_ENV = "SERPAPI_DAILY_CAP";
 export const DEFAULT_SERPAPI_DAILY_CAP = 20;
 
-/** Where the cap came from: the variable, the default because it is unset, or the default because it is malformed. */
-export type CapSource = "env" | "default" | "invalid";
-
-/** A whole, non-negative number. Read on every call, so a test can set the variable. */
-const dailyCapSchema = z.coerce.number().int().min(0);
-
-/**
- * The cap as set, or the default when the variable is unset or blank. A
- * malformed value is the default too, marked `invalid` so the status line
- * can say it was ignored: a typo in a setting must never throw from a page
- * or block a search.
- */
-function dailyCapOf(value: string | undefined): Pick<SerpApiBudget, "cap" | "capSource"> {
-  const trimmed = value?.trim() ?? "";
-  if (trimmed === "") return { cap: DEFAULT_SERPAPI_DAILY_CAP, capSource: "default" };
-  const parsed = dailyCapSchema.safeParse(trimmed);
-  return parsed.success
-    ? { cap: parsed.data, capSource: "env" }
-    : { cap: DEFAULT_SERPAPI_DAILY_CAP, capSource: "invalid" };
-}
-
 /** The provider the budget is for, as the ledger names it. */
 const SERPAPI_PROVIDER = "serpapi";
-
-/** The ledger query over the application database, or the handle given. */
-const countOkCallsInLedger: CountOkCalls = async (period, deps) =>
-  countOkCallsByOperation(deps.db ?? (await defaultDb()), period);
 
 export interface SerpApiBudgetInput {
   /** Injected clock; "today" is read from it. Defaults to () => new Date(). */
@@ -484,14 +452,18 @@ export async function serpApiBudget(input: SerpApiBudgetInput = {}): Promise<Ser
   if (!parsed.success) {
     throw new ValidationError("Invalid serpApiBudget input", parsed.error.issues);
   }
-  const { cap, capSource } = dailyCapOf(process.env[SERPAPI_DAILY_CAP_ENV]);
+  // The cap's parser and the ledger count are shared with the OpenAI cap in
+  // quotes (ADR-0020 item 5); a malformed setting is the default, marked
+  // `invalid` so the status line can say it was ignored, and never blocks a search.
+  const { cap, capSource } = dailyCapOf(
+    process.env[SERPAPI_DAILY_CAP_ENV],
+    DEFAULT_SERPAPI_DAILY_CAP,
+  );
   const now = parsed.data.now ?? (() => new Date());
   const countOkCalls = parsed.data.countOkCalls ?? countOkCallsInLedger;
   const { from, to } = dayRangeIn(now(), SYDNEY);
   const rows = await countOkCalls({ provider: SERPAPI_PROVIDER, from, to }, { db: parsed.data.db });
-  const usedToday = rows
-    .filter((row) => SERPAPI_SEARCH_OPERATIONS.has(row.operation))
-    .reduce((sum, row) => sum + row.count, 0);
+  const usedToday = usedTodayOf(rows, (operation) => SERPAPI_SEARCH_OPERATIONS.has(operation));
   const remaining = Math.max(0, cap - usedToday);
   return { cap, capSource, usedToday, remaining, allowed: remaining > 0 };
 }

@@ -282,14 +282,14 @@ export const apiUsage = pgTable(
   "api_usage",
   {
     id: id(),
-    provider: text("provider").notNull(), // open set, so text: serpapi, gemini, wayback, retailer
+    provider: text("provider").notNull(), // open set, so text: serpapi, gemini, openai, wayback, retailer
     operation: text("operation").notNull(), // google_shopping, generate_content, cdx, page, ...
     calledAt: timestamp("called_at", { withTimezone: true }).notNull().defaultNow(),
     outcome: apiCallOutcome("outcome").notNull(),
     errorKind: text("error_kind"), // SourceErrorKind when the call failed: blocked, http, unparseable, network
     httpStatus: integer("http_status"), // null when no response arrived
     durationMs: integer("duration_ms").notNull(),
-    model: text("model"), // Gemini model name; null for every other provider
+    model: text("model"), // Gemini or OpenAI model name; null for every other provider
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
     // Estimated cost in millionths of a US dollar, computed by the service at

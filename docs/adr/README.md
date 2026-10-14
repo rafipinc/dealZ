@@ -23,6 +23,7 @@ One file per non-trivial decision, numbered and dated. Two paragraphs is enough:
 | [0017](0017-local-search-index.md) | A local search index of storefront products, seeded cheaply and learned from use, behind an as-you-type search | Accepted | 2026-10-06 |
 | [0018](0018-github-board-as-task-list.md) | A GitHub Projects board is the one task list, with epics as issues and tasks as sub-issues | Accepted | 2026-10-08 |
 | [0019](0019-free-sources-first-index-learns-category.md) | The free sources answer before the paid one, and the index learns a category, its route and its identifiers | Proposed | 2026-10-08 |
+| [0020](0020-model-assisted-price-history.md) | A model with web search finds dated price pages; the page, not the model, states the price and the date | Proposed | 2026-10-13 |
 
 ## Template
 
